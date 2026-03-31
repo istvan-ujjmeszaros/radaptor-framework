@@ -384,8 +384,6 @@ class MigrationRunner
 	{
 		$dirs = [];
 		$seen_modules = [];
-		$framework_root = PackagePathHelper::getFrameworkRoot();
-		$normalized_framework_root = is_string($framework_root) ? rtrim(str_replace('\\', '/', $framework_root), '/') : null;
 
 		if (is_file(PackageLockfile::getPath())) {
 			$lock = PackageLockfile::load();
@@ -401,12 +399,6 @@ class MigrationRunner
 				$root = PackagePathHelper::getPackageRoot($type, $id);
 
 				if (!is_string($root) || !is_dir($root)) {
-					continue;
-				}
-
-				$normalized_root = rtrim(str_replace('\\', '/', $root), '/');
-
-				if ($type === 'core' && $id === 'framework' && $normalized_framework_root !== null && $normalized_root === $normalized_framework_root) {
 					continue;
 				}
 

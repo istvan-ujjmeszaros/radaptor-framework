@@ -165,6 +165,11 @@ class CLICommandI18nScan extends AbstractCLICommand
 		$dirs = [
 			DEPLOY_ROOT . 'app/',
 		];
+
+		foreach (PackagePathHelper::getActivePackageRoots(['core', 'theme', 'plugin']) as $package_root) {
+			$dirs[] = rtrim($package_root, '/') . '/';
+		}
+
 		$framework_root = PackagePathHelper::getFrameworkRoot();
 		$cms_root = PackagePathHelper::getCmsRoot();
 

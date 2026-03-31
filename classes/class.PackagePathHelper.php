@@ -63,9 +63,9 @@ class PackagePathHelper
 	 * @param list<string>|null $types
 	 * @return list<string>
 	 */
-	public static function getScannableRoots(?array $types = null): array
+	public static function getActivePackageRoots(?array $types = null): array
 	{
-		$roots = [self::normalizePath(DEPLOY_ROOT)];
+		$roots = [];
 		$type_filter = $types !== null ? array_fill_keys(array_map(
 			static fn (string $type): string => PackageTypeHelper::normalizeType($type),
 			$types
@@ -76,8 +76,26 @@ class PackagePathHelper
 				continue;
 			}
 
-			if (!self::isPathInside($package['root'], DEPLOY_ROOT)) {
-				$roots[] = $package['root'];
+			$roots[] = $package['root'];
+		}
+
+		$roots = array_values(array_unique(array_map([self::class, 'normalizePath'], $roots)));
+		sort($roots);
+
+		return $roots;
+	}
+
+	/**
+	 * @param list<string>|null $types
+	 * @return list<string>
+	 */
+	public static function getScannableRoots(?array $types = null): array
+	{
+		$roots = [self::normalizePath(DEPLOY_ROOT)];
+
+		foreach (self::getActivePackageRoots($types) as $root) {
+			if (!self::isPathInside($root, DEPLOY_ROOT)) {
+				$roots[] = $root;
 			}
 		}
 

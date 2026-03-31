@@ -230,8 +230,8 @@ class PackageThemeScanHelper
 
 				$filename = $file->getFilename();
 
-				if (preg_match('/^ThemeData\.(.+)\.php$/', $filename, $matches) === 1) {
-					return $matches[1];
+				if (preg_match('/^ThemeData\.(.+)\.php$/', $filename, $name_matches) === 1) {
+					return $name_matches[1];
 				}
 			}
 		}
