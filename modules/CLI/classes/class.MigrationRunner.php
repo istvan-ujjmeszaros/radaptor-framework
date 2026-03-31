@@ -438,10 +438,14 @@ class MigrationRunner
 			sort($package_dirs);
 
 			foreach ($package_dirs as $dir) {
-				$module = PackageModuleHelper::buildModule(
-					(string) $package_root['type'],
-					basename((string) dirname($dir))
-				);
+				$type = (string) $package_root['type'];
+				$id = basename((string) dirname($dir));
+
+				if ($type === 'core' && $id === 'framework') {
+					continue;
+				}
+
+				$module = PackageModuleHelper::buildModule($type, $id);
 
 				if (isset($seen_modules[$module])) {
 					continue;

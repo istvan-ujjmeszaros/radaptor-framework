@@ -114,6 +114,25 @@ class PackagePathHelper
 			return false;
 		}
 
+		foreach ([
+			'core:framework' => DEPLOY_ROOT . 'radaptor/radaptor-framework',
+			'core:cms' => DEPLOY_ROOT . 'radaptor/radaptor-cms',
+		] as $package_key => $legacy_root) {
+			if (!isset($packages[$package_key])) {
+				continue;
+			}
+
+			$normalized_legacy_root = self::normalizePath($legacy_root);
+			$active_root = $packages[$package_key]['root'];
+
+			if (
+				$active_root !== $normalized_legacy_root
+				&& ($normalized_path === $normalized_legacy_root || str_starts_with($normalized_path, $normalized_legacy_root . '/'))
+			) {
+				return true;
+			}
+		}
+
 		foreach ($packages as $package) {
 			if ($normalized_path === $package['root'] || str_starts_with($normalized_path, $package['root'] . '/')) {
 				return false;

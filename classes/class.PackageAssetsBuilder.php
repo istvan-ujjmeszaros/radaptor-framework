@@ -145,6 +145,14 @@ class PackageAssetsBuilder
 			$source = is_array($package['source'] ?? null) ? $package['source'] : [];
 			$package_root = $resolved['resolved_path'] ?? $source['resolved_path'] ?? null;
 
+			if ((!is_string($package_root) || !is_dir($package_root)) && is_string($resolved['path'] ?? null)) {
+				$package_root = PackagePathHelper::resolveStoragePath((string) $resolved['path']);
+			}
+
+			if ((!is_string($package_root) || !is_dir($package_root)) && is_string($source['path'] ?? null)) {
+				$package_root = PackagePathHelper::resolveStoragePath((string) $source['path']);
+			}
+
 			if (!is_string($package_root) || !is_dir($package_root)) {
 				throw new RuntimeException("Asset package '{$package_key}' is missing an installed filesystem path.");
 			}
