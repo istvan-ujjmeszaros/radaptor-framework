@@ -138,7 +138,7 @@ class PackageInstallService
 			}
 
 			if ($assets_state_path !== null) {
-				$temp_lock_path = self::writeTempLockfile($next_lock);
+				$temp_lock_path = self::writeTempLockfile($next_lock, dirname($lock_path));
 
 				try {
 					$assets = PackageAssetsBuilder::buildPaths($temp_lock_path, $assets_state_path, false, DEPLOY_ROOT);
@@ -169,13 +169,21 @@ class PackageInstallService
 					$confirm_demo_rerun
 				);
 				$seeds_ran = true;
+
+				ob_start();
+
+				try {
+					CLICommandBuildRoles::create();
+				} finally {
+					ob_end_clean();
+				}
 			}
 
 			PackageConfig::reset();
 			PackagePathHelper::reset();
 		} else {
 			if ($plugin_manifest_path !== null && $plugin_lock_path !== null) {
-				$temp_plugin_manifest_path = self::writeTempPluginManifest($next_lock['packages']);
+				$temp_plugin_manifest_path = self::writeTempPluginManifest($next_lock['packages'], dirname($plugin_manifest_path));
 
 				try {
 					$plugin_sync = PluginSyncService::syncPaths(
@@ -191,7 +199,7 @@ class PackageInstallService
 			}
 
 			if ($assets_state_path !== null) {
-				$temp_lock_path = self::writeTempLockfile($next_lock);
+				$temp_lock_path = self::writeTempLockfile($next_lock, dirname($lock_path));
 
 				try {
 					$assets = PackageAssetsBuilder::buildPaths($temp_lock_path, $assets_state_path, true, DEPLOY_ROOT);
@@ -201,7 +209,7 @@ class PackageInstallService
 				}
 			}
 
-			$temp_lock_path = self::writeTempLockfile($next_lock);
+			$temp_lock_path = self::writeTempLockfile($next_lock, dirname($lock_path));
 
 			try {
 				$seeds = SeedRunner::runPaths(
@@ -1114,32 +1122,31 @@ class PackageInstallService
 		throw new RuntimeException("Registry package archive does not expose exactly one .registry-package.json at its root: {$extract_path}");
 	}
 
-	private static function writeTempPluginManifest(array $packages): string
+	private static function writeTempPluginManifest(array $packages, string $base_dir): string
 	{
-		$temp_path = self::createWorkspaceTempFile('radaptor-plugin-manifest-');
+		$temp_path = self::createScopedTempFile($base_dir, '.radaptor-plugin-manifest-');
 
 		PackageBridgeHelper::writePluginManifest($temp_path, $packages);
 
 		return $temp_path;
 	}
 
-	private static function writeTempLockfile(array $lockfile): string
+	private static function writeTempLockfile(array $lockfile, string $base_dir): string
 	{
-		$temp_path = self::createWorkspaceTempFile('radaptor-lock-');
+		$temp_path = self::createScopedTempFile($base_dir, '.radaptor-lock-');
 
 		PackageLockfile::write($lockfile, $temp_path);
 
 		return $temp_path;
 	}
 
-	private static function createWorkspaceTempFile(string $prefix): string
+	private static function createScopedTempFile(string $base_dir, string $prefix): string
 	{
-		$tmp_dir = rtrim(DEPLOY_ROOT, '/') . '/tmp/package-runtime';
-		self::ensureDirectory($tmp_dir);
-		$temp_path = tempnam($tmp_dir, $prefix);
+		self::ensureDirectory($base_dir);
+		$temp_path = tempnam($base_dir, $prefix);
 
 		if ($temp_path === false) {
-			throw new RuntimeException("Unable to create temporary file for prefix '{$prefix}'.");
+			throw new RuntimeException("Unable to create temporary file for prefix '{$prefix}' in '{$base_dir}'.");
 		}
 
 		return $temp_path;

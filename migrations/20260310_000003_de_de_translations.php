@@ -5,17 +5,34 @@ class Migration_20260310_000003_de_de_translations
 	public function run(): void
 	{
 		$pdo = Db::instance();
+		$hasStatus = (bool) $pdo->query("SHOW COLUMNS FROM `i18n_translations` LIKE 'status'")->fetch();
+		$hasHumanReviewed = (bool) $pdo->query("SHOW COLUMNS FROM `i18n_translations` LIKE 'human_reviewed'")->fetch();
 
-		$insert = $pdo->prepare(
-			"INSERT INTO i18n_translations (domain, `key`, context, locale, `text`, status, source_hash_snapshot)
-			 SELECT ?, ?, ?, 'de_DE', ?, 'ai_generated',
-					(SELECT source_hash FROM i18n_messages WHERE domain=? AND `key`=? AND context=?)
-			 FROM DUAL
-			 ON DUPLICATE KEY UPDATE
-				`text` = VALUES(`text`),
-				status = 'ai_generated',
-				source_hash_snapshot = VALUES(source_hash_snapshot)"
-		);
+		if ($hasStatus) {
+			$insert = $pdo->prepare(
+				"INSERT INTO i18n_translations (domain, `key`, context, locale, `text`, status, source_hash_snapshot)
+				 SELECT ?, ?, ?, 'de_DE', ?, 'ai_generated', m.source_hash
+				 FROM i18n_messages m
+				 WHERE m.domain = ? AND m.`key` = ? AND m.context = ?
+				 ON DUPLICATE KEY UPDATE
+					`text` = VALUES(`text`),
+					status = 'ai_generated',
+					source_hash_snapshot = VALUES(source_hash_snapshot)"
+			);
+		} elseif ($hasHumanReviewed) {
+			$insert = $pdo->prepare(
+				"INSERT INTO i18n_translations (domain, `key`, context, locale, `text`, human_reviewed, source_hash_snapshot)
+				 SELECT ?, ?, ?, 'de_DE', ?, 0, m.source_hash
+				 FROM i18n_messages m
+				 WHERE m.domain = ? AND m.`key` = ? AND m.context = ?
+				 ON DUPLICATE KEY UPDATE
+					`text` = VALUES(`text`),
+					human_reviewed = 0,
+					source_hash_snapshot = VALUES(source_hash_snapshot)"
+			);
+		} else {
+			return;
+		}
 
 		$translations = [
 			['admin', 'i18n.col.domain', '', 'Domain'],

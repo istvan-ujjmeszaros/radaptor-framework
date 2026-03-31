@@ -214,10 +214,15 @@ lft>=? AND rgt<=?
 	{
 		// NULL means there was no parent so the new node should have lft=1
 		$lft = self::getLft($table, $ref_id) ?? 1;
+		$pdo = Db::instance();
+		$started_transaction = !$pdo->inTransaction();
 
 		try {
-			Db::instance()->beginTransaction();
-			$stmt = Db::instance()
+			if ($started_transaction) {
+				$pdo->beginTransaction();
+			}
+
+			$stmt = $pdo
 					  ->prepare("SELECT @myRight := rgt FROM {$table} WHERE node_id = ? AND lft = ? LIMIT 1");
 			$stmt->execute([
 				$ref_id,
@@ -230,35 +235,39 @@ lft>=? AND rgt<=?
 				// Not inserted at the first level, move subsequent nodes
 
 				/* Increment the nodes by two */
-				$stmt = Db::instance()->prepare("UPDATE {$table} SET rgt = rgt + 2 WHERE rgt >= @myRight");
+				$stmt = $pdo->prepare("UPDATE {$table} SET rgt = rgt + 2 WHERE rgt >= @myRight");
 				$stmt->execute();
-				$stmt = Db::instance()->prepare("UPDATE {$table} SET lft = lft + 2 WHERE lft > @myRight");
+				$stmt = $pdo->prepare("UPDATE {$table} SET lft = lft + 2 WHERE lft > @myRight");
 				$stmt->execute();
 
 				/* Insert the new node */
-				$stmt = Db::instance()
+				$stmt = $pdo
 						  ->prepare("INSERT INTO {$table} SET lft=@myRight, rgt=@myRight + 1, parent_id=?," . DbHelper::generateEnumeration($savedata));
 			} else {
 				// Inserted at the first level, add to the beginning of the tree
 
 				/* Increment the nodes by two */
-				$stmt = Db::instance()->prepare("UPDATE {$table} SET rgt = rgt + 2 WHERE rgt >= 2");
+				$stmt = $pdo->prepare("UPDATE {$table} SET rgt = rgt + 2 WHERE rgt >= 2");
 				$stmt->execute();
-				$stmt = Db::instance()->prepare("UPDATE {$table} SET lft = lft + 2 WHERE lft >= 1");
+				$stmt = $pdo->prepare("UPDATE {$table} SET lft = lft + 2 WHERE lft >= 1");
 				$stmt->execute();
 
 				/* Insert the new node */
-				$stmt = Db::instance()
+				$stmt = $pdo
 						  ->prepare("INSERT INTO {$table} SET lft=1, rgt=2, parent_id=?, " . DbHelper::generateEnumeration($savedata));
 			}
 
 			$stmt->execute(array_values([$ref_id] + $savedata));
-			$last_id = Db::instance()->lastInsertId();
+			$last_id = $pdo->lastInsertId();
 
 			/* Commit the transaction */
-			Db::instance()->commit();
+			if ($started_transaction) {
+				$pdo->commit();
+			}
 		} catch (Exception) {
-			Db::instance()->rollBack();
+			if ($started_transaction && $pdo->inTransaction()) {
+				$pdo->rollBack();
+			}
 
 			return null;
 		}
