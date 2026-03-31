@@ -153,6 +153,8 @@ class PackageInstallService
 				$lockfile_written = true;
 			}
 
+			self::rebuildThemeData();
+
 			$package_migrations = MigrationRunner::runPendingForModules(
 				self::buildMigrationModules($next['ordered_package_keys'])
 			);
@@ -181,6 +183,7 @@ class PackageInstallService
 
 			PackageConfig::reset();
 			PackagePathHelper::reset();
+			PackageThemeScanHelper::reset();
 		} else {
 			if ($plugin_manifest_path !== null && $plugin_lock_path !== null) {
 				$temp_plugin_manifest_path = self::writeTempPluginManifest($next_lock['packages'], dirname($plugin_manifest_path));
@@ -245,6 +248,19 @@ class PackageInstallService
 			'assets_built' => $assets_built,
 			'assets' => $assets,
 		];
+	}
+
+	private static function rebuildThemeData(): void
+	{
+		PackagePathHelper::reset();
+		PackageThemeScanHelper::reset();
+		ob_start();
+
+		try {
+			CLICommandBuildThemeData::create();
+		} finally {
+			ob_end_clean();
+		}
 	}
 
 	/**

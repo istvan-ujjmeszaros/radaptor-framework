@@ -41,6 +41,10 @@ class PackageThemeScanHelper
 			if ($normalized_path === $active_root || str_starts_with($normalized_path, $active_root . '/')) {
 				return false;
 			}
+
+			if (str_starts_with($active_root, $normalized_path . '/')) {
+				return false;
+			}
 		}
 
 		return true;
