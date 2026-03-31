@@ -39,7 +39,12 @@ class PackageBridgeHelper
 			}
 
 			if ($source_type === 'dev') {
-				$plugin['source']['path'] = trim((string) ($source['path'] ?? PackageTypeHelper::getDefaultPath('plugin', 'dev', $plugin_id)));
+				$path = trim((string) ($source['path'] ?? ''));
+				$default_path = PackageTypeHelper::getDefaultPath('plugin', 'dev', $plugin_id);
+
+				if ($path === '' || $path === $default_path) {
+					$plugin['source']['path'] = $default_path;
+				}
 			} else {
 				$registry_url = trim((string) ($resolved['registry_url'] ?? $source['resolved_registry_url'] ?? ''));
 
@@ -67,7 +72,11 @@ class PackageBridgeHelper
 			}
 
 			if (isset($package['required_by']) && is_array($package['required_by']) && $package['required_by'] !== []) {
-				$plugin['required_by'] = self::normalizeRequiredBy($package['required_by']);
+				$required_by = self::normalizeRequiredBy($package['required_by']);
+
+				if ($required_by !== []) {
+					$plugin['required_by'] = $required_by;
+				}
 			}
 
 			$plugins[$plugin_id] = $plugin;
@@ -106,6 +115,8 @@ class PackageBridgeHelper
 
 			if (str_starts_with($value, 'plugin:')) {
 				$value = substr($value, strlen('plugin:'));
+			} elseif (str_contains($value, ':')) {
+				continue;
 			}
 
 			$normalized[] = PackageTypeHelper::normalizeId($value, 'Plugin bridge required_by');
