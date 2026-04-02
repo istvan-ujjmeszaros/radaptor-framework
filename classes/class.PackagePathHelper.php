@@ -244,21 +244,15 @@ class PackagePathHelper
 				$id = PackageTypeHelper::normalizeId($package['id'] ?? null, 'Active package');
 				$resolved = is_array($package['resolved'] ?? null) ? $package['resolved'] : [];
 				$source = is_array($package['source'] ?? null) ? $package['source'] : [];
-				$stored_path = $resolved['path'] ?? $source['path'] ?? null;
+				$active_root = self::resolveActivePackageRoot($type, $id, $resolved, $source);
 
-				if (!is_string($stored_path) || trim($stored_path) === '') {
-					continue;
-				}
-
-				$root = self::resolveStoragePath($stored_path);
-
-				if (!is_dir($root)) {
+				if ($active_root === null) {
 					continue;
 				}
 
 				$packages[PackageTypeHelper::getKey($type, $id)] = [
-					'root' => $root,
-					'source_type' => trim((string) ($resolved['type'] ?? $source['type'] ?? '')),
+					'root' => $active_root['root'],
+					'source_type' => $active_root['source_type'],
 					'type' => $type,
 					'id' => $id,
 				];
@@ -269,6 +263,62 @@ class PackagePathHelper
 		self::$_cacheKey = $cache_key;
 
 		return self::$_activePackages;
+	}
+
+	/**
+	 * @return array{root: string, source_type: string}|null
+	 */
+	private static function resolveActivePackageRoot(string $type, string $id, array $resolved, array $source): ?array
+	{
+		/** @var list<array{path: string, source_type: string}> $candidate_paths */
+		$candidate_paths = [];
+
+		foreach (
+			[
+				['path' => $resolved['path'] ?? null, 'source_type' => trim((string) ($resolved['type'] ?? ''))],
+				['path' => $source['path'] ?? null, 'source_type' => trim((string) ($source['type'] ?? ''))],
+			] as $candidate
+		) {
+			if (!is_string($candidate['path']) || trim($candidate['path']) === '') {
+				continue;
+			}
+
+			$candidate_paths[] = [
+				'path' => $candidate['path'],
+				'source_type' => in_array($candidate['source_type'], ['dev', 'registry'], true)
+					? $candidate['source_type']
+					: '',
+			];
+		}
+
+		foreach (['dev', 'registry'] as $source_type) {
+			$candidate_paths[] = [
+				'path' => PackageTypeHelper::getDefaultPath($type, $source_type, $id),
+				'source_type' => $source_type,
+			];
+		}
+
+		$seen = [];
+
+		foreach ($candidate_paths as $candidate) {
+			$stored_path = $candidate['path'];
+
+			if (isset($seen[$stored_path])) {
+				continue;
+			}
+
+			$seen[$stored_path] = true;
+			$root = self::resolveStoragePath($stored_path);
+
+			if (is_dir($root)) {
+				return [
+					'root' => $root,
+					'source_type' => $candidate['source_type'] !== '' ? $candidate['source_type'] : 'registry',
+				];
+			}
+		}
+
+		return null;
 	}
 
 	private static function buildCacheKey(): string
