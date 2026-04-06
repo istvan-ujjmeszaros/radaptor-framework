@@ -419,12 +419,15 @@ class CLIOutput
 		$log_file_path = self::getCommandLogFilePath();
 		$log_dir = dirname($log_file_path);
 
-		if (!is_dir($log_dir)) {
-			mkdir($log_dir, 0o755, true);
+		if (!self::ensureLogDirectory($log_dir)) {
+			return;
 		}
 
 		$payload = implode("\n", $lines) . "\n";
-		file_put_contents($log_file_path, $payload, FILE_APPEND | LOCK_EX);
+
+		if (!self::appendLogPayload($log_file_path, $payload)) {
+			self::reportLogWriteFailure("Unable to append CLI command log payload to {$log_file_path}");
+		}
 	}
 
 	private static function getCommandLogFilePath(): string
@@ -457,5 +460,68 @@ class CLIOutput
 		$message = trim($message, "\n");
 
 		return $message;
+	}
+
+	private static function ensureLogDirectory(string $directory): bool
+	{
+		if (is_dir($directory)) {
+			return true;
+		}
+
+		$warning = null;
+		set_error_handler(static function (int $_severity, string $message) use (&$warning): bool {
+			$warning = $message;
+
+			return true;
+		});
+
+		try {
+			$created = mkdir($directory, 0o755, true);
+		} finally {
+			restore_error_handler();
+		}
+
+		clearstatcache(true, $directory);
+
+		if ($created || is_dir($directory)) {
+			return true;
+		}
+
+		self::reportLogWriteFailure(
+			"Unable to create CLI command log directory {$directory}" . ($warning !== null ? ': ' . $warning : '')
+		);
+
+		return false;
+	}
+
+	private static function appendLogPayload(string $path, string $payload): bool
+	{
+		$warning = null;
+		set_error_handler(static function (int $_severity, string $message) use (&$warning): bool {
+			$warning = $message;
+
+			return true;
+		});
+
+		try {
+			$bytes_written = file_put_contents($path, $payload, FILE_APPEND | LOCK_EX);
+		} finally {
+			restore_error_handler();
+		}
+
+		if ($bytes_written !== false) {
+			return true;
+		}
+
+		self::reportLogWriteFailure(
+			"Unable to write CLI command log file {$path}" . ($warning !== null ? ': ' . $warning : '')
+		);
+
+		return false;
+	}
+
+	private static function reportLogWriteFailure(string $message): void
+	{
+		error_log('[CLIOutput] ' . $message);
 	}
 }
