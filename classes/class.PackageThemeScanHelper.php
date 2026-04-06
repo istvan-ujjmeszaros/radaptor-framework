@@ -60,6 +60,12 @@ class PackageThemeScanHelper
 			}
 		}
 
+		$resolved_theme_name = self::resolveThemeNameFromPath($normalized_path);
+
+		if ($resolved_theme_name !== null) {
+			return $resolved_theme_name;
+		}
+
 		if (preg_match('#/themes/(?:dev|registry)/([^/]+)/(?:theme|core|plugins)/#', $normalized_path, $matches) === 1) {
 			return $matches[1];
 		}
@@ -237,6 +243,33 @@ class PackageThemeScanHelper
 				if (preg_match('/^ThemeData\.(.+)\.php$/', $filename, $name_matches) === 1) {
 					return $name_matches[1];
 				}
+			}
+		}
+
+		return null;
+	}
+
+	private static function resolveThemeNameFromPath(string $path): ?string
+	{
+		$candidates = [];
+
+		if (preg_match('#^(.*/packages/(?:dev|registry)/themes/[^/]+)(?:/|$)#', $path, $matches) === 1) {
+			$candidates[] = $matches[1];
+		}
+
+		if (preg_match('#^(.*/themes/(?:dev|registry)/[^/]+)(?:/|$)#', $path, $matches) === 1) {
+			$candidates[] = $matches[1];
+		}
+
+		if (preg_match('#^(.*/themes/[^/]+)(?:/|$)#', $path, $matches) === 1) {
+			$candidates[] = $matches[1];
+		}
+
+		foreach (array_unique($candidates) as $candidate_root) {
+			$theme_name = self::resolveThemeName($candidate_root);
+
+			if ($theme_name !== null) {
+				return $theme_name;
 			}
 		}
 
