@@ -23,6 +23,22 @@ if (!function_exists('radaptorBootstrapResolveAppRoot')) {
 			return rtrim($app_root, '/') . '/';
 		}
 
+		$search_root = radaptorBootstrapNormalizePath($current_framework_root);
+
+		while ($search_root !== '' && $search_root !== '.' && $search_root !== '/') {
+			if (is_file($search_root . '/radaptor.json') || is_file($search_root . '/radaptor.lock.json')) {
+				return rtrim($search_root, '/') . '/';
+			}
+
+			$parent = dirname($search_root);
+
+			if ($parent === $search_root) {
+				break;
+			}
+
+			$search_root = radaptorBootstrapNormalizePath($parent);
+		}
+
 		return rtrim(dirname($current_framework_root, 2), '/') . '/';
 	}
 }

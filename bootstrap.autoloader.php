@@ -18,13 +18,13 @@ set_include_path(DEPLOY_ROOT);
 /* NO_ONEFILER_BEGIN */
 
 // Autoloader using generated class map
-require_once DEPLOY_ROOT . 'radaptor/autoloader_from_generated_map.php';
+require_once DEPLOY_ROOT . 'bootstrap/autoloader_from_generated_map.php';
 AutoloaderFromGeneratedMap::register_mapped_autoloader();
 
 require_once DEPLOY_ROOT . 'vendor/autoload.php';
 
 // Autoloader parsing all project files (slow, but should discover any existing class - btw not that slow, about 50ms on WSL2)
-require_once DEPLOY_ROOT . 'radaptor/autoloader_failsafe.php';
+require_once DEPLOY_ROOT . 'bootstrap/autoloader_failsafe.php';
 AutoloaderFailsafe::register_failsafe_autoloader();
 
 /**

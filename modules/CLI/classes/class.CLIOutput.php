@@ -22,6 +22,11 @@ class CLIOutput
 	public const string CYAN = "\033[36m";
 	public const string YELLOW = "\033[33m";
 
+	private static bool $_commandLogStarted = false;
+	private static bool $_commandLogShutdownRegistered = false;
+	private static ?float $_commandLogStartedAt = null;
+	private static ?string $_commandLogLabel = null;
+
 	/**
 	 * Confirm database write operation with color-coded prompt.
 	 * Uses readline() with default value [yes] - pressing Enter confirms.
@@ -66,7 +71,7 @@ class CLIOutput
 	 */
 	public static function success(string $message): void
 	{
-		echo self::GREEN . "\u{2713} {$message}" . self::RESET . "\n";
+		self::write(self::GREEN . "\u{2713} {$message}" . self::RESET . "\n");
 	}
 
 	/**
@@ -76,7 +81,7 @@ class CLIOutput
 	 */
 	public static function error(string $message): void
 	{
-		echo self::RED . "\u{2717} {$message}" . self::RESET . "\n";
+		self::write(self::RED . "\u{2717} {$message}" . self::RESET . "\n");
 	}
 
 	/**
@@ -86,7 +91,81 @@ class CLIOutput
 	 */
 	public static function info(string $message): void
 	{
-		echo self::CYAN . "\u{2139} {$message}" . self::RESET . "\n";
+		self::write(self::CYAN . "\u{2139} {$message}" . self::RESET . "\n");
+	}
+
+	/**
+	 * Write CLI feedback to stdout in normal mode and to the CLI log in JSON mode.
+	 */
+	public static function write(string $message, bool $visible_in_json = false): void
+	{
+		self::appendToCommandLog($message);
+
+		if (self::isJsonMode() && !$visible_in_json) {
+			return;
+		}
+
+		echo $message;
+	}
+
+	/**
+	 * Start a log section for the current CLI command.
+	 */
+	public static function beginCommandLogSession(?string $command_label = null): void
+	{
+		if (self::$_commandLogStarted) {
+			return;
+		}
+
+		self::$_commandLogStarted = true;
+		self::$_commandLogStartedAt = microtime(true);
+		self::$_commandLogLabel = $command_label ?? self::buildCommandLabel();
+
+		self::appendRawLogLines([
+			'',
+			str_repeat('=', 100),
+			'[' . date('Y-m-d H:i:s') . '] CLI command start',
+			'Command: ' . self::$_commandLogLabel,
+			'PWD: ' . getcwd(),
+			str_repeat('=', 100),
+		]);
+
+		if (!self::$_commandLogShutdownRegistered) {
+			self::$_commandLogShutdownRegistered = true;
+			register_shutdown_function(static function (): void {
+				CLIOutput::endCommandLogSession();
+			});
+		}
+	}
+
+	public static function endCommandLogSession(): void
+	{
+		if (!self::$_commandLogStarted) {
+			return;
+		}
+
+		$duration_seconds = self::$_commandLogStartedAt !== null
+			? round(max(0, microtime(true) - self::$_commandLogStartedAt), 3)
+			: null;
+
+		$lines = [
+			str_repeat('-', 100),
+			'[' . date('Y-m-d H:i:s') . '] CLI command end',
+		];
+
+		if (self::$_commandLogLabel !== null) {
+			$lines[] = 'Command: ' . self::$_commandLogLabel;
+		}
+
+		if ($duration_seconds !== null) {
+			$lines[] = 'Duration: ' . $duration_seconds . 's';
+		}
+
+		$lines[] = str_repeat('-', 100);
+		self::appendRawLogLines($lines);
+		self::$_commandLogStarted = false;
+		self::$_commandLogStartedAt = null;
+		self::$_commandLogLabel = null;
 	}
 
 	/**
@@ -100,9 +179,9 @@ class CLIOutput
 		$mode = Db::getCLIDatabaseMode();
 		$dbName = Db::getDatabasenameFromDsn(Db::normalizeDsn());
 
-		echo "\nCLI Status:\n";
-		echo "  User:     " . self::_formatUser($currentUser) . "\n";
-		echo "  Database: " . self::_formatDatabase($mode, $dbName) . "\n";
+		self::write("\nCLI Status:\n");
+		self::write("  User:     " . self::_formatUser($currentUser) . "\n");
+		self::write("  Database: " . self::_formatDatabase($mode, $dbName) . "\n");
 	}
 
 	/**
@@ -299,5 +378,150 @@ class CLIOutput
 		}
 
 		return $nodeMap[$selection];
+	}
+
+	public static function isJsonMode(): bool
+	{
+		if (PHP_SAPI !== 'cli') {
+			return false;
+		}
+
+		foreach (($GLOBALS['argv'] ?? []) as $arg) {
+			if ($arg === '--json') {
+				return true;
+			}
+		}
+
+		try {
+			return class_exists('Request') && Request::hasArg('json');
+		} catch (Throwable) {
+			return false;
+		}
+	}
+
+	private static function appendToCommandLog(string $message): void
+	{
+		self::beginCommandLogSession();
+		$normalized = self::normalizeMessageForLog($message);
+
+		if ($normalized === '') {
+			return;
+		}
+
+		self::appendRawLogLines(explode("\n", $normalized));
+	}
+
+	/**
+	 * @param list<string> $lines
+	 */
+	private static function appendRawLogLines(array $lines): void
+	{
+		$log_file_path = self::getCommandLogFilePath();
+		$log_dir = dirname($log_file_path);
+
+		if (!self::ensureLogDirectory($log_dir)) {
+			return;
+		}
+
+		$payload = implode("\n", $lines) . "\n";
+
+		if (!self::appendLogPayload($log_file_path, $payload)) {
+			self::reportLogWriteFailure("Unable to append CLI command log payload to {$log_file_path}");
+		}
+	}
+
+	private static function getCommandLogFilePath(): string
+	{
+		return DEPLOY_ROOT . '.logs/cli_commands.log';
+	}
+
+	private static function buildCommandLabel(): string
+	{
+		$argv = $GLOBALS['argv'] ?? [];
+
+		if ($argv === []) {
+			return 'unknown';
+		}
+
+		$escaped = array_map(static function (mixed $arg): string {
+			return escapeshellarg((string) $arg);
+		}, $argv);
+
+		return implode(' ', $escaped);
+	}
+
+	private static function normalizeMessageForLog(string $message): string
+	{
+		$message = str_replace(["\r\n", "\r"], "\n", $message);
+		$message = preg_replace("/\033\\[[0-9;]*m/", '', $message) ?? $message;
+		$message = preg_replace('/<br\s*\/?>/i', "\n", $message) ?? $message;
+		$message = strip_tags($message);
+		$message = html_entity_decode($message, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+		$message = trim($message, "\n");
+
+		return $message;
+	}
+
+	private static function ensureLogDirectory(string $directory): bool
+	{
+		if (is_dir($directory)) {
+			return true;
+		}
+
+		$warning = null;
+		set_error_handler(static function (int $_severity, string $message) use (&$warning): bool {
+			$warning = $message;
+
+			return true;
+		});
+
+		try {
+			$created = mkdir($directory, 0o755, true);
+		} finally {
+			restore_error_handler();
+		}
+
+		clearstatcache(true, $directory);
+
+		if ($created || is_dir($directory)) {
+			return true;
+		}
+
+		self::reportLogWriteFailure(
+			"Unable to create CLI command log directory {$directory}" . ($warning !== null ? ': ' . $warning : '')
+		);
+
+		return false;
+	}
+
+	private static function appendLogPayload(string $path, string $payload): bool
+	{
+		$warning = null;
+		set_error_handler(static function (int $_severity, string $message) use (&$warning): bool {
+			$warning = $message;
+
+			return true;
+		});
+
+		try {
+			$bytes_written = file_put_contents($path, $payload, FILE_APPEND | LOCK_EX);
+		} finally {
+			restore_error_handler();
+		}
+
+		if ($bytes_written !== false) {
+			return true;
+		}
+
+		self::reportLogWriteFailure(
+			"Unable to write CLI command log file {$path}" . ($warning !== null ? ': ' . $warning : '')
+		);
+
+		return false;
+	}
+
+	private static function reportLogWriteFailure(string $message): void
+	{
+		error_log('[CLIOutput] ' . $message);
 	}
 }

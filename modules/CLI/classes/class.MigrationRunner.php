@@ -265,7 +265,13 @@ class MigrationRunner
 		}
 
 		try {
-			$migration_instance->run();
+			$captured_output = self::captureBufferedOutput(static function () use ($migration_instance): void {
+				$migration_instance->run();
+			});
+
+			if (trim($captured_output) !== '') {
+				CLIOutput::write($captured_output);
+			}
 		} catch (Exception $e) {
 			return [
 				'success' => false,
@@ -418,10 +424,10 @@ class MigrationRunner
 		}
 
 		foreach ([
-			['type' => 'core', 'path' => DEPLOY_ROOT . 'core/dev'],
-			['type' => 'core', 'path' => DEPLOY_ROOT . 'core/registry'],
-			['type' => 'theme', 'path' => DEPLOY_ROOT . 'themes/dev'],
-			['type' => 'theme', 'path' => DEPLOY_ROOT . 'themes/registry'],
+			['type' => 'core', 'path' => DEPLOY_ROOT . 'packages/dev/core'],
+			['type' => 'core', 'path' => DEPLOY_ROOT . 'packages/registry/core'],
+			['type' => 'theme', 'path' => DEPLOY_ROOT . 'packages/dev/themes'],
+			['type' => 'theme', 'path' => DEPLOY_ROOT . 'packages/registry/themes'],
 			['type' => 'plugin', 'path' => DEPLOY_ROOT . 'plugins/dev'],
 			['type' => 'plugin', 'path' => DEPLOY_ROOT . 'plugins/registry'],
 		] as $package_root) {
@@ -570,6 +576,22 @@ class MigrationRunner
 		}
 
 		return $migration['runtime_class_name'];
+	}
+
+	private static function captureBufferedOutput(callable $callback): string
+	{
+		$initial_level = ob_get_level();
+		ob_start();
+
+		try {
+			$callback();
+
+			return (string) ob_get_contents();
+		} finally {
+			while (ob_get_level() > $initial_level) {
+				ob_end_clean();
+			}
+		}
 	}
 
 	/**
@@ -740,15 +762,11 @@ class MigrationRunner
 			}
 		}
 
-		if (str_contains($normalized, '/radaptor/radaptor-framework/migrations/')) {
-			return 'framework';
-		}
-
-		if (preg_match('#/core/(?:dev|registry)/([^/]+)/migrations/#', $normalized, $matches) === 1) {
+		if (preg_match('#/packages/(?:dev|registry)/core/([^/]+)/migrations/#', $normalized, $matches) === 1) {
 			return PackageModuleHelper::buildModule('core', $matches[1]);
 		}
 
-		if (preg_match('#/themes/(?:dev|registry)/([^/]+)/migrations/#', $normalized, $matches) === 1) {
+		if (preg_match('#/packages/(?:dev|registry)/themes/([^/]+)/migrations/#', $normalized, $matches) === 1) {
 			return PackageModuleHelper::buildModule('theme', $matches[1]);
 		}
 

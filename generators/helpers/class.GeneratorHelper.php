@@ -101,19 +101,34 @@ class GeneratorHelper
 					$content
 				)
 			) !== false) {
-				echo "<b>" . basename($generatedFilename) . "</b> leíró fájl sikeresen létrehozva!\n";
+				self::reportGeneratedFileWriteStatus(basename($generatedFilename), true);
 
 				return true;
 			} else {
-				echo "Hiba történt a <b>" . basename($generatedFilename) . "</b> leíró fájl írásakor!\n";
+				self::reportGeneratedFileWriteStatus(basename($generatedFilename), false);
 			}
 		} else {
-			echo "<span style=\"background-color:red;\">Ismeretlen hiba a " . basename(
-				$generatedFilename
-			) . " leíró készítése közben!</span>\n";
+			self::reportGeneratedFileWriteStatus(basename($generatedFilename), null);
 		}
 
 		return false;
+	}
+
+	public static function reportGeneratedFileWriteStatus(string $generatedName, ?bool $success): void
+	{
+		if ($success === true) {
+			CLIOutput::write("<b>{$generatedName}</b> leíró fájl sikeresen létrehozva!\n");
+
+			return;
+		}
+
+		if ($success === false) {
+			CLIOutput::write("Hiba történt a <b>{$generatedName}</b> leíró fájl írásakor!\n");
+
+			return;
+		}
+
+		CLIOutput::write("<span style=\"background-color:red;\">Ismeretlen hiba a {$generatedName} leíró készítése közben!</span>\n");
 	}
 
 	/**

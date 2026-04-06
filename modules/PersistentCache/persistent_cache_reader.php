@@ -8,7 +8,12 @@ if (isset($_SESSION['currentuser'])) {
 	$tmp_user_id = $tmp_userdata['user_id'];
 }
 
-$framework_root = PackagePathHelper::getFrameworkRoot() ?? (DEPLOY_ROOT . 'radaptor/radaptor-framework');
+$framework_root = PackagePathHelper::getFrameworkRoot();
+
+if (!is_string($framework_root) || !is_dir($framework_root)) {
+	throw new RuntimeException('Framework package root is unavailable.');
+}
+
 require_once rtrim($framework_root, '/') . "/modules/PersistentCache/interfaces/interface.iPersistentCache.php";
 require_once rtrim($framework_root, '/') . "/modules/PersistentCache/classes/class.PersistentCacheRedis.php";
 

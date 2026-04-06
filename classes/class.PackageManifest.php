@@ -2,6 +2,16 @@
 
 class PackageManifest
 {
+	public static function getPlaceholderRegistryUrl(): string
+	{
+		return 'https://packages.example.invalid/registry.json';
+	}
+
+	public static function isPlaceholderRegistryUrl(mixed $url): bool
+	{
+		return is_string($url) && trim($url) === self::getPlaceholderRegistryUrl();
+	}
+
 	public static function getPath(): string
 	{
 		return DEPLOY_ROOT . 'radaptor.json';
@@ -262,7 +272,46 @@ class PackageManifest
 
 		ksort($normalized);
 
-		return $normalized;
+		return self::applyEnvironmentRegistryOverrides($normalized);
+	}
+
+	/**
+	 * @param array<string, array{name: string, url: string, resolved_url: string}> $registries
+	 * @return array<string, array{name: string, url: string, resolved_url: string}>
+	 */
+	private static function applyEnvironmentRegistryOverrides(array $registries): array
+	{
+		$override_url = self::normalizeEnvironmentRegistryOverride(getenv('RADAPTOR_REGISTRY_URL'));
+
+		if ($override_url === null || !isset($registries['default'])) {
+			return $registries;
+		}
+
+		$registries['default']['resolved_url'] = $override_url;
+
+		return $registries;
+	}
+
+	private static function normalizeEnvironmentRegistryOverride(mixed $value): ?string
+	{
+		if (!is_string($value) || trim($value) === '') {
+			return null;
+		}
+
+		$value = trim($value);
+		$parts = parse_url($value);
+
+		if (!is_array($parts)) {
+			throw new RuntimeException('RADAPTOR_REGISTRY_URL has an invalid URL.');
+		}
+
+		$scheme = strtolower((string) ($parts['scheme'] ?? ''));
+
+		if (!in_array($scheme, ['http', 'https', 'file'], true)) {
+			throw new RuntimeException('RADAPTOR_REGISTRY_URL has an invalid URL.');
+		}
+
+		return $value;
 	}
 
 	/**

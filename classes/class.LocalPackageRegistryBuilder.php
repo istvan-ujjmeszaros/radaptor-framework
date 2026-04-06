@@ -9,7 +9,6 @@ class LocalPackageRegistryBuilder
 		'.gitignore',
 		'.php-cs-fixer.php',
 		'.php-cs-fixer.cache',
-		'.registry-package.json',
 	];
 
 	/**
