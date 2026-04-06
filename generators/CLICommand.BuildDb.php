@@ -127,10 +127,6 @@ class CLICommandBuildDb extends AbstractCLICommand
 		$success = fwrite($fp, $export);
 		fclose($fp);
 
-		if ($success !== false) {
-			echo "<b>db</b> leíró fájl sikeresen létrehozva!\n";
-		} else {
-			echo "<br>Hiba történt a <b>db</b> leíró fájl írásakor!\n";
-		}
+		GeneratorHelper::reportGeneratedFileWriteStatus('db', $success !== false);
 	}
 }

@@ -35,28 +35,12 @@ class PackagePathHelper
 
 	public static function getFrameworkRoot(): ?string
 	{
-		$root = self::getPackageRoot('core', 'framework');
-
-		if ($root !== null) {
-			return $root;
-		}
-
-		$legacy_root = DEPLOY_ROOT . 'radaptor/radaptor-framework';
-
-		return is_dir($legacy_root) ? self::normalizePath($legacy_root) : null;
+		return self::getPackageRoot('core', 'framework');
 	}
 
 	public static function getCmsRoot(): ?string
 	{
-		$root = self::getPackageRoot('core', 'cms');
-
-		if ($root !== null) {
-			return $root;
-		}
-
-		$legacy_root = DEPLOY_ROOT . 'radaptor/radaptor-cms';
-
-		return is_dir($legacy_root) ? self::normalizePath($legacy_root) : null;
+		return self::getPackageRoot('core', 'cms');
 	}
 
 	/**
@@ -114,25 +98,6 @@ class PackagePathHelper
 			return false;
 		}
 
-		foreach ([
-			'core:framework' => DEPLOY_ROOT . 'radaptor/radaptor-framework',
-			'core:cms' => DEPLOY_ROOT . 'radaptor/radaptor-cms',
-		] as $package_key => $legacy_root) {
-			if (!isset($packages[$package_key])) {
-				continue;
-			}
-
-			$normalized_legacy_root = self::normalizePath($legacy_root);
-			$active_root = $packages[$package_key]['root'];
-
-			if (
-				$active_root !== $normalized_legacy_root
-				&& ($normalized_path === $normalized_legacy_root || str_starts_with($normalized_path, $normalized_legacy_root . '/'))
-			) {
-				return true;
-			}
-		}
-
 		foreach ($packages as $package) {
 			if ($normalized_path === $package['root'] || str_starts_with($normalized_path, $package['root'] . '/')) {
 				return false;
@@ -166,11 +131,11 @@ class PackagePathHelper
 
 		return match (true) {
 			str_starts_with($relative, 'plugins/dev/'),
-			str_starts_with($relative, 'core/dev/'),
-			str_starts_with($relative, 'themes/dev/') => 30,
+			str_starts_with($relative, 'packages/dev/core/'),
+			str_starts_with($relative, 'packages/dev/themes/') => 30,
 			str_starts_with($relative, 'plugins/registry/'),
-			str_starts_with($relative, 'core/registry/'),
-			str_starts_with($relative, 'themes/registry/') => 20,
+			str_starts_with($relative, 'packages/registry/core/'),
+			str_starts_with($relative, 'packages/registry/themes/') => 20,
 			default => 10,
 		};
 	}
@@ -343,7 +308,7 @@ class PackagePathHelper
 	{
 		$relative = self::toStoragePath($path);
 
-		return preg_match('#^(core|themes|plugins)/(dev|registry)/[^/]+(?:/|$)#', $relative) === 1;
+		return preg_match('#^(plugins/(dev|registry)/[^/]+|packages/(dev|registry)/(core|themes)/[^/]+)(?:/|$)#', $relative) === 1;
 	}
 
 	private static function isPathInside(string $path, string $root): bool

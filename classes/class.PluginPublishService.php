@@ -96,35 +96,7 @@ class PluginPublishService
 
 	private static function resolveRegistryRoot(?string $registry_root): string
 	{
-		if (is_string($registry_root) && trim($registry_root) !== '') {
-			$resolved = self::normalizePath(trim($registry_root));
-
-			if (!is_dir($resolved)) {
-				throw new RuntimeException("Plugin registry root does not exist: {$resolved}");
-			}
-
-			return $resolved;
-		}
-
-		$candidates = [];
-		$env_root = getenv('RADAPTOR_PLUGIN_REGISTRY_ROOT');
-
-		if (is_string($env_root) && trim($env_root) !== '') {
-			$candidates[] = trim($env_root);
-		}
-
-		$candidates[] = DEPLOY_ROOT . '../radaptor_plugin_registry';
-		$candidates[] = '/radaptor_plugin_registry';
-
-		foreach ($candidates as $candidate) {
-			$resolved = self::normalizePath($candidate);
-
-			if (is_dir($resolved)) {
-				return $resolved;
-			}
-		}
-
-		throw new RuntimeException('Unable to locate the local plugin registry root. Pass --registry-root or set RADAPTOR_PLUGIN_REGISTRY_ROOT.');
+		return LocalRegistryRootResolver::resolve($registry_root);
 	}
 
 	/**

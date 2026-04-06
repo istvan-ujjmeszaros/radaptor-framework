@@ -60,11 +60,11 @@ class PackageThemeScanHelper
 			}
 		}
 
-		if (preg_match('#/themes/(?:dev|registry)/([^/]+)/(?:theme|core|plugins)/#', $normalized_path, $matches) === 1) {
+		if (preg_match('#/packages/(?:dev|registry)/themes/([^/]+)/(?:theme|core|plugins)/#', $normalized_path, $matches) === 1) {
 			return $matches[1];
 		}
 
-		if (preg_match('#/themes/([^/]+)/#', $normalized_path, $matches) === 1) {
+		if (preg_match('#/packages/(?:dev|registry)/themes/([^/]+)(?:/|$)#', $normalized_path, $matches) === 1) {
 			return $matches[1];
 		}
 
@@ -208,7 +208,7 @@ class PackageThemeScanHelper
 		$relative = str_replace('\\', '/', str_replace(DEPLOY_ROOT, '', $path));
 		$relative = ltrim($relative, '/');
 
-		return preg_match('#^themes/(dev|registry)/[^/]+(?:/|$)#', $relative) === 1;
+		return preg_match('#^packages/(dev|registry)/themes/[^/]+(?:/|$)#', $relative) === 1;
 	}
 
 	private static function resolveThemeName(string $package_root): ?string

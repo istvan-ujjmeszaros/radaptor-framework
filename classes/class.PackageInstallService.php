@@ -3,6 +3,7 @@
 class PackageInstallService
 {
 	private const int REGISTRY_DOWNLOAD_TIMEOUT_SECONDS = 30;
+	private const string TEMPLATE_PLACEHOLDER_REGISTRY_URL = 'https://packages.example.invalid/registry.json';
 
 	/**
 	 * @return array<string, mixed>
@@ -108,7 +109,8 @@ class PackageInstallService
 			'packages' => $next['packages'],
 		];
 		$current_export = PackageLockfile::exportDocument($current_lock);
-		$next_export = PackageLockfile::exportDocument($next_lock);
+		$next_lock_for_storage = self::sanitizeLockfileForStorage($next_lock, $manifest['registries']);
+		$next_export = PackageLockfile::exportDocument($next_lock_for_storage);
 		$lockfile_changed = $current_export !== $next_export;
 		$lockfile_written = false;
 		$plugin_bridge_written = false;
@@ -149,10 +151,11 @@ class PackageInstallService
 			}
 
 			if ($lockfile_changed) {
-				PackageLockfile::write($next_lock, $lock_path);
+				PackageLockfile::write($next_lock_for_storage, $lock_path);
 				$lockfile_written = true;
 			}
 
+			self::rebuildAutoloader();
 			self::rebuildThemeData();
 
 			$package_migrations = MigrationRunner::runPendingForModules(
@@ -179,6 +182,8 @@ class PackageInstallService
 				} finally {
 					ob_end_clean();
 				}
+
+				self::rebuildEventDocs();
 			}
 
 			PackageConfig::reset();
@@ -248,6 +253,135 @@ class PackageInstallService
 			'assets_built' => $assets_built,
 			'assets' => $assets,
 		];
+	}
+
+	/**
+	 * @param array{
+	 *     lockfile_version: int,
+	 *     packages: array<string, array<string, mixed>>
+	 * } $lockfile
+	 * @param array<string, array{name: string, url: string, resolved_url: string}> $registries
+	 * @return array{
+	 *     lockfile_version: int,
+	 *     packages: array<string, array<string, mixed>>
+	 * }
+	 */
+	private static function sanitizeLockfileForStorage(array $lockfile, array $registries): array
+	{
+		$sanitized = $lockfile;
+
+		foreach ($sanitized['packages'] as &$package) {
+			$source = is_array($package['source'] ?? null) ? $package['source'] : null;
+			$resolved = is_array($package['resolved'] ?? null) ? $package['resolved'] : null;
+			$registry_name = is_array($source) ? trim((string) ($source['registry'] ?? '')) : '';
+
+			if ($registry_name === '' || !isset($registries[$registry_name])) {
+				continue;
+			}
+
+			$declared_registry_url = trim((string) $registries[$registry_name]['url']);
+
+			if ($declared_registry_url !== self::TEMPLATE_PLACEHOLDER_REGISTRY_URL) {
+				continue;
+			}
+
+			if ($source !== null) {
+				$package['source']['resolved_registry_url'] = $declared_registry_url;
+			}
+
+			if ($resolved !== null) {
+				$package['resolved']['registry_url'] = $declared_registry_url;
+
+				if (is_string($resolved['dist_url'] ?? null) && trim((string) $resolved['dist_url']) !== '') {
+					$package['resolved']['dist_url'] = self::rebaseUrlAuthority(
+						trim((string) $resolved['dist_url']),
+						$declared_registry_url
+					);
+				}
+			}
+		}
+		unset($package);
+
+		return $sanitized;
+	}
+
+	private static function rebuildAutoloader(): void
+	{
+		$initial_output_buffers = ob_get_level();
+		ob_start();
+		CLICommandBuildAutoloader::create();
+
+		while (ob_get_level() > $initial_output_buffers) {
+			ob_end_clean();
+		}
+
+		AutoloaderFromGeneratedMap::reset();
+		AutoloaderFailsafe::reset();
+		PackagePathHelper::reset();
+	}
+
+	private static function rebuildEventDocs(): void
+	{
+		$initial_output_buffers = ob_get_level();
+		ob_start();
+		CLICommandBuildEventDocs::create();
+
+		while (ob_get_level() > $initial_output_buffers) {
+			ob_end_clean();
+		}
+	}
+
+	private static function rebaseUrlAuthority(string $candidate_url, string $base_url): string
+	{
+		$candidate_parts = parse_url($candidate_url);
+		$base_parts = parse_url($base_url);
+
+		if (!is_array($candidate_parts) || !is_array($base_parts) || !isset($base_parts['scheme'])) {
+			return $candidate_url;
+		}
+
+		$scheme = strtolower((string) $base_parts['scheme']);
+		$host = (string) ($base_parts['host'] ?? '');
+
+		if (!in_array($scheme, ['http', 'https'], true) || $host === '') {
+			return $candidate_url;
+		}
+
+		$authority = $scheme . '://';
+		$user = (string) ($base_parts['user'] ?? '');
+		$pass = (string) ($base_parts['pass'] ?? '');
+
+		if ($user !== '') {
+			$authority .= $user;
+
+			if ($pass !== '') {
+				$authority .= ':' . $pass;
+			}
+
+			$authority .= '@';
+		}
+
+		if (str_contains($host, ':') && !str_starts_with($host, '[')) {
+			$host = '[' . $host . ']';
+		}
+
+		$authority .= $host;
+
+		if (isset($base_parts['port'])) {
+			$authority .= ':' . $base_parts['port'];
+		}
+
+		$suffix = (string) ($candidate_parts['path'] ?? '/');
+
+		if (isset($candidate_parts['query']) && $candidate_parts['query'] !== '') {
+			$suffix .= '?' . $candidate_parts['query'];
+		}
+
+		if (isset($candidate_parts['fragment']) && $candidate_parts['fragment'] !== '') {
+			$suffix .= '#' . $candidate_parts['fragment'];
+		}
+
+		return $authority . $suffix;
 	}
 
 	private static function rebuildThemeData(): void
@@ -903,19 +1037,30 @@ class PackageInstallService
 			$next_resolved = is_array($next_locked_package['resolved'] ?? null) ? $next_locked_package['resolved'] : [];
 			$next_type = $next_resolved['type'] ?? $next_source['type'] ?? null;
 
-			if ($next_type === 'registry') {
-				continue;
-			}
-
-			$path = self::resolveStoredPath(
+			$current_path = self::resolveStoredPath(
 				is_string($current_resolved['path'] ?? null)
 					? $current_resolved['path']
 					: PackageTypeHelper::getDefaultPath($current_locked_package['type'], 'registry', $current_locked_package['id']),
 				DEPLOY_ROOT
 			);
 
-			if (is_dir($path)) {
-				self::removeDirectory($path);
+			if ($next_type === 'registry') {
+				$next_path = self::resolveStoredPath(
+					is_string($next_resolved['path'] ?? null)
+						? $next_resolved['path']
+						: PackageTypeHelper::getDefaultPath($current_locked_package['type'], 'registry', $current_locked_package['id']),
+					DEPLOY_ROOT
+				);
+
+				if ($current_path !== $next_path && is_dir($current_path)) {
+					self::removeDirectory($current_path);
+				}
+
+				continue;
+			}
+
+			if (is_dir($current_path)) {
+				self::removeDirectory($current_path);
 			}
 		}
 	}
@@ -1011,7 +1156,10 @@ class PackageInstallService
 
 			if (file_exists($target_absolute_path)) {
 				$backup_path = dirname($target_absolute_path) . '/.' . basename($target_absolute_path) . '.bak-' . bin2hex(random_bytes(4));
-				rename($target_absolute_path, $backup_path);
+				self::runFilesystemOperation(
+					static fn (): bool => rename($target_absolute_path, $backup_path),
+					"Unable to move existing package path {$target_absolute_path} to backup {$backup_path}"
+				);
 			}
 
 			self::copyDirectory($package_root, $target_absolute_path);
@@ -1021,7 +1169,10 @@ class PackageInstallService
 			}
 
 			if ($backup_path !== null && is_dir($backup_path)) {
-				rename($backup_path, $target_absolute_path);
+				self::runFilesystemOperation(
+					static fn (): bool => rename($backup_path, $target_absolute_path),
+					"Unable to restore backup package path {$backup_path} to {$target_absolute_path}"
+				);
 			}
 
 			self::removeDirectory($staging_root);
@@ -1217,8 +1368,14 @@ class PackageInstallService
 			return;
 		}
 
-		if (!mkdir($directory, 0o755, true) && !is_dir($directory)) {
-			throw new RuntimeException("Unable to create directory: {$directory}");
+		self::runFilesystemOperation(
+			static fn (): bool => mkdir($directory, 0o755, true),
+			"Unable to create directory: {$directory}"
+		);
+		clearstatcache(true, $directory);
+
+		if (!is_dir($directory)) {
+			throw new RuntimeException("Directory was not created: {$directory}");
 		}
 	}
 
@@ -1245,9 +1402,11 @@ class PackageInstallService
 				continue;
 			}
 
-			if (!copy($source_path, $destination_path)) {
-				throw new RuntimeException("Unable to copy file from {$source_path} to {$destination_path}");
-			}
+			self::ensureDirectory(dirname($destination_path));
+			self::runFilesystemOperation(
+				static fn (): bool => copy($source_path, $destination_path),
+				"Unable to copy file from {$source_path} to {$destination_path}"
+			);
 		}
 	}
 
@@ -1258,7 +1417,10 @@ class PackageInstallService
 		}
 
 		if (is_file($directory) || is_link($directory)) {
-			unlink($directory);
+			self::runFilesystemOperation(
+				static fn (): bool => unlink($directory),
+				"Unable to remove path: {$directory}"
+			);
 
 			return;
 		}
@@ -1282,14 +1444,38 @@ class PackageInstallService
 				continue;
 			}
 
-			if (!unlink($path)) {
-				throw new RuntimeException("Unable to remove path: {$path}");
-			}
+			self::runFilesystemOperation(
+				static fn (): bool => unlink($path),
+				"Unable to remove path: {$path}"
+			);
 		}
 
-		if (!rmdir($directory)) {
-			throw new RuntimeException("Unable to remove directory: {$directory}");
+		self::runFilesystemOperation(
+			static fn (): bool => rmdir($directory),
+			"Unable to remove directory: {$directory}"
+		);
+	}
+
+	private static function runFilesystemOperation(callable $operation, string $error_message): mixed
+	{
+		$warning = null;
+		set_error_handler(static function (int $_severity, string $message) use (&$warning): bool {
+			$warning = $message;
+
+			return true;
+		});
+
+		try {
+			$result = $operation();
+		} finally {
+			restore_error_handler();
 		}
+
+		if ($result === false) {
+			throw new RuntimeException($error_message . ($warning !== null ? ': ' . $warning : ''));
+		}
+
+		return $result;
 	}
 
 	private static function normalizePath(string $path): string

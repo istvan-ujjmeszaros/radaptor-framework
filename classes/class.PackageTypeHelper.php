@@ -74,8 +74,8 @@ class PackageTypeHelper
 		}
 
 		return match ($type) {
-			'core' => "core/{$source_type}/{$id}",
-			'theme' => "themes/{$source_type}/{$id}",
+			'core' => "packages/{$source_type}/core/{$id}",
+			'theme' => "packages/{$source_type}/themes/{$id}",
 			'plugin' => "plugins/{$source_type}/{$id}",
 			default => throw new RuntimeException("Package '{$type}:{$id}' uses unsupported type '{$type}'."),
 		};

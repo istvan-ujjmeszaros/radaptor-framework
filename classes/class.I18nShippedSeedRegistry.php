@@ -13,7 +13,13 @@ class I18nShippedSeedRegistry
 	 */
 	public static function getStaticTargets(): array
 	{
-		$cms_root = rtrim(PackagePathHelper::getCmsRoot() ?? (DEPLOY_ROOT . 'radaptor/radaptor-cms'), '/');
+		$cms_root = PackagePathHelper::getCmsRoot();
+
+		if (!is_string($cms_root) || !is_dir($cms_root)) {
+			throw new RuntimeException('CMS package root is unavailable.');
+		}
+
+		$cms_root = rtrim($cms_root, '/');
 		$blog_root = rtrim(PackagePathHelper::getPackageRoot('plugin', 'blog') ?? (DEPLOY_ROOT . 'plugins/dev/blog'), '/');
 		$tracker_root = rtrim(PackagePathHelper::getPackageRoot('plugin', 'tracker') ?? (DEPLOY_ROOT . 'plugins/dev/tracker'), '/');
 

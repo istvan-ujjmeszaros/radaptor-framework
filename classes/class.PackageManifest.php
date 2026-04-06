@@ -2,6 +2,16 @@
 
 class PackageManifest
 {
+	public static function getPlaceholderRegistryUrl(): string
+	{
+		return 'https://packages.example.invalid/registry.json';
+	}
+
+	public static function isPlaceholderRegistryUrl(mixed $url): bool
+	{
+		return is_string($url) && trim($url) === self::getPlaceholderRegistryUrl();
+	}
+
 	public static function getPath(): string
 	{
 		return DEPLOY_ROOT . 'radaptor.json';
@@ -277,7 +287,6 @@ class PackageManifest
 			return $registries;
 		}
 
-		$registries['default']['url'] = $override_url;
 		$registries['default']['resolved_url'] = $override_url;
 
 		return $registries;

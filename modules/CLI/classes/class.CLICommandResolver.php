@@ -210,6 +210,8 @@ class CLICommandResolver
 	 */
 	public static function dispatch(): void
 	{
+		CLIOutput::beginCommandLogSession();
+
 		if (self::isHelpRequest()) {
 			$target = self::getHelpTargetFromArgv();
 			$output = self::renderHelp($target);

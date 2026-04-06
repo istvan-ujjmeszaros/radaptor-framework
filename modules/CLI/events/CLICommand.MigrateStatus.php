@@ -62,11 +62,10 @@ class CLICommandMigrateStatus extends AbstractCLICommand
 		if (empty($status)) {
 			echo "No migrations found.\n";
 			echo "\nMigration directories:\n";
-			echo "  - " . DEPLOY_ROOT . "radaptor/radaptor-framework/migrations/\n";
-			echo "  - " . DEPLOY_ROOT . "core/dev/*/migrations/\n";
-			echo "  - " . DEPLOY_ROOT . "core/registry/*/migrations/\n";
-			echo "  - " . DEPLOY_ROOT . "themes/dev/*/migrations/\n";
-			echo "  - " . DEPLOY_ROOT . "themes/registry/*/migrations/\n";
+			echo "  - " . DEPLOY_ROOT . "packages/dev/core/*/migrations/\n";
+			echo "  - " . DEPLOY_ROOT . "packages/registry/core/*/migrations/\n";
+			echo "  - " . DEPLOY_ROOT . "packages/dev/themes/*/migrations/\n";
+			echo "  - " . DEPLOY_ROOT . "packages/registry/themes/*/migrations/\n";
 			echo "  - " . DEPLOY_ROOT . "plugins/dev/*/migrations/\n";
 			echo "  - " . DEPLOY_ROOT . "plugins/registry/*/migrations/\n";
 			echo "  - " . DEPLOY_ROOT . "app/migrations/\n";

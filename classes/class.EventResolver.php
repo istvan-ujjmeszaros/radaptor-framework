@@ -96,7 +96,7 @@ abstract class EventResolver implements iEvent
 
 		$event = Request::_GET('event', self::DEFAULT_EVENT);
 
-		return ucwords((string) $context) . ucwords((string) $event);
+		return BrowserEventSlugHelper::slugToShortName((string) $context, (string) $event);
 	}
 
 	/**

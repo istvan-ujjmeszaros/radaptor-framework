@@ -2,6 +2,13 @@
 
 class PackageLockfile
 {
+	public static function reset(?string $path = null): void
+	{
+		// Intentionally a no-op. The lockfile loader no longer keeps a persistent
+		// in-memory cache, but callers still use reset() as part of test and
+		// rebuild flows.
+	}
+
 	public static function getPath(): string
 	{
 		return DEPLOY_ROOT . 'radaptor.lock.json';
