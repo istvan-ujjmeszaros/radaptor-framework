@@ -284,6 +284,12 @@ class PackageInstallService
 				continue;
 			}
 
+			$current_registry_url = '';
+
+			if ($resolved !== null) {
+				$current_registry_url = trim((string) ($source['resolved_registry_url'] ?? $resolved['registry_url'] ?? ''));
+			}
+
 			if ($source !== null) {
 				$package['source']['resolved_registry_url'] = $declared_registry_url;
 			}
@@ -292,8 +298,9 @@ class PackageInstallService
 				$package['resolved']['registry_url'] = $declared_registry_url;
 
 				if (is_string($resolved['dist_url'] ?? null) && trim((string) $resolved['dist_url']) !== '') {
-					$package['resolved']['dist_url'] = self::rebaseUrlAuthority(
+					$package['resolved']['dist_url'] = self::rebaseRegistryArtifactUrl(
 						trim((string) $resolved['dist_url']),
+						$current_registry_url,
 						$declared_registry_url
 					);
 				}
@@ -381,6 +388,132 @@ class PackageInstallService
 		}
 
 		return $authority . $suffix;
+	}
+
+	private static function rebaseRegistryArtifactUrl(string $candidate_url, string $current_registry_url, string $declared_registry_url): string
+	{
+		$relative_path = self::extractRegistryRelativePath($candidate_url, $current_registry_url);
+
+		if ($relative_path === null || $relative_path === '') {
+			return self::rebaseUrlAuthority($candidate_url, $declared_registry_url);
+		}
+
+		return self::resolveUrlAgainstBase($declared_registry_url, $relative_path);
+	}
+
+	private static function resolveUrlAgainstBase(string $base_url, string $candidate): string
+	{
+		if (filter_var($candidate, FILTER_VALIDATE_URL) !== false) {
+			return $candidate;
+		}
+
+		$base = parse_url($base_url);
+
+		if (!is_array($base) || !isset($base['scheme'])) {
+			return $candidate;
+		}
+
+		if ($base['scheme'] === 'file') {
+			$base_path = $base['path'] ?? '';
+			$base_dir = rtrim(str_replace('\\', '/', dirname($base_path)), '/');
+			$path = str_starts_with($candidate, '/')
+				? $candidate
+				: ($base_dir . '/' . ltrim($candidate, '/'));
+
+			return 'file://' . self::normalizeRelativeUrlPath($path);
+		}
+
+		$authority = $base['scheme'] . '://' . ($base['host'] ?? '');
+
+		if (isset($base['port'])) {
+			$authority .= ':' . $base['port'];
+		}
+
+		if (str_starts_with($candidate, '/')) {
+			return $authority . $candidate;
+		}
+
+		$base_path = $base['path'] ?? '/';
+		$base_dir = rtrim(str_replace('\\', '/', dirname($base_path)), '/');
+		$joined_path = self::normalizeRelativeUrlPath($base_dir . '/' . $candidate);
+
+		return $authority . $joined_path;
+	}
+
+	private static function normalizeRelativeUrlPath(string $path): string
+	{
+		$path = str_replace('\\', '/', $path);
+		$prefix = str_starts_with($path, '/') ? '/' : '';
+		$segments = [];
+
+		foreach (explode('/', $path) as $segment) {
+			if ($segment === '' || $segment === '.') {
+				continue;
+			}
+
+			if ($segment === '..') {
+				array_pop($segments);
+
+				continue;
+			}
+
+			$segments[] = $segment;
+		}
+
+		return $prefix . implode('/', $segments);
+	}
+
+	private static function extractRegistryRelativePath(string $candidate_url, string $registry_url): ?string
+	{
+		if ($registry_url === '') {
+			return null;
+		}
+
+		$candidate_parts = parse_url($candidate_url);
+		$registry_parts = parse_url($registry_url);
+
+		if (!is_array($candidate_parts) || !is_array($registry_parts)) {
+			return null;
+		}
+
+		$candidate_scheme = strtolower((string) ($candidate_parts['scheme'] ?? ''));
+		$registry_scheme = strtolower((string) ($registry_parts['scheme'] ?? ''));
+
+		if ($candidate_scheme === '' || $candidate_scheme !== $registry_scheme) {
+			return null;
+		}
+
+		if ($candidate_scheme !== 'file') {
+			$candidate_authority = strtolower((string) ($candidate_parts['host'] ?? '')) . ':' . (string) ($candidate_parts['port'] ?? '');
+			$registry_authority = strtolower((string) ($registry_parts['host'] ?? '')) . ':' . (string) ($registry_parts['port'] ?? '');
+
+			if ($candidate_authority !== $registry_authority) {
+				return null;
+			}
+		}
+
+		$candidate_path = str_replace('\\', '/', (string) ($candidate_parts['path'] ?? ''));
+		$registry_path = str_replace('\\', '/', (string) ($registry_parts['path'] ?? ''));
+
+		if ($candidate_path === '' || $registry_path === '') {
+			return null;
+		}
+
+		$registry_dir = rtrim(str_replace('\\', '/', dirname($registry_path)), '/');
+
+		if ($registry_dir === '') {
+			$registry_dir = '/';
+		}
+
+		if ($registry_dir === '/') {
+			return ltrim($candidate_path, '/');
+		}
+
+		if (!str_starts_with($candidate_path, $registry_dir . '/')) {
+			return null;
+		}
+
+		return ltrim(substr($candidate_path, strlen($registry_dir)), '/');
 	}
 
 	private static function rebuildThemeData(): void
