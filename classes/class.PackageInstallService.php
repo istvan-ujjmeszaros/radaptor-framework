@@ -298,7 +298,7 @@ class PackageInstallService
 				$package['resolved']['registry_url'] = $declared_registry_url;
 
 				if (is_string($resolved['dist_url'] ?? null) && trim((string) $resolved['dist_url']) !== '') {
-					$package['resolved']['dist_url'] = self::rebaseRegistryArtifactUrl(
+					$package['resolved']['dist_url'] = self::rebaseRegistryArtifactUrlForStorage(
 						trim((string) $resolved['dist_url']),
 						$current_registry_url,
 						$declared_registry_url
@@ -335,6 +335,13 @@ class PackageInstallService
 		while (ob_get_level() > $initial_output_buffers) {
 			ob_end_clean();
 		}
+	}
+
+	private static function hasSameUrlAuthority(array $left_parts, array $right_parts): bool
+	{
+		return strtolower((string) ($left_parts['scheme'] ?? '')) === strtolower((string) ($right_parts['scheme'] ?? ''))
+			&& ((string) ($left_parts['host'] ?? '')) === ((string) ($right_parts['host'] ?? ''))
+			&& ((int) ($left_parts['port'] ?? 0)) === ((int) ($right_parts['port'] ?? 0));
 	}
 
 	private static function rebaseUrlAuthority(string $candidate_url, string $base_url): string
@@ -390,15 +397,29 @@ class PackageInstallService
 		return $authority . $suffix;
 	}
 
-	private static function rebaseRegistryArtifactUrl(string $candidate_url, string $current_registry_url, string $declared_registry_url): string
+	private static function rebaseRegistryArtifactUrlForStorage(string $candidate_url, string $current_registry_url, string $declared_registry_url): string
 	{
 		$relative_path = self::extractRegistryRelativePath($candidate_url, $current_registry_url);
 
-		if ($relative_path === null || $relative_path === '') {
+		if ($relative_path !== null && $relative_path !== '') {
+			return self::resolveUrlAgainstBase($declared_registry_url, $relative_path);
+		}
+
+		$candidate_parts = parse_url($candidate_url);
+		$placeholder_parts = parse_url(PackageManifest::getPlaceholderRegistryUrl());
+		$declared_parts = parse_url($declared_registry_url);
+
+		if (
+			is_array($candidate_parts)
+			&& is_array($placeholder_parts)
+			&& is_array($declared_parts)
+			&& self::hasSameUrlAuthority($candidate_parts, $placeholder_parts)
+			&& !self::hasSameUrlAuthority($declared_parts, $placeholder_parts)
+		) {
 			return self::rebaseUrlAuthority($candidate_url, $declared_registry_url);
 		}
 
-		return self::resolveUrlAgainstBase($declared_registry_url, $relative_path);
+		return $candidate_url;
 	}
 
 	private static function resolveUrlAgainstBase(string $base_url, string $candidate): string
