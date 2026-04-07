@@ -11,11 +11,17 @@ class CLIOptionHelper
 	{
 		$main_arg = Request::getMainArg();
 
-		if (!is_string($main_arg) || trim($main_arg) === '') {
+		if (!is_string($main_arg)) {
 			Kernel::abort($usage);
 		}
 
-		return trim($main_arg);
+		$main_arg = trim($main_arg);
+
+		if ($main_arg === '' || str_starts_with($main_arg, '--')) {
+			Kernel::abort($usage);
+		}
+
+		return $main_arg;
 	}
 
 	public static function getOption(string $name, string $default = ''): string
