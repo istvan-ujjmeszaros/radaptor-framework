@@ -3,7 +3,6 @@
 class PackageInstallService
 {
 	private const int REGISTRY_DOWNLOAD_TIMEOUT_SECONDS = 30;
-	private const string TEMPLATE_PLACEHOLDER_REGISTRY_URL = 'https://packages.example.invalid/registry.json';
 
 	/**
 	 * @return array<string, mixed>
@@ -281,7 +280,7 @@ class PackageInstallService
 
 			$declared_registry_url = trim((string) $registries[$registry_name]['url']);
 
-			if ($declared_registry_url !== self::TEMPLATE_PLACEHOLDER_REGISTRY_URL) {
+			if ($declared_registry_url === '') {
 				continue;
 			}
 
