@@ -45,8 +45,13 @@ class LocalPackageRegistryBuilder
 	 *     packaged_files: int
 	 * }
 	 */
-	public static function publishPackage(string $registry_root, string $package_root, array $metadata, array $tracked_files): array
-	{
+	public static function publishPackage(
+		string $registry_root,
+		string $package_root,
+		array $metadata,
+		array $tracked_files,
+		?array $release_metadata = null
+	): array {
 		$registry_root = self::normalizePath($registry_root);
 		$package_root = self::normalizePath($package_root);
 		$packages_dir = $registry_root . '/packages';
@@ -75,8 +80,14 @@ class LocalPackageRegistryBuilder
 			$registry['packages'][$metadata['package']]['versions'] = [];
 		}
 
+		if (isset($registry['packages'][$metadata['package']]['versions'][$metadata['version']])) {
+			throw new RuntimeException(
+				"Package '{$metadata['package']}' version '{$metadata['version']}' is already published. Use a release command to create a new immutable version."
+			);
+		}
+
 		$registry['packages'][$metadata['package']]['latest'] = $metadata['version'];
-		$registry['packages'][$metadata['package']]['versions'][$metadata['version']] = [
+		$version_entry = [
 			'type' => $metadata['type'],
 			'id' => $metadata['id'],
 			'dependencies' => $metadata['dependencies'],
@@ -92,6 +103,21 @@ class LocalPackageRegistryBuilder
 				'sha256' => $archive['sha256'],
 			],
 		];
+
+		if (is_array($release_metadata)) {
+			$source_commit = trim((string) ($release_metadata['source_commit'] ?? ''));
+			$released_at = trim((string) ($release_metadata['released_at'] ?? ''));
+
+			if ($source_commit !== '') {
+				$version_entry['source_commit'] = $source_commit;
+			}
+
+			if ($released_at !== '') {
+				$version_entry['released_at'] = $released_at;
+			}
+		}
+
+		$registry['packages'][$metadata['package']]['versions'][$metadata['version']] = $version_entry;
 
 		self::sortRegistry($registry);
 		$json = json_encode($registry, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);

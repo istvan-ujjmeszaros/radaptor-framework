@@ -27,6 +27,7 @@ class Migration_20260311_000004_add_source_key_to_i18n_tm_entries
 		}
 
 		$pdo->exec("DELETE FROM `i18n_tm_entries`");
+
 		if ($hasStatus) {
 			$pdo->exec(
 				"INSERT INTO `i18n_tm_entries` (

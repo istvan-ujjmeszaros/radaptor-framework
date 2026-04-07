@@ -35,8 +35,7 @@ class PackageAssetsBuilder
 		string $state_path,
 		bool $dry_run = false,
 		?string $app_base_dir = null
-	): array
-	{
+	): array {
 		$lock_base_dir = dirname($lock_path);
 		$app_base_dir = $app_base_dir !== null ? self::normalizePathPreservingLinks($app_base_dir) : $lock_base_dir;
 		$lock = PackageLockfile::loadFromPath($lock_path);

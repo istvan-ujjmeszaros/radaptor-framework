@@ -29,6 +29,16 @@ class PackagePublishService
 		return self::publishFromSourcePath($source_path, $registry_root, $package_key);
 	}
 
+	public static function resolveSourcePathForPackageKey(
+		string $package_key,
+		?string $manifest_path = null,
+		?string $lock_path = null
+	): string {
+		[$type, $id] = self::splitPackageKey($package_key);
+
+		return self::resolveSourcePath($type, $id, $manifest_path, $lock_path);
+	}
+
 	/**
 	 * @return array{
 	 *     registry_root: string,
@@ -79,7 +89,8 @@ class PackagePublishService
 	public static function publishFromSourcePath(
 		string $source_path,
 		?string $registry_root = null,
-		?string $expected_package_key = null
+		?string $expected_package_key = null,
+		?array $release_metadata = null
 	): array {
 		$source_path = self::normalizePath($source_path);
 
@@ -113,7 +124,13 @@ class PackagePublishService
 		}
 
 		$registry_root = LocalRegistryRootResolver::resolve($registry_root);
-		$build = LocalPackageRegistryBuilder::publishPackage($registry_root, $source_path, $metadata, $tracked_files);
+		$build = LocalPackageRegistryBuilder::publishPackage(
+			$registry_root,
+			$source_path,
+			$metadata,
+			$tracked_files,
+			$release_metadata
+		);
 
 		return [
 			'package_key' => $package_key,
@@ -252,6 +269,7 @@ class PackagePublishService
 				) as $candidate) {
 					if (is_file($candidate . '/.registry-package.json')) {
 						$discovered[$package_key] = $candidate;
+
 						break;
 					}
 				}

@@ -833,4 +833,150 @@ lft>=? AND rgt<=?
 			],
 		];
 	}
+
+	/**
+	 * @return array{
+	 *     table: string,
+	 *     node_count: int,
+	 *     issues: list<array{code: string, message: string, node_id?: int, other_node_id?: int, value?: int}>,
+	 *     ok: bool
+	 * }
+	 */
+	public static function analyzeConsistency(string $table): array
+	{
+		$rows = DbHelper::selectManyFromQuery(
+			"SELECT node_id, parent_id, lft, rgt FROM {$table} ORDER BY lft ASC, node_id ASC"
+		);
+		$issues = [];
+		$by_id = [];
+		$seen_values = [];
+
+		foreach ($rows as $row) {
+			$node_id = (int) $row['node_id'];
+			$parent_id = (int) $row['parent_id'];
+			$lft = (int) $row['lft'];
+			$rgt = (int) $row['rgt'];
+
+			$by_id[$node_id] = [
+				'node_id' => $node_id,
+				'parent_id' => $parent_id,
+				'lft' => $lft,
+				'rgt' => $rgt,
+			];
+
+			if ($lft >= $rgt) {
+				$issues[] = [
+					'code' => 'invalid_range',
+					'message' => "Node {$node_id} must satisfy lft < rgt.",
+					'node_id' => $node_id,
+				];
+			}
+
+			foreach (['lft' => $lft, 'rgt' => $rgt] as $value) {
+				if (isset($seen_values[$value])) {
+					$issues[] = [
+						'code' => 'duplicate_boundary',
+						'message' => "Boundary value {$value} is duplicated between node {$seen_values[$value]} and {$node_id}.",
+						'node_id' => $node_id,
+						'other_node_id' => $seen_values[$value],
+						'value' => $value,
+					];
+				} else {
+					$seen_values[$value] = $node_id;
+				}
+			}
+		}
+
+		$node_count = count($rows);
+		$expected_max = $node_count * 2;
+
+		if ($node_count > 0) {
+			for ($value = 1; $value <= $expected_max; ++$value) {
+				if (!isset($seen_values[$value])) {
+					$issues[] = [
+						'code' => 'missing_boundary',
+						'message' => "Boundary value {$value} is missing from {$table}.",
+						'value' => $value,
+					];
+				}
+			}
+		}
+
+		foreach ($by_id as $node_id => $row) {
+			$parent_id = $row['parent_id'];
+
+			if ($parent_id === 0) {
+				continue;
+			}
+
+			if ($parent_id === $node_id) {
+				$issues[] = [
+					'code' => 'self_parent',
+					'message' => "Node {$node_id} cannot be its own parent.",
+					'node_id' => $node_id,
+				];
+
+				continue;
+			}
+
+			if (!isset($by_id[$parent_id])) {
+				$issues[] = [
+					'code' => 'missing_parent',
+					'message' => "Node {$node_id} points to missing parent {$parent_id}.",
+					'node_id' => $node_id,
+					'other_node_id' => $parent_id,
+				];
+
+				continue;
+			}
+
+			$parent = $by_id[$parent_id];
+
+			if ($parent['lft'] >= $row['lft'] || $parent['rgt'] <= $row['rgt']) {
+				$issues[] = [
+					'code' => 'parent_range_mismatch',
+					'message' => "Parent {$parent_id} does not properly contain node {$node_id}.",
+					'node_id' => $node_id,
+					'other_node_id' => $parent_id,
+				];
+			}
+		}
+
+		$sorted = array_values($by_id);
+		usort(
+			$sorted,
+			static fn (array $a, array $b): int => [$a['lft'], $a['rgt'], $a['node_id']] <=> [$b['lft'], $b['rgt'], $b['node_id']]
+		);
+
+		for ($i = 0; $i < count($sorted); ++$i) {
+			for ($j = $i + 1; $j < count($sorted); ++$j) {
+				$a = $sorted[$i];
+				$b = $sorted[$j];
+
+				if ($b['lft'] > $a['rgt']) {
+					break;
+				}
+
+				$intersects = $b['lft'] < $a['rgt'] && $b['rgt'] > $a['lft'];
+				$a_contains_b = $a['lft'] < $b['lft'] && $a['rgt'] > $b['rgt'];
+				$b_contains_a = $b['lft'] < $a['lft'] && $b['rgt'] > $a['rgt'];
+
+				if ($intersects && !$a_contains_b && !$b_contains_a) {
+					$issues[] = [
+						'code' => 'illegal_overlap',
+						'message' => "Nodes {$a['node_id']} and {$b['node_id']} overlap illegally.",
+						'node_id' => $a['node_id'],
+						'other_node_id' => $b['node_id'],
+					];
+				}
+			}
+		}
+
+		return [
+			'table' => $table,
+			'node_count' => $node_count,
+			'issues' => $issues,
+			'ok' => $issues === [],
+		];
+	}
 }

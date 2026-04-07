@@ -132,7 +132,6 @@ class CLICommandI18nScan extends AbstractCLICommand
 	private function _scanPhpDirs(): void
 	{
 		foreach ($this->_getPhpScanDirs() as $path) {
-
 			if (!is_dir($path)) {
 				continue;
 			}

@@ -79,6 +79,28 @@ class GitRepositoryInspector
 		return $files;
 	}
 
+	/**
+	 * @return list<string>
+	 */
+	public static function listTrackedChanges(string $path): array
+	{
+		$output = self::runGit($path, 'status', '--porcelain', '--untracked-files=no');
+
+		if ($output === null || trim($output) === '') {
+			return [];
+		}
+
+		return array_values(array_filter(
+			array_map('trim', explode("\n", $output)),
+			static fn (string $entry): bool => $entry !== ''
+		));
+	}
+
+	public static function hasTrackedChanges(string $path): bool
+	{
+		return self::listTrackedChanges($path) !== [];
+	}
+
 	private static function runGit(string $path, string ...$args): ?string
 	{
 		$command = ['git', '-c', 'safe.directory=' . $path, '-C', $path, ...$args];

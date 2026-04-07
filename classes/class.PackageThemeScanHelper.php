@@ -5,6 +5,7 @@ class PackageThemeScanHelper
 	/** @var list<string>|null */
 	private static ?array $_activeRoots = null;
 	private static ?string $_activeRootsCacheKey = null;
+
 	/** @var array<string, string>|null */
 	private static ?array $_themeNamesByPackageRoot = null;
 

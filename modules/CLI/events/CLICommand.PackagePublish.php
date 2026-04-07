@@ -29,26 +29,22 @@ class CLICommandPackagePublish extends AbstractCLICommand
 
 	public function run(): void
 	{
-		$package_key = Request::getMainArg();
-
-		if (!is_string($package_key) || trim($package_key) === '') {
-			Kernel::abort('Usage: radaptor package:publish <package-key> [--registry-root /path/to/radaptor_plugin_registry] [--json]');
-		}
-
-		$json = Request::hasArg('json');
-		$registry_root = $this->getSingleOption('registry-root');
+		$usage = 'Usage: radaptor package:publish <package-key> [--registry-root /path/to/radaptor_plugin_registry] [--json]';
+		$package_key = CLIOptionHelper::getMainArgOrAbort($usage);
+		$json = CLIOptionHelper::isJson();
+		$registry_root = CLIOptionHelper::getOption('registry-root');
 
 		try {
 			$result = PackagePublishService::publish(
-				trim($package_key),
+				$package_key,
 				$registry_root !== '' ? $registry_root : null
 			);
 		} catch (Throwable $e) {
 			if ($json) {
-				echo json_encode([
+				CLIOptionHelper::writeJson([
 					'status' => 'error',
 					'message' => $e->getMessage(),
-				], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
+				]);
 
 				return;
 			}
@@ -59,10 +55,10 @@ class CLICommandPackagePublish extends AbstractCLICommand
 		}
 
 		if ($json) {
-			echo json_encode([
+			CLIOptionHelper::writeJson([
 				'status' => 'success',
 				...$result,
-			], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
+			]);
 
 			return;
 		}
@@ -80,22 +76,5 @@ class CLICommandPackagePublish extends AbstractCLICommand
 			echo "Registry catalog: {$result['build']['registry_path']}\n";
 			echo "Dist URL: {$result['build']['dist_url']}\n";
 		}
-	}
-
-	private function getSingleOption(string $name): string
-	{
-		global $argv;
-
-		foreach ($argv as $idx => $arg) {
-			if ($arg === "--{$name}") {
-				$value = $argv[$idx + 1] ?? null;
-
-				return is_string($value) && !str_starts_with($value, '--') ? trim($value) : '';
-			}
-		}
-
-		$key_value = Request::getArg($name);
-
-		return is_string($key_value) ? trim($key_value) : '';
 	}
 }

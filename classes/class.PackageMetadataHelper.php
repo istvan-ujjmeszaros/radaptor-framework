@@ -2,6 +2,19 @@
 
 class PackageMetadataHelper
 {
+	public static function updateVersionAtSourcePath(string $source_path, string $version): void
+	{
+		$metadata_path = rtrim($source_path, '/') . '/.registry-package.json';
+		$metadata = self::loadRawDocumentFromPath($metadata_path);
+		$metadata['version'] = PluginVersionHelper::normalizeVersion($version);
+		$json = json_encode($metadata, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+		$result = file_put_contents($metadata_path, $json . "\n", LOCK_EX);
+
+		if ($result === false) {
+			throw new RuntimeException("Unable to write package metadata: {$metadata_path}");
+		}
+	}
+
 	/**
 	 * @return array<string, string>
 	 */
@@ -49,26 +62,7 @@ class PackageMetadataHelper
 	public static function loadFromSourcePath(string $source_path): array
 	{
 		$metadata_path = rtrim($source_path, '/') . '/.registry-package.json';
-
-		if (!is_file($metadata_path)) {
-			throw new RuntimeException("Package source is missing .registry-package.json: {$metadata_path}");
-		}
-
-		$json = file_get_contents($metadata_path);
-
-		if ($json === false) {
-			throw new RuntimeException("Unable to read package metadata: {$metadata_path}");
-		}
-
-		try {
-			$metadata = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
-		} catch (JsonException $e) {
-			throw new RuntimeException("Invalid JSON in {$metadata_path}: " . $e->getMessage(), 0, $e);
-		}
-
-		if (!is_array($metadata)) {
-			throw new RuntimeException("Package metadata must be an object: {$metadata_path}");
-		}
+		$metadata = self::loadRawDocumentFromPath($metadata_path);
 
 		$result = [];
 
@@ -114,6 +108,34 @@ class PackageMetadataHelper
 		));
 
 		return $result;
+	}
+
+	/**
+	 * @return array<string, mixed>
+	 */
+	private static function loadRawDocumentFromPath(string $metadata_path): array
+	{
+		if (!is_file($metadata_path)) {
+			throw new RuntimeException("Package source is missing .registry-package.json: {$metadata_path}");
+		}
+
+		$json = file_get_contents($metadata_path);
+
+		if ($json === false) {
+			throw new RuntimeException("Unable to read package metadata: {$metadata_path}");
+		}
+
+		try {
+			$metadata = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+		} catch (JsonException $e) {
+			throw new RuntimeException("Invalid JSON in {$metadata_path}: " . $e->getMessage(), 0, $e);
+		}
+
+		if (!is_array($metadata)) {
+			throw new RuntimeException("Package metadata must be an object: {$metadata_path}");
+		}
+
+		return $metadata;
 	}
 
 	/**
