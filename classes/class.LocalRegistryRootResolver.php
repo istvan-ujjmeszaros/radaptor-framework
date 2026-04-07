@@ -28,7 +28,11 @@ class LocalRegistryRootResolver
 		}
 
 		$candidates[] = DEPLOY_ROOT . '../radaptor_plugin_registry';
+		$candidates[] = DEPLOY_ROOT . '../radaptor-plugin-registry';
+		$candidates[] = '/workspace/radaptor_plugin_registry';
+		$candidates[] = '/workspace/radaptor-plugin-registry';
 		$candidates[] = '/radaptor_plugin_registry';
+		$candidates[] = '/radaptor-plugin-registry';
 
 		foreach ($candidates as $candidate) {
 			$resolved = self::normalizePath($candidate);
