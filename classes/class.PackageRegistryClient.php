@@ -355,6 +355,7 @@ class PackageRegistryClient
 			self::normalizePath(sys_get_temp_dir()),
 			self::normalizePath(DEPLOY_ROOT . 'tmp'),
 			self::normalizePath($workspace_root . '/radaptor_plugin_registry'),
+			self::normalizePath($workspace_root . '/radaptor-plugin-registry'),
 		];
 
 		sort($roots);
