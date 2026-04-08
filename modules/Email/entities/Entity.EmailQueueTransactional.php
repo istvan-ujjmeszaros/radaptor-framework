@@ -1,13 +1,16 @@
 <?php
 
+declare(strict_types=1);
+
 /**
- * @phpstan-type ShapeQueuedJob array{
+ * @phpstan-type ShapeEmailQueueTransactional array{
  *   queue_id?: int,
  *   job_id: string,
  *   job_type: string,
  *   payload_json: string,
  *   requested_by_type: string,
  *   requested_by_id?: int|null,
+ *   priority?: string,
  *   status?: string,
  *   attempts?: int,
  *   run_after_utc?: string,
@@ -18,9 +21,9 @@
  *   created_at?: string
  * }
  *
- * @extends SQLEntity<ShapeQueuedJob>
+ * @extends SQLEntity<ShapeEmailQueueTransactional>
  */
-class EntityQueuedJob extends SQLEntity
+class EntityEmailQueueTransactional extends SQLEntity
 {
-	public const string TABLE_NAME = 'queued_jobs';
+	public const string TABLE_NAME = 'email_queue_transactional';
 }
