@@ -91,7 +91,17 @@ class CLIStorage
 	{
 		$json = file_get_contents(self::$storage_file_path);
 
-		return json_decode($json, true);
+		if ($json === false || trim($json) === '') {
+			return [];
+		}
+
+		$data = json_decode($json, true);
+
+		if (!is_array($data)) {
+			return [];
+		}
+
+		return $data;
 	}
 
 	/**
@@ -101,6 +111,6 @@ class CLIStorage
 	 */
 	private static function writeData(array $data): void
 	{
-		file_put_contents(self::$storage_file_path, json_encode($data, JSON_PRETTY_PRINT));
+		file_put_contents(self::$storage_file_path, json_encode($data, JSON_PRETTY_PRINT), LOCK_EX);
 	}
 }

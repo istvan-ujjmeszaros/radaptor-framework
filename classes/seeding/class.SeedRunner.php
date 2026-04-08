@@ -10,7 +10,9 @@ class SeedRunner
 		bool $rerun_demo_seeds = false,
 		bool $skip_seeds = false,
 		bool $dry_run = false,
-		?callable $confirm_demo_rerun = null
+		?callable $confirm_demo_rerun = null,
+		?string $module_filter = null,
+		?string $seed_class_filter = null
 	): array {
 		return self::runPaths(
 			PackageLockfile::getPath(),
@@ -19,19 +21,23 @@ class SeedRunner
 			$rerun_demo_seeds,
 			$skip_seeds,
 			$dry_run,
-			$confirm_demo_rerun
+			$confirm_demo_rerun,
+			$module_filter,
+			$seed_class_filter
 		);
 	}
 
 	/**
 	 * @return array<string, mixed>
 	 */
-	public static function status(bool $include_demo_seeds = false): array
+	public static function status(bool $include_demo_seeds = false, ?string $module_filter = null, ?string $seed_class_filter = null): array
 	{
 		return self::statusPaths(
 			PackageLockfile::getPath(),
 			DEPLOY_ROOT . 'app',
-			$include_demo_seeds
+			$include_demo_seeds,
+			$module_filter,
+			$seed_class_filter
 		);
 	}
 
@@ -41,11 +47,14 @@ class SeedRunner
 	public static function statusPaths(
 		string $package_lock_path,
 		string $app_path,
-		bool $include_demo_seeds = false
+		bool $include_demo_seeds = false,
+		?string $module_filter = null,
+		?string $seed_class_filter = null
 	): array {
 		$seeds = self::discoverSeeds($package_lock_path, $app_path, $include_demo_seeds);
 		$applied = self::hasSeedsTable() ? self::getAppliedSeeds() : [];
 		$seeds = self::attachStatuses($seeds, $applied);
+		$seeds = self::filterSeedsWithDependencies($seeds, $module_filter, $seed_class_filter);
 
 		return [
 			'include_demo_seeds' => $include_demo_seeds,
@@ -67,7 +76,9 @@ class SeedRunner
 		bool $rerun_demo_seeds = false,
 		bool $skip_seeds = false,
 		bool $dry_run = false,
-		?callable $confirm_demo_rerun = null
+		?callable $confirm_demo_rerun = null,
+		?string $module_filter = null,
+		?string $seed_class_filter = null
 	): array {
 		if ($skip_seeds) {
 			return [
@@ -94,6 +105,7 @@ class SeedRunner
 		$seeds = self::discoverSeeds($package_lock_path, $app_path, $include_demo_seeds);
 		$applied = self::hasSeedsTable() ? self::getAppliedSeeds() : [];
 		$seeds = self::attachStatuses($seeds, $applied);
+		$seeds = self::filterSeedsWithDependencies($seeds, $module_filter, $seed_class_filter);
 		$selected_seeds = array_values(array_filter(
 			$seeds,
 			static fn (array $seed): bool => $seed['kind'] === 'mandatory' || $include_demo_seeds
@@ -291,8 +303,11 @@ class SeedRunner
 	/**
 	 * @return list<array<string, mixed>>
 	 */
-	private static function discoverSeeds(string $package_lock_path, string $app_path, bool $include_demo_seeds): array
-	{
+	private static function discoverSeeds(
+		string $package_lock_path,
+		string $app_path,
+		bool $include_demo_seeds
+	): array {
 		$owners = self::discoverOwners($package_lock_path, $app_path);
 		$kinds = $include_demo_seeds ? ['mandatory', 'demo'] : ['mandatory'];
 		$seeds = [];
@@ -304,12 +319,78 @@ class SeedRunner
 				sort($seed_files);
 
 				foreach ($seed_files as $seed_file) {
-					$seeds[] = self::loadSeedDescriptor($owner['module'], $owner['base_path'], $kind, $seed_file);
+					$seed = self::loadSeedDescriptor($owner['module'], $owner['base_path'], $kind, $seed_file);
+
+					$seeds[] = $seed;
 				}
 			}
 		}
 
 		return $seeds;
+	}
+
+	/**
+	 * @param list<array<string, mixed>> $seeds
+	 * @return list<array<string, mixed>>
+	 */
+	private static function filterSeedsWithDependencies(array $seeds, ?string $module_filter, ?string $seed_class_filter): array
+	{
+		$has_module_filter = $module_filter !== null && $module_filter !== '';
+		$has_seed_filter = $seed_class_filter !== null && $seed_class_filter !== '';
+
+		if (!$has_module_filter && !$has_seed_filter) {
+			return $seeds;
+		}
+
+		$seed_map = [];
+
+		foreach ($seeds as $seed) {
+			$seed_map[(string) $seed['class']] = $seed;
+		}
+
+		$selected = [];
+		$stack = [];
+
+		foreach ($seeds as $seed) {
+			if ($has_module_filter && (string) $seed['module'] !== $module_filter) {
+				continue;
+			}
+
+			if ($has_seed_filter && (string) $seed['class'] !== $seed_class_filter) {
+				continue;
+			}
+
+			$stack[] = (string) $seed['class'];
+		}
+
+		while ($stack !== []) {
+			$class_name = array_pop($stack);
+
+			if (!isset($seed_map[$class_name])) {
+				throw new RuntimeException("Seed filter resolved to missing dependency '{$class_name}'.");
+			}
+
+			if (isset($selected[$class_name])) {
+				continue;
+			}
+
+			$selected[$class_name] = true;
+
+			foreach ((array) ($seed_map[$class_name]['dependencies'] ?? []) as $dependency_class) {
+				$dependency_class = trim((string) $dependency_class);
+
+				if ($dependency_class === '') {
+					continue;
+				}
+
+				$stack[] = $dependency_class;
+			}
+		}
+
+		return array_values(array_filter(
+			$seeds,
+			static fn (array $seed): bool => isset($selected[(string) $seed['class']])
+		));
 	}
 
 	/**

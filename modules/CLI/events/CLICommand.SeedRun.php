@@ -12,7 +12,7 @@ class CLICommandSeedRun extends AbstractCLICommand
 		return <<<'DOC'
 			Run package/app data seeds.
 
-			Usage: radaptor seed:run [--include-demo-seeds] [--rerun-demo-seeds] [--skip-seeds] [--dry-run] [--json]
+			Usage: radaptor seed:run [--include-demo-seeds] [--rerun-demo-seeds] [--skip-seeds] [--module <module>] [--seed-class <SeedClass>] [--dry-run] [--json]
 
 			Examples:
 			  radaptor seed:run
@@ -34,6 +34,8 @@ class CLICommandSeedRun extends AbstractCLICommand
 		$skip_seeds = Request::hasArg('skip-seeds');
 		$dry_run = Request::hasArg('dry-run');
 		$json = Request::hasArg('json');
+		$module_filter = CLIOptionHelper::getOption('module');
+		$seed_class_filter = CLIOptionHelper::getOption('seed-class');
 		$prompt = (!$json && SeedCliPromptHelper::isInteractive())
 			? static fn (array $demo_seeds): bool => SeedCliPromptHelper::confirmDemoSeedRerun($demo_seeds)
 			: null;
@@ -44,7 +46,9 @@ class CLICommandSeedRun extends AbstractCLICommand
 				$rerun_demo_seeds,
 				$skip_seeds,
 				$dry_run,
-				$prompt
+				$prompt,
+				$module_filter !== '' ? $module_filter : null,
+				$seed_class_filter !== '' ? $seed_class_filter : null
 			);
 		} catch (Throwable $exception) {
 			if ($json) {

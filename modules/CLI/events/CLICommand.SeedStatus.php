@@ -12,7 +12,7 @@ class CLICommandSeedStatus extends AbstractCLICommand
 		return <<<'DOC'
 			Show data seed status for the current app and installed packages.
 
-			Usage: radaptor seed:status [--include-demo-seeds] [--json]
+			Usage: radaptor seed:status [--include-demo-seeds] [--module <module>] [--seed-class <SeedClass>] [--json]
 
 			Examples:
 			  radaptor seed:status
@@ -30,9 +30,15 @@ class CLICommandSeedStatus extends AbstractCLICommand
 	{
 		$include_demo_seeds = Request::hasArg('include-demo-seeds');
 		$json = Request::hasArg('json');
+		$module_filter = CLIOptionHelper::getOption('module');
+		$seed_class_filter = CLIOptionHelper::getOption('seed-class');
 
 		try {
-			$result = SeedRunner::status($include_demo_seeds);
+			$result = SeedRunner::status(
+				$include_demo_seeds,
+				$module_filter !== '' ? $module_filter : null,
+				$seed_class_filter !== '' ? $seed_class_filter : null
+			);
 		} catch (Throwable $exception) {
 			if ($json) {
 				echo json_encode([
