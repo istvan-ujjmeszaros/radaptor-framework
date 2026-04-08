@@ -390,6 +390,7 @@ class MigrationRunner
 	{
 		$dirs = [];
 		$seen_modules = [];
+		$installed_plugin_ids = self::getInstalledPluginIds();
 
 		if (is_file(PackageLockfile::getPath())) {
 			$lock = PackageLockfile::load();
@@ -451,6 +452,10 @@ class MigrationRunner
 					continue;
 				}
 
+				if ($type === 'plugin' && is_array($installed_plugin_ids) && !in_array($id, $installed_plugin_ids, true)) {
+					continue;
+				}
+
 				$module = PackageModuleHelper::buildModule($type, $id);
 
 				if (isset($seen_modules[$module])) {
@@ -466,6 +471,33 @@ class MigrationRunner
 		}
 
 		return $dirs;
+	}
+
+	/**
+	 * @return list<string>|null
+	 */
+	private static function getInstalledPluginIds(): ?array
+	{
+		$lock_path = PluginLockfile::getPath();
+
+		if (!is_file($lock_path)) {
+			return null;
+		}
+
+		try {
+			$lock = PluginLockfile::loadFromPath($lock_path);
+		} catch (Throwable) {
+			return null;
+		}
+
+		$plugin_ids = array_map(
+			static fn (string $plugin_id): string => PluginIdHelper::normalize($plugin_id, 'Installed plugin'),
+			array_keys($lock['plugins'] ?? [])
+		);
+		$plugin_ids = array_values(array_unique($plugin_ids));
+		sort($plugin_ids);
+
+		return $plugin_ids;
 	}
 
 	public static function writeMigrationsFile(): void

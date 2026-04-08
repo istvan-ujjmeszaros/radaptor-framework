@@ -1,10 +1,10 @@
 <?php
 
 /**
- * Run queue workers for email and generic queued jobs.
+ * Run the transactional email queue worker.
  *
  * Usage:
- *   radaptor emailqueue:run [mode=all|transactional|bulk|general] [--once]
+ *   radaptor emailqueue:run [--once]
  */
 class CLICommandEmailqueueRun extends AbstractCLICommand
 {
@@ -16,13 +16,13 @@ class CLICommandEmailqueueRun extends AbstractCLICommand
 	public function getDocs(): string
 	{
 		return <<<'DOC'
-			Run queue workers for email and generic queued jobs.
+			Run the transactional email queue worker.
 
-			Usage: radaptor emailqueue:run [mode=all|transactional|bulk|general] [--once]
+			Usage: radaptor emailqueue:run [--once]
 
 			Examples:
 			  radaptor emailqueue:run
-			  radaptor emailqueue:run mode=transactional --once
+			  radaptor emailqueue:run --once
 			DOC;
 	}
 
@@ -34,7 +34,6 @@ class CLICommandEmailqueueRun extends AbstractCLICommand
 	public function getWebParams(): array
 	{
 		return [
-			['name' => 'mode', 'label' => 'Mode', 'type' => 'option', 'default' => 'all'],
 			['name' => 'once', 'label' => 'Run once', 'type' => 'flag', 'default' => '1'],
 		];
 	}
@@ -46,22 +45,17 @@ class CLICommandEmailqueueRun extends AbstractCLICommand
 
 	public function run(): void
 	{
-		$mode = (string) (Request::getArg('mode') ?? 'all');
 		$runOnce = Request::hasArg('once');
 
-		$processTransactional = in_array($mode, ['all', 'transactional'], true);
-		$processBulk = in_array($mode, ['all', 'bulk'], true);
-		$processGeneral = in_array($mode, ['all', 'general'], true);
-
-		echo "Queue worker mode: {$mode}" . ($runOnce ? " (once)" : " (forever)") . "\n";
+		echo 'Queue worker mode: transactional' . ($runOnce ? " (once)\n" : " (forever)\n");
 
 		if ($runOnce) {
-			EmailQueueWorker::runOnce($processTransactional, $processBulk, $processGeneral);
+			EmailQueueWorker::runOnce();
 			echo "Queue worker run finished.\n";
 
 			return;
 		}
 
-		EmailQueueWorker::runForever($processTransactional, $processBulk, $processGeneral);
+		EmailQueueWorker::runForever();
 	}
 }
