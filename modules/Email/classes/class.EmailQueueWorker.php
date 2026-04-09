@@ -34,13 +34,17 @@ class EmailQueueWorker
 			return false;
 		}
 
-		$queue_id = (int) $row['queue_id'];
+		$job_id = (string) ($row['job_id'] ?? '');
 		$job_type = (string) $row['job_type'];
 		$requested_by_type = (string) ($row['requested_by_type'] ?? '');
 		$requested_by_id = isset($row['requested_by_id']) ? (int) $row['requested_by_id'] : null;
 
+		if ($job_id === '') {
+			return false;
+		}
+
 		if (!EmailAuthorization::canRequestedPrincipalExecute($requested_by_type, $requested_by_id)) {
-			EmailQueueStorage::fail($queue_id, 'AUTH_DENIED', 'Requested principal is not authorized anymore.', false);
+			EmailQueueStorage::fail($job_id, 'AUTH_DENIED', 'Requested principal is not authorized anymore.', false);
 
 			return true;
 		}
@@ -48,7 +52,7 @@ class EmailQueueWorker
 		$payload = json_decode((string) $row['payload_json'], true);
 
 		if (!is_array($payload)) {
-			EmailQueueStorage::fail($queue_id, 'INVALID_PAYLOAD', 'Invalid payload JSON.', false);
+			EmailQueueStorage::fail($job_id, 'INVALID_PAYLOAD', 'Invalid payload JSON.', false);
 
 			return true;
 		}
@@ -61,13 +65,13 @@ class EmailQueueWorker
 					break;
 
 				default:
-					EmailQueueStorage::fail($queue_id, 'UNKNOWN_JOB_TYPE', 'Unsupported job type: ' . $job_type, false);
+					EmailQueueStorage::fail($job_id, 'UNKNOWN_JOB_TYPE', 'Unsupported job type: ' . $job_type, false);
 
 					return true;
 			}
 		} catch (EmailJobProcessingException $e) {
 			$outcome = EmailQueueStorage::fail(
-				$queue_id,
+				$job_id,
 				$e->getErrorCodeString(),
 				$e->getMessage(),
 				$e->isRetryable()
@@ -79,7 +83,7 @@ class EmailQueueWorker
 
 			return true;
 		} catch (Throwable $e) {
-			$outcome = EmailQueueStorage::fail($queue_id, 'EXECUTION_ERROR', $e->getMessage(), true);
+			$outcome = EmailQueueStorage::fail($job_id, 'EXECUTION_ERROR', $e->getMessage(), true);
 
 			if ($outcome === EmailQueueStorage::FAIL_OUTCOME_TERMINAL_DEAD_LETTERED) {
 				self::markEmailPayloadFailedIfPossible($job_type, $payload, 'EXECUTION_ERROR', $e->getMessage());
@@ -88,7 +92,7 @@ class EmailQueueWorker
 			return true;
 		}
 
-		EmailQueueStorage::complete($queue_id);
+		EmailQueueStorage::complete($job_id);
 		EmailQueueHeartbeat::markProcessed();
 
 		return true;

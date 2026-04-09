@@ -530,9 +530,24 @@ class DbHelper
 
 		$pkeys = Db::getPrimaryKeys($table, $dsn);
 
-		// TODO: Test if working with composite pkeys
 		if ($id !== null) {
-			$pkey_values = [$pkeys[0] => $id];
+			if (is_array($id)) {
+				$pkey_values = [];
+
+				foreach ($id as $name => $value) {
+					if (!in_array($name, $pkeys, true)) {
+						ResourceTreeHandler::drop400("Invalid primary key '{$name}' for table '{$table}'.");
+					}
+
+					if (array_key_exists($name, $savedata) && $savedata[$name] !== $value) {
+						ResourceTreeHandler::drop400("The provided primary key values do not match the primary key values in the savedata array.");
+					}
+
+					$pkey_values[$name] = $value;
+				}
+			} else {
+				$pkey_values = [$pkeys[0] => $id];
+			}
 		} else {
 			$pkey_values = Db::getValuesForPrimaryKeys($pkeys, $savedata);
 		}
@@ -578,13 +593,13 @@ class DbHelper
 	 * Deletes a row or rows from a table based on the given ID(s).
 	 *
 	 * @param string $table The name of the database table.
-	 * @param int|array<string, int|string> $id The ID for single primary key or an array of primary key field-value pairs for composite keys.
+	 * @param int|string|array<string, int|string> $id The ID for single primary key or an array of primary key field-value pairs for composite keys.
 	 * @param bool $limited_to_one Whether to limit the deletion to a single row (default: true).
 	 * @param string $dsn
 	 * @return bool True if any rows were deleted, false otherwise.
 	 * @throws PDOException on database error
 	 */
-	public static function deleteHelper(string $table, int|array $id, bool $limited_to_one = true, string $dsn = ''): bool
+	public static function deleteHelper(string $table, int|string|array $id, bool $limited_to_one = true, string $dsn = ''): bool
 	{
 		if ($id == null) {
 			return false;

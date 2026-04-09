@@ -27,6 +27,56 @@ class EmailOrchestrator
 			throw new RuntimeException('Permission denied for enqueuing email jobs.');
 		}
 
+		return self::enqueueTransactionalSnapshotForRequestedPrincipal(
+			subject: $subject,
+			htmlBody: $htmlBody,
+			textBody: $textBody,
+			recipients: $recipients,
+			scheduledAt: $scheduledAt,
+			priority: $priority,
+			requestedByType: EmailAuthorization::REQUESTED_BY_TYPE_USER,
+			requestedById: User::getCurrentUserId() ?: null,
+		);
+	}
+
+	/**
+	 * @param array<int, ShapeTransactionalRecipient> $recipients
+	 * @return array{outbox_id: int, queued_jobs: int}
+	 */
+	public static function enqueueTransactionalSnapshotAsSystem(
+		string $subject,
+		string $htmlBody,
+		string $textBody,
+		array $recipients,
+		?string $scheduledAt = null,
+		string $priority = 'instant',
+	): array {
+		return self::enqueueTransactionalSnapshotForRequestedPrincipal(
+			subject: $subject,
+			htmlBody: $htmlBody,
+			textBody: $textBody,
+			recipients: $recipients,
+			scheduledAt: $scheduledAt,
+			priority: $priority,
+			requestedByType: EmailAuthorization::REQUESTED_BY_TYPE_SYSTEM,
+			requestedById: null,
+		);
+	}
+
+	/**
+	 * @param array<int, ShapeTransactionalRecipient> $recipients
+	 * @return array{outbox_id: int, queued_jobs: int}
+	 */
+	private static function enqueueTransactionalSnapshotForRequestedPrincipal(
+		string $subject,
+		string $htmlBody,
+		string $textBody,
+		array $recipients,
+		?string $scheduledAt,
+		string $priority,
+		string $requestedByType,
+		?int $requestedById,
+	): array {
 		$normalized_recipients = self::normalizeRecipients($recipients);
 
 		if ($normalized_recipients === []) {
@@ -34,7 +84,6 @@ class EmailOrchestrator
 		}
 
 		$message_uid = 'email_' . bin2hex(random_bytes(16));
-		$requested_by_id = User::getCurrentUserId();
 		$pdo = Db::instance();
 		$owns_transaction = !$pdo->inTransaction();
 
@@ -50,8 +99,8 @@ class EmailOrchestrator
 				'html_body' => $htmlBody,
 				'text_body' => $textBody,
 				'status' => 'queued',
-				'requested_by_type' => 'user',
-				'requested_by_id' => $requested_by_id > 0 ? $requested_by_id : null,
+				'requested_by_type' => $requestedByType,
+				'requested_by_id' => $requestedById,
 				'scheduled_at' => $scheduledAt,
 			]);
 			$outbox_id = (int) ($outbox->dto()['outbox_id'] ?? 0);
@@ -74,9 +123,9 @@ class EmailOrchestrator
 						'outbox_id' => $outbox_id,
 						'recipient_id' => $recipient_id,
 					],
-					requestedByType: 'user',
-					requestedById: $requested_by_id > 0 ? $requested_by_id : null,
-					priority: in_array($priority, ['instant', 'bulk'], true) ? $priority : 'instant',
+					requestedByType: $requestedByType,
+					requestedById: $requestedById,
+					priority: 'instant',
 					runAfterUtc: $scheduledAt,
 				));
 				++$queued_jobs;
