@@ -1,5 +1,13 @@
 <?php
 
+/**
+ * Low-level nested-set primitive.
+ *
+ * AI/agent rule: do not call this class directly from application, CLI, event, or controller
+ * code for concrete trees such as `resource_tree`. Always go through the owning business-layer
+ * service (for example `ResourceTreeHandler`) so ACL, lifecycle hooks, path rebuilds, attribute
+ * handling, file cleanup, and other side effects stay correct.
+ */
 class NestedSet
 {
 	public const int MAX_LEVEL = 128;

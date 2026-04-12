@@ -52,6 +52,21 @@ class CLIWebRunnerUserBridge
 	}
 
 	/**
+	 * Detect whether the current subprocess was spawned through the web runner.
+	 *
+	 * This intentionally checks only for bridge payload presence, not token
+	 * validity. Token validation belongs to user bootstrap, while ACL trust
+	 * decisions only need to know whether the process originated from the web
+	 * runner path.
+	 */
+	public static function isWebRunnerProcess(?int $user_id = null): bool
+	{
+		$user_id ??= self::getEnvironmentInteger(self::ENV_USER_ID);
+
+		return $user_id !== null && $user_id > 0;
+	}
+
+	/**
 	 * Resolve a trusted user id from the current process environment.
 	 */
 	public static function resolveTrustedUserIdFromEnvironment(): ?int

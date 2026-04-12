@@ -69,7 +69,13 @@ class CLICommandWebRunner
 
 		$start_time = hrtime(true);
 
-		$env = self::buildSubprocessEnv(array_merge($_ENV, $_SERVER));
+		$process_environment = getenv();
+
+		if (!is_array($process_environment)) {
+			$process_environment = [];
+		}
+
+		$env = self::buildSubprocessEnv(array_merge($process_environment, $_ENV, $_SERVER));
 		// Web requests often run with an unwritable HOME. Use an app-local HOME so
 		// CLIStorage-backed commands can persist ~/.radaptor state across requests.
 		$env['HOME'] = self::resolveCliHome($env['HOME'] ?? null);
