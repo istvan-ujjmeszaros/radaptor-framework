@@ -1,0 +1,103 @@
+#!/bin/bash
+set -euo pipefail
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+REPO_ROOT=$(git rev-parse --show-toplevel)
+cd "$REPO_ROOT"
+
+STAGED_FILES=()
+while IFS= read -r -d '' staged_file; do
+	STAGED_FILES+=("$staged_file")
+done < <(git diff --cached --name-only -z --diff-filter=ACM -- '*.php')
+
+if [ ${#STAGED_FILES[@]} -eq 0 ]; then
+	exit 0
+fi
+
+if [ ! -f "$REPO_ROOT/.php-cs-fixer.php" ]; then
+	echo -e "${RED}Staged PHP files detected, but .php-cs-fixer.php is missing in $REPO_ROOT.${NC}"
+	echo -e "${YELLOW}Add a repo-local PHP-CS-Fixer config or remove the staged PHP changes.${NC}"
+	exit 1
+fi
+
+find_consumer_app_root() {
+	local dir="$REPO_ROOT"
+
+	while [ "$dir" != "/" ]; do
+		if [ -f "$dir/docker-compose-dev.yml" ] && [ -x "$dir/php-cs-fixer.sh" ]; then
+			echo "$dir"
+			return 0
+		fi
+
+		dir=$(dirname "$dir")
+	done
+
+	return 1
+}
+
+run_fixer_locally() {
+	if [ -x "$REPO_ROOT/php-cs-fixer.sh" ]; then
+		"$REPO_ROOT/php-cs-fixer.sh" --config=.php-cs-fixer.php --quiet --path-mode=intersection -- "${STAGED_FILES[@]}"
+		return 0
+	fi
+
+	if [ -x "$REPO_ROOT/tools/php-cs-fixer" ]; then
+		"$REPO_ROOT/tools/php-cs-fixer" fix --config=.php-cs-fixer.php --quiet --path-mode=intersection -- "${STAGED_FILES[@]}"
+		return 0
+	fi
+
+	if [ -x "$REPO_ROOT/vendor/bin/php-cs-fixer" ]; then
+		"$REPO_ROOT/vendor/bin/php-cs-fixer" fix --config=.php-cs-fixer.php --quiet --path-mode=intersection -- "${STAGED_FILES[@]}"
+		return 0
+	fi
+
+	if command -v php-cs-fixer >/dev/null 2>&1; then
+		php-cs-fixer fix --config=.php-cs-fixer.php --quiet --path-mode=intersection -- "${STAGED_FILES[@]}"
+		return 0
+	fi
+
+	return 1
+}
+
+run_fixer_in_consumer_app() {
+	local app_root="$1"
+	local docker_service="${RADAPTOR_DOCKER_PHP_SERVICE:-php}"
+	local repo_relative_path="${REPO_ROOT#"$app_root"}"
+	local container_repo_root="/app${repo_relative_path}"
+
+	if ! command -v docker >/dev/null 2>&1; then
+		return 1
+	fi
+
+	if ! docker compose -f "$app_root/docker-compose-dev.yml" ps "$docker_service" 2>/dev/null | grep -q "Up"; then
+		return 1
+	fi
+
+	docker compose -f "$app_root/docker-compose-dev.yml" exec -T "$docker_service" bash -lc \
+		"cd '$container_repo_root' && php-cs-fixer fix --config=.php-cs-fixer.php --quiet --path-mode=intersection -- \"\$@\"" \
+		bash "${STAGED_FILES[@]}"
+}
+
+echo -e "${YELLOW}Running PHP-CS-Fixer on staged PHP files...${NC}"
+
+if run_fixer_locally; then
+	:
+elif app_root="$(find_consumer_app_root)"; then
+	echo -e "${YELLOW}Using consumer app container at $app_root for PHP-CS-Fixer.${NC}"
+	if ! run_fixer_in_consumer_app "$app_root"; then
+		echo -e "${RED}Unable to run PHP-CS-Fixer inside the detected consumer app container.${NC}"
+		exit 1
+	fi
+else
+	echo -e "${RED}Unable to locate a php-cs-fixer executable or a running consumer app container.${NC}"
+	echo -e "${YELLOW}Install php-cs-fixer locally or run the repo from within a workspace that has a running radaptor-app php container.${NC}"
+	exit 1
+fi
+
+git add -- "${STAGED_FILES[@]}"
+
+echo -e "${GREEN}PHP-CS-Fixer completed successfully.${NC}"

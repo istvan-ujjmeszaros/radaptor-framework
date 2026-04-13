@@ -1,34 +1,51 @@
-name: PHP CS Fixer
+name: Repo Checks
 
 on:
   pull_request:
   push:
     branches:
       - main
+      - master
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  php-cs-fixer:
+  repo-checks:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Verify tracked git hooks
+        run: |
+          test -f .githooks/install.sh
+          test -f .githooks/pre-commit
+          chmod +x .githooks/install.sh .githooks/pre-commit
+          ./.githooks/install.sh
+          test "$(git config --get core.hooksPath)" = ".githooks"
+
       - name: Setup PHP
+        if: ${{ hashFiles('.php-cs-fixer.php') != '' }}
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
           coverage: none
 
       - name: Install PHP CS Fixer
+        if: ${{ hashFiles('.php-cs-fixer.php') != '' }}
         run: composer global require --no-interaction --no-progress friendsofphp/php-cs-fixer:^3.94
 
       - name: Expose Composer global bin
+        if: ${{ hashFiles('.php-cs-fixer.php') != '' }}
         run: echo "$(composer global config home --absolute)/vendor/bin" >> "$GITHUB_PATH"
 
       - name: Check formatting
+        if: ${{ hashFiles('.php-cs-fixer.php') != '' }}
         run: php-cs-fixer fix --dry-run --diff --config=.php-cs-fixer.php
+
+      - name: Skip formatting
+        if: ${{ hashFiles('.php-cs-fixer.php') == '' }}
+        run: echo "No .php-cs-fixer.php in this repo; skipping PHP formatting check."
