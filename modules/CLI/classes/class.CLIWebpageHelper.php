@@ -365,7 +365,7 @@ class CLIWebpageHelper
 	/**
 	 * Summarize how many resource_tree nodes live under the resolved subtree.
 	 *
-	 * @return array{total_nodes: int, folders: int, webpages: int, other_nodes: int}
+	 * @return array{total_nodes: int, folders: int, webpages: int, files: int, other_nodes: int}
 	 */
 	public static function summarizeSubtree(int $node_id): array
 	{
@@ -387,6 +387,7 @@ class CLIWebpageHelper
 			'total_nodes' => 0,
 			'folders' => 0,
 			'webpages' => 0,
+			'files' => 0,
 			'other_nodes' => 0,
 		];
 
@@ -399,101 +400,13 @@ class CLIWebpageHelper
 				$summary['folders'] += $total;
 			} elseif ($type === 'webpage') {
 				$summary['webpages'] += $total;
+			} elseif ($type === 'file') {
+				$summary['files'] += $total;
 			} else {
 				$summary['other_nodes'] += $total;
 			}
 		}
 
 		return $summary;
-	}
-
-	/**
-	 * Delete a resource_tree subtree without interactive ACL checks.
-	 *
-	 * This is intended for explicit CLI maintenance commands where the operator
-	 * already chose the target path.
-	 *
-	 * @return array{success: bool, erroneous: int, folder: int, webpage: int}
-	 */
-	public static function deleteSubtreeWithoutAcl(int $node_id): array
-	{
-		$folder_count = 0;
-		$webpage_count = 0;
-		$erroneous_count = 0;
-		$node_data = NestedSet::getNodeInfo('resource_tree', $node_id);
-
-		if ($node_data === null) {
-			return [
-				'success' => false,
-				'erroneous' => 1,
-				'folder' => 0,
-				'webpage' => 0,
-			];
-		}
-
-		$lft = (int) $node_data['lft'];
-		$rgt = (int) $node_data['rgt'];
-
-		if ($rgt - $lft === 1) {
-			$success = self::deleteNodeWithoutAcl($node_id);
-
-			if ($success && ($node_data['node_type'] ?? '') === 'webpage') {
-				++$webpage_count;
-			} elseif ($success && ($node_data['node_type'] ?? '') === 'folder') {
-				++$folder_count;
-			} else {
-				++$erroneous_count;
-			}
-		} else {
-			$stmt = Db::instance()->prepare(
-				"SELECT node_id, node_type, (rgt-lft) AS rgtlft
-				 FROM resource_tree
-				 WHERE lft >= ? AND rgt <= ?
-				 ORDER BY rgtlft ASC"
-			);
-			$stmt->execute([$lft, $rgt]);
-			$rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-			foreach ($rows as $row) {
-				$current = ResourceTreeHandler::getResourceTreeEntryDataById((int) $row['node_id']);
-
-				if ($current === null) {
-					++$erroneous_count;
-
-					continue;
-				}
-
-				if (((int) $current['rgt'] - (int) $current['lft']) !== 1) {
-					++$erroneous_count;
-
-					continue;
-				}
-
-				$success = self::deleteNodeWithoutAcl((int) $row['node_id']);
-
-				if ($success && ($row['node_type'] ?? '') === 'webpage') {
-					++$webpage_count;
-				} elseif ($success && ($row['node_type'] ?? '') === 'folder') {
-					++$folder_count;
-				} else {
-					++$erroneous_count;
-				}
-			}
-		}
-
-		return [
-			'success' => $erroneous_count === 0,
-			'erroneous' => $erroneous_count,
-			'folder' => $folder_count,
-			'webpage' => $webpage_count,
-		];
-	}
-
-	private static function deleteNodeWithoutAcl(int $node_id): bool
-	{
-		ResourceTreeHandler::clearCatcherPage($node_id);
-		Cache::flush();
-
-		return NestedSet::deleteNode('resource_tree', $node_id);
 	}
 }

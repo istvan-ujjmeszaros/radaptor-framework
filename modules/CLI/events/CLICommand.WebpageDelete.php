@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Delete a webpage or folder subtree from the resource tree.
+ * Delete a webpage, file, or folder subtree from the resource tree.
  *
  * Usage:
  *   radaptor webpage:delete <path> [--dry-run] [--json]
@@ -16,13 +16,13 @@ class CLICommandWebpageDelete extends AbstractCLICommand
 {
 	public function getName(): string
 	{
-		return 'Delete webpage or folder';
+		return 'Delete resource subtree';
 	}
 
 	public function getDocs(): string
 	{
 		return <<<'DOC'
-			Delete a webpage or folder subtree from the resource tree.
+			Delete a webpage, file, or folder subtree from the resource tree.
 
 			Usage:
 			  radaptor webpage:delete <path> [--dry-run] [--json]
@@ -95,8 +95,8 @@ class CLICommandWebpageDelete extends AbstractCLICommand
 		];
 
 		if (!$dry_run) {
-			$deletion = CLIWebpageHelper::deleteSubtreeWithoutAcl($node_id);
-			$result['deleted'] = $deletion['success'];
+			$deletion = ResourceTreeHandler::deleteResourceEntriesRecursive($node_id);
+			$result['deleted'] = (($deletion['success'] ?? false) === true) && (($deletion['erroneous'] ?? 0) === 0);
 			$result['deletion'] = $deletion;
 		}
 
@@ -129,6 +129,7 @@ class CLICommandWebpageDelete extends AbstractCLICommand
 			echo "Summary: {$result['summary']['total_nodes']} node(s), "
 				. "{$result['summary']['folders']} folder(s), "
 				. "{$result['summary']['webpages']} webpage(s), "
+				. "{$result['summary']['files']} file(s), "
 				. "{$result['summary']['other_nodes']} other node(s)\n";
 		}
 
@@ -151,6 +152,7 @@ class CLICommandWebpageDelete extends AbstractCLICommand
 		if (isset($result['deletion'])) {
 			echo "Deleted folders: {$result['deletion']['folder']}\n";
 			echo "Deleted webpages: {$result['deletion']['webpage']}\n";
+			echo "Deleted files: {$result['deletion']['file']}\n";
 			echo "Errors: {$result['deletion']['erroneous']}\n";
 		}
 	}
@@ -189,14 +191,18 @@ class CLICommandWebpageDelete extends AbstractCLICommand
 				'erroneous' => 0,
 				'folder' => 0,
 				'webpage' => 0,
+				'file' => 0,
 			];
 
 			foreach ($targets as $target) {
-				$current = CLIWebpageHelper::deleteSubtreeWithoutAcl((int) $target['page_id']);
-				$deletion['success'] = $deletion['success'] && $current['success'];
+				$current = ResourceTreeHandler::deleteResourceEntriesRecursive((int) $target['page_id']);
+				$deletion['success'] = $deletion['success']
+					&& (($current['success'] ?? false) === true)
+					&& (($current['erroneous'] ?? 0) === 0);
 				$deletion['erroneous'] += $current['erroneous'];
 				$deletion['folder'] += $current['folder'];
 				$deletion['webpage'] += $current['webpage'];
+				$deletion['file'] += $current['file'];
 			}
 
 			$result['deleted'] = (bool) $deletion['success'];

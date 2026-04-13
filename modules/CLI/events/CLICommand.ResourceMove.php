@@ -50,7 +50,7 @@ class CLICommandResourceMove extends AbstractCLICommand
 				throw new RuntimeException('Target parent must be a folder or root.');
 			}
 
-			$position ??= count(NestedSet::getChildren('resource_tree', (int) $parent['node_id'], []));
+			$position ??= ResourceTreeHandler::countChildren((int) $parent['node_id']);
 
 			if (!$dry_run && !ResourceTreeHandler::moveResourceEntryToPosition((int) $resource['node_id'], (int) $parent['node_id'], $position)) {
 				throw new RuntimeException("Unable to move {$path}.");
