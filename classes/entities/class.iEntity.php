@@ -32,13 +32,13 @@ interface iEntity
 	/**
 	 * Retrieves an entity by its primary key(s).
 	 *
-	 * @param int|string|array<string, mixed> $id The primary key value(s). Can be a single scalar for tables with a single primary key,
+	 * @param int|array<string, mixed> $id The primary key value(s). Can be a single integer for tables with a single primary key,
 	 *                                     or an associative array of column names and values for composite primary keys.
 	 *
 	 * @return static|null The entity with the given identifier, or null if not found.
 	 * @throws PDOException If the primary key name is invalid.
 	 */
-	public static function findById(int|string|array $id): ?static;
+	public static function findById(int|array $id): ?static;
 
 	/**
 	 * Retrieves an array of values from a specific column for all matching entities.
@@ -109,12 +109,12 @@ interface iEntity
 	/**
 	 * Update an existing entity by primary key and return updated entity.
 	 *
-	 * @param int|string|array<string, mixed> $id The primary key value(s).
+	 * @param int|array<string, mixed> $id The primary key value(s).
 	 * @param array<string, mixed> $data The changed entity data.
 	 * @return static
 	 * @throws EntitySaveException on persistence errors
 	 */
-	public static function updateById(int|string|array $id, array $data): static;
+	public static function updateById(int|array $id, array $data): static;
 
 	/**
 	 * Factory method to create an instance of a subclass from an associative array of data.
@@ -128,8 +128,8 @@ interface iEntity
 	/**
 	 * Deletes one or more entities from the database.
 	 *
-	 * @param int|string|array<string, int|string> $id The ID or an array of primary key field-value pairs to delete.
+	 * @param int|array<string, int|string> $id The ID or an array of primary key field-value pairs to delete.
 	 * @return bool True if the entity was deleted successfully, false otherwise.
 	 */
-	public static function delete(int|string|array $id): bool;
+	public static function delete(int|array $id): bool;
 }

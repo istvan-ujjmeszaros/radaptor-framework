@@ -349,19 +349,52 @@ class PackageInstallService
 		$candidate_parts = parse_url($candidate_url);
 		$base_parts = parse_url($base_url);
 
-		if (!is_array($candidate_parts) || !is_array($base_parts)) {
+		if (!is_array($candidate_parts) || !is_array($base_parts) || !isset($base_parts['scheme'])) {
 			return $candidate_url;
 		}
 
-		$authority = self::buildUrlAuthority($base_parts);
+		$scheme = strtolower((string) $base_parts['scheme']);
+		$host = (string) ($base_parts['host'] ?? '');
 
-		if ($authority === null || !preg_match('#^https?://#', $authority)) {
+		if (!in_array($scheme, ['http', 'https'], true) || $host === '') {
 			return $candidate_url;
 		}
 
-		return $authority
-			. (string) ($candidate_parts['path'] ?? '/')
-			. self::buildUrlQueryAndFragment($candidate_parts);
+		$authority = $scheme . '://';
+		$user = (string) ($base_parts['user'] ?? '');
+		$pass = (string) ($base_parts['pass'] ?? '');
+
+		if ($user !== '') {
+			$authority .= $user;
+
+			if ($pass !== '') {
+				$authority .= ':' . $pass;
+			}
+
+			$authority .= '@';
+		}
+
+		if (str_contains($host, ':') && !str_starts_with($host, '[')) {
+			$host = '[' . $host . ']';
+		}
+
+		$authority .= $host;
+
+		if (isset($base_parts['port'])) {
+			$authority .= ':' . $base_parts['port'];
+		}
+
+		$suffix = (string) ($candidate_parts['path'] ?? '/');
+
+		if (isset($candidate_parts['query']) && $candidate_parts['query'] !== '') {
+			$suffix .= '?' . $candidate_parts['query'];
+		}
+
+		if (isset($candidate_parts['fragment']) && $candidate_parts['fragment'] !== '') {
+			$suffix .= '#' . $candidate_parts['fragment'];
+		}
+
+		return $authority . $suffix;
 	}
 
 	private static function rebaseRegistryArtifactUrlForStorage(string $candidate_url, string $current_registry_url, string $declared_registry_url): string
@@ -396,42 +429,36 @@ class PackageInstallService
 		}
 
 		$base = parse_url($base_url);
-		$candidate_parts = parse_url($candidate);
 
 		if (!is_array($base) || !isset($base['scheme'])) {
 			return $candidate;
 		}
 
-		$candidate_path = str_replace('\\', '/', (string) ($candidate_parts['path'] ?? $candidate));
-		$query_and_fragment = is_array($candidate_parts)
-			? self::buildUrlQueryAndFragment($candidate_parts)
-			: '';
-
 		if ($base['scheme'] === 'file') {
 			$base_path = $base['path'] ?? '';
 			$base_dir = rtrim(str_replace('\\', '/', dirname($base_path)), '/');
-			$path = str_starts_with($candidate_path, '/')
-				? $candidate_path
-				: ($base_dir . '/' . ltrim($candidate_path, '/'));
+			$path = str_starts_with($candidate, '/')
+				? $candidate
+				: ($base_dir . '/' . ltrim($candidate, '/'));
 
-			return 'file://' . self::normalizeRelativeUrlPath($path) . $query_and_fragment;
+			return 'file://' . self::normalizeRelativeUrlPath($path);
 		}
 
-		$authority = self::buildUrlAuthority($base);
+		$authority = $base['scheme'] . '://' . ($base['host'] ?? '');
 
-		if ($authority === null) {
-			return $candidate;
+		if (isset($base['port'])) {
+			$authority .= ':' . $base['port'];
 		}
 
-		if (str_starts_with($candidate_path, '/')) {
-			return $authority . self::normalizeRelativeUrlPath($candidate_path) . $query_and_fragment;
+		if (str_starts_with($candidate, '/')) {
+			return $authority . $candidate;
 		}
 
 		$base_path = $base['path'] ?? '/';
 		$base_dir = rtrim(str_replace('\\', '/', dirname($base_path)), '/');
-		$joined_path = self::normalizeRelativeUrlPath($base_dir . '/' . $candidate_path);
+		$joined_path = self::normalizeRelativeUrlPath($base_dir . '/' . $candidate);
 
-		return $authority . $joined_path . $query_and_fragment;
+		return $authority . $joined_path;
 	}
 
 	private static function normalizeRelativeUrlPath(string $path): string
@@ -455,66 +482,6 @@ class PackageInstallService
 		}
 
 		return $prefix . implode('/', $segments);
-	}
-
-	private static function buildUrlAuthority(array $parts): ?string
-	{
-		$scheme = strtolower((string) ($parts['scheme'] ?? ''));
-
-		if ($scheme === '') {
-			return null;
-		}
-
-		if ($scheme === 'file') {
-			return 'file://';
-		}
-
-		$host = (string) ($parts['host'] ?? '');
-
-		if ($host === '') {
-			return null;
-		}
-
-		$authority = $scheme . '://';
-		$user = (string) ($parts['user'] ?? '');
-		$pass = (string) ($parts['pass'] ?? '');
-
-		if ($user !== '') {
-			$authority .= $user;
-
-			if ($pass !== '') {
-				$authority .= ':' . $pass;
-			}
-
-			$authority .= '@';
-		}
-
-		if (str_contains($host, ':') && !str_starts_with($host, '[')) {
-			$host = '[' . $host . ']';
-		}
-
-		$authority .= $host;
-
-		if (isset($parts['port'])) {
-			$authority .= ':' . $parts['port'];
-		}
-
-		return $authority;
-	}
-
-	private static function buildUrlQueryAndFragment(array $parts): string
-	{
-		$suffix = '';
-
-		if (isset($parts['query']) && $parts['query'] !== '') {
-			$suffix .= '?' . $parts['query'];
-		}
-
-		if (isset($parts['fragment']) && $parts['fragment'] !== '') {
-			$suffix .= '#' . $parts['fragment'];
-		}
-
-		return $suffix;
 	}
 
 	private static function extractRegistryRelativePath(string $candidate_url, string $registry_url): ?string
@@ -560,15 +527,14 @@ class PackageInstallService
 		}
 
 		if ($registry_dir === '/') {
-			return ltrim($candidate_path, '/') . self::buildUrlQueryAndFragment($candidate_parts);
+			return ltrim($candidate_path, '/');
 		}
 
 		if (!str_starts_with($candidate_path, $registry_dir . '/')) {
 			return null;
 		}
 
-		return ltrim(substr($candidate_path, strlen($registry_dir)), '/')
-			. self::buildUrlQueryAndFragment($candidate_parts);
+		return ltrim(substr($candidate_path, strlen($registry_dir)), '/');
 	}
 
 	private static function rebuildThemeData(): void

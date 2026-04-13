@@ -19,14 +19,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Verify tracked git hooks
-        run: |
-          test -f .githooks/install.sh
-          test -f .githooks/pre-commit
-          chmod +x .githooks/install.sh .githooks/pre-commit
-          ./.githooks/install.sh
-          test "$(git config --get core.hooksPath)" = ".githooks"
-
       - name: Setup PHP
         if: ${{ hashFiles('.php-cs-fixer.php') != '' }}
         uses: shivammathur/setup-php@v2
@@ -42,10 +34,6 @@ jobs:
         if: ${{ hashFiles('.php-cs-fixer.php') != '' }}
         run: echo "$(composer global config home --absolute)/vendor/bin" >> "$GITHUB_PATH"
 
-      - name: Check formatting
-        if: ${{ hashFiles('.php-cs-fixer.php') != '' }}
-        run: php-cs-fixer fix --dry-run --diff --config=.php-cs-fixer.php
-
-      - name: Skip formatting
-        if: ${{ hashFiles('.php-cs-fixer.php') == '' }}
-        run: echo "No .php-cs-fixer.php in this repo; skipping PHP formatting check."
+      - name: Run repo checks
+        shell: bash
+        run: ./bin/check-repo-baseline.sh

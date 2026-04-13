@@ -260,7 +260,7 @@ abstract class SQLEntity implements iEntity
 	/**
 	 * {@inheritDoc}
 	 */
-	public static function findById(int|string|array $id): ?static
+	public static function findById(int|array $id): ?static
 	{
 		$pkeys = Db::getPrimaryKeys(static::getTableName());
 
@@ -342,10 +342,10 @@ abstract class SQLEntity implements iEntity
 	/**
 	 * Resolve primary key values from explicit id input.
 	 *
-	 * @param int|string|array<string, mixed> $id
+	 * @param int|array<string, mixed> $id
 	 * @return array<string, mixed>
 	 */
-	private static function _idToPrimaryKeyValues(int|string|array $id): array
+	private static function _idToPrimaryKeyValues(int|array $id): array
 	{
 		$table = static::getTableName();
 		$pkeys = Db::getPrimaryKeys($table);
@@ -469,10 +469,10 @@ abstract class SQLEntity implements iEntity
 
 	/**
 	 * {@inheritDoc}
-	 * @param int|string|array<string, mixed> $id
+	 * @param int|array<string, mixed> $id
 	 * @param TData $data
 	 */
-	public static function updateById(int|string|array $id, array $data): static
+	public static function updateById(int|array $id, array $data): static
 	{
 		$table = static::getTableName();
 		$pkey_values = self::_idToPrimaryKeyValues($id);
@@ -554,7 +554,7 @@ abstract class SQLEntity implements iEntity
 	/**
 	 * {@inheritDoc}
 	 */
-	public static function delete(int|string|array $id): bool
+	public static function delete(int|array $id): bool
 	{
 		return DbHelper::deleteHelper(
 			table: static::getTableName(),

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -euo pipefail
 
 RED='\033[0;31m'
@@ -42,22 +42,22 @@ find_consumer_app_root() {
 run_fixer_locally() {
 	if [ -x "$REPO_ROOT/php-cs-fixer.sh" ]; then
 		"$REPO_ROOT/php-cs-fixer.sh" --config=.php-cs-fixer.php --quiet --path-mode=intersection -- "${STAGED_FILES[@]}"
-		return 0
+		return $?
 	fi
 
 	if [ -x "$REPO_ROOT/tools/php-cs-fixer" ]; then
 		"$REPO_ROOT/tools/php-cs-fixer" fix --config=.php-cs-fixer.php --quiet --path-mode=intersection -- "${STAGED_FILES[@]}"
-		return 0
+		return $?
 	fi
 
 	if [ -x "$REPO_ROOT/vendor/bin/php-cs-fixer" ]; then
 		"$REPO_ROOT/vendor/bin/php-cs-fixer" fix --config=.php-cs-fixer.php --quiet --path-mode=intersection -- "${STAGED_FILES[@]}"
-		return 0
+		return $?
 	fi
 
 	if command -v php-cs-fixer >/dev/null 2>&1; then
 		php-cs-fixer fix --config=.php-cs-fixer.php --quiet --path-mode=intersection -- "${STAGED_FILES[@]}"
-		return 0
+		return $?
 	fi
 
 	return 1
@@ -94,7 +94,7 @@ elif app_root="$(find_consumer_app_root)"; then
 	fi
 else
 	echo -e "${RED}Unable to locate a php-cs-fixer executable or a running consumer app container.${NC}"
-	echo -e "${YELLOW}Install php-cs-fixer locally or run the repo from within a workspace that has a running radaptor-app php container.${NC}"
+	echo -e "${YELLOW}Install php-cs-fixer locally or run the repo from within a workspace that has a running consumer app PHP container.${NC}"
 	exit 1
 fi
 
