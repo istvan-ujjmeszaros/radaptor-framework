@@ -1231,6 +1231,8 @@ class PackageInstallService
 				DEPLOY_ROOT
 			);
 
+			self::assertRegistryTargetSafe($current_path, "stale directory removal for '{$package_key}'");
+
 			if ($next_type === 'registry') {
 				$next_path = self::resolveStoredPath(
 					is_string($next_resolved['path'] ?? null)
@@ -1238,6 +1240,8 @@ class PackageInstallService
 						: PackageTypeHelper::getDefaultPath($current_locked_package['type'], 'registry', $current_locked_package['id']),
 					DEPLOY_ROOT
 				);
+
+				self::assertRegistryTargetSafe($next_path, "next registry path for '{$package_key}'");
 
 				if ($current_path !== $next_path && is_dir($current_path)) {
 					self::removeDirectory($current_path);
@@ -1270,6 +1274,8 @@ class PackageInstallService
 			}
 
 			$target_absolute_path = self::resolveStoredPath((string) $resolved['path'], DEPLOY_ROOT);
+			self::assertRegistryTargetSafe($target_absolute_path, "install target for '{$package_key}'");
+
 			$current_locked_package = $current_lock_packages[$package_key] ?? null;
 			$install_required = !is_dir($target_absolute_path);
 
@@ -1292,11 +1298,13 @@ class PackageInstallService
 	 */
 	private static function installRegistryPackage(array $locked_package, string $target_absolute_path): void
 	{
+		$package_key = ($locked_package['type'] ?? '') . ':' . ($locked_package['id'] ?? '');
+		self::assertRegistryTargetSafe($target_absolute_path, "install for '{$package_key}'");
+
 		$package = trim((string) ($locked_package['package'] ?? ''));
 		$dist_type = trim((string) ($locked_package['resolved']['dist_type'] ?? 'zip'));
 		$dist_url = trim((string) ($locked_package['resolved']['dist_url'] ?? ''));
 		$dist_sha256 = trim((string) ($locked_package['resolved']['dist_sha256'] ?? ''));
-		$package_key = $locked_package['type'] . ':' . $locked_package['id'];
 
 		if ($dist_type !== 'zip') {
 			throw new RuntimeException("Registry package '{$package}' uses unsupported dist type '{$dist_type}'.");
@@ -1679,12 +1687,65 @@ class PackageInstallService
 	private static function normalizePath(string $path): string
 	{
 		$path = str_replace('\\', '/', $path);
-		$real = realpath($path);
 
-		if ($real !== false) {
-			return rtrim(str_replace('\\', '/', $real), '/');
+		// Do NOT use realpath() — it follows symlinks, corrupting registry paths
+		// when packages/registry/ is symlinked to packages/dev/.
+		if ($path !== '' && $path[0] === '/') {
+			$prefix = '/';
+			$path = substr($path, 1);
+		} else {
+			$prefix = '';
 		}
 
-		return rtrim($path, '/');
+		$parts = [];
+
+		foreach (explode('/', $path) as $segment) {
+			if ($segment === '' || $segment === '.') {
+				continue;
+			}
+
+			if ($segment === '..' && $parts !== [] && end($parts) !== '..') {
+				array_pop($parts);
+			} else {
+				$parts[] = $segment;
+			}
+		}
+
+		return rtrim($prefix . implode('/', $parts), '/');
+	}
+
+	private static function assertRegistryTargetSafe(string $absolute_path, string $operation): void
+	{
+		$base = rtrim(self::normalizePath(DEPLOY_ROOT), '/') . '/';
+		$normalized = self::normalizePath($absolute_path);
+
+		if (!str_starts_with($normalized, $base)) {
+			throw new RuntimeException(
+				"Registry {$operation} refused: target '{$normalized}' is outside DEPLOY_ROOT."
+			);
+		}
+
+		$relative = substr($normalized, strlen($base));
+
+		if (!str_starts_with($relative, 'packages/registry/')) {
+			throw new RuntimeException(
+				"Registry {$operation} refused: target '{$relative}' is not under packages/registry/. "
+				. 'Registry operations may only target packages/registry/ directories.'
+			);
+		}
+
+		$check = $normalized;
+		$stop = rtrim($base, '/');
+
+		while ($check !== $stop && $check !== '' && $check !== '/') {
+			if (is_link($check)) {
+				throw new RuntimeException(
+					"Registry {$operation} refused: path component '{$check}' is a symlink. "
+					. 'packages/registry/ entries must be real directories, not symlinks.'
+				);
+			}
+
+			$check = dirname($check);
+		}
 	}
 }
