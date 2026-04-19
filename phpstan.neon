@@ -1,0 +1,16 @@
+parameters:
+	level: 0
+	bootstrapFiles:
+		- ../../../../bootstrap/bootstrap.testing.php
+	paths:
+		- classes/class.PackageInstallService.php
+		- classes/class.PackageRegistryClient.php
+		- classes/class.PackageMetadataHelper.php
+		- classes/entities/class.iEntity.php
+		- classes/entities/class.SQLEntity.php
+	tmpDir: ../../../../tmp/phpstan-framework
+	dynamicConstantNames:
+		- USE_PERSISTENT_CACHE
+
+includes:
+	- ../../../../vendor/phpstan/phpstan/conf/bleedingEdge.neon
