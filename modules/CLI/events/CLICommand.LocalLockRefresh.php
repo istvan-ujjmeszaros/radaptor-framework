@@ -1,41 +1,32 @@
 <?php
 
 /**
- * Install or reconcile packages from radaptor.json without upgrading locked registry versions.
+ * Refresh radaptor.local.lock.json from committed lock state and active local overrides.
  *
- * Usage: radaptor install [--include-demo-seeds] [--rerun-demo-seeds] [--skip-seeds] [--dry-run] [--json] [--ignore-local-overrides]
+ * Usage: radaptor local-lock:refresh [--include-demo-seeds] [--rerun-demo-seeds] [--skip-seeds] [--dry-run] [--json] [--ignore-local-overrides]
  */
-class CLICommandInstall extends AbstractCLICommand
+class CLICommandLocalLockRefresh extends AbstractCLICommand
 {
 	public function getName(): string
 	{
-		return 'Install packages';
+		return 'Refresh local package lock';
 	}
 
 	public function getDocs(): string
 	{
 		return <<<'DOC'
-			Install or reconcile packages from radaptor.json without upgrading locked registry versions.
+			Refresh radaptor.local.lock.json from committed lock state and active local overrides.
 
-			Usage: radaptor install [--include-demo-seeds] [--rerun-demo-seeds] [--skip-seeds] [--dry-run] [--json] [--ignore-local-overrides]
+			Usage: radaptor local-lock:refresh [--include-demo-seeds] [--rerun-demo-seeds] [--skip-seeds] [--dry-run] [--json] [--ignore-local-overrides]
 
 			Examples:
-			  radaptor install
-			  radaptor install --include-demo-seeds
-			  radaptor install --include-demo-seeds --rerun-demo-seeds
-			  radaptor install --skip-seeds
-			  radaptor install --dry-run
-			  radaptor install --json
-			  radaptor install --ignore-local-overrides
+			  radaptor local-lock:refresh
+			  radaptor local-lock:refresh --dry-run
+			  radaptor local-lock:refresh --json
 			DOC;
 	}
 
 	public function run(): void
-	{
-		$this->runMode(false);
-	}
-
-	protected function runMode(bool $update): void
 	{
 		$dry_run = Request::hasArg('dry-run');
 		$json = Request::hasArg('json');
@@ -48,9 +39,14 @@ class CLICommandInstall extends AbstractCLICommand
 			: null;
 
 		try {
-			$result = $update
-				? PackageInstallService::update($dry_run, $include_demo_seeds, $rerun_demo_seeds, $skip_seeds, $prompt, $ignore_local_overrides)
-				: PackageInstallService::install($dry_run, $include_demo_seeds, $rerun_demo_seeds, $skip_seeds, $prompt, $ignore_local_overrides);
+			$result = PackageInstallService::refreshLocalLock(
+				$dry_run,
+				$include_demo_seeds,
+				$rerun_demo_seeds,
+				$skip_seeds,
+				$prompt,
+				$ignore_local_overrides
+			);
 		} catch (Throwable $e) {
 			if ($json) {
 				echo json_encode([
@@ -61,7 +57,7 @@ class CLICommandInstall extends AbstractCLICommand
 				return;
 			}
 
-			echo ucfirst($update ? 'update' : 'install') . " failed: {$e->getMessage()}\n";
+			echo "Local lock refresh failed: {$e->getMessage()}\n";
 
 			return;
 		}
@@ -79,7 +75,7 @@ class CLICommandInstall extends AbstractCLICommand
 
 		$prefix = $dry_run ? '[dry-run] ' : '';
 
-		echo "{$prefix}Mode: {$result['mode']}\n";
+		echo "{$prefix}Mode: local-lock:refresh\n";
 		echo "{$prefix}Processed packages: {$result['packages_processed']}\n";
 		echo "{$prefix}Removed packages: {$result['packages_removed']}\n";
 		echo "{$prefix}Lockfile changed: " . ($result['lockfile_changed'] ? 'yes' : 'no') . "\n";
@@ -121,7 +117,7 @@ class CLICommandInstall extends AbstractCLICommand
 		}
 
 		if ($status === 'error') {
-			echo ucfirst($update ? 'update' : 'install') . " finished with errors.\n";
+			echo "Local lock refresh finished with errors.\n";
 		}
 	}
 

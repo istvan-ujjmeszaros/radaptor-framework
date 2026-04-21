@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/class.PackageLocalOverrideHelper.php';
+
 class PackageLockfile
 {
 	public static function reset(?string $path = null): void
@@ -9,9 +11,19 @@ class PackageLockfile
 		// rebuild flows.
 	}
 
-	public static function getPath(): string
+	public static function getCommittedPath(): string
 	{
 		return DEPLOY_ROOT . 'radaptor.lock.json';
+	}
+
+	public static function getLocalPath(): string
+	{
+		return DEPLOY_ROOT . 'radaptor.local.lock.json';
+	}
+
+	public static function getPath(bool $ignore_local_overrides = false): string
+	{
+		return PackageLocalOverrideHelper::getEffectiveLockPath($ignore_local_overrides);
 	}
 
 	/**

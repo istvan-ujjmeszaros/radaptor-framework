@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/class.PackageLocalOverrideHelper.php';
+
 class PackageConfig
 {
 	/** @var array<string, array<string, mixed>> */
@@ -100,7 +102,17 @@ class PackageConfig
 			return $installed_path;
 		}
 
-		foreach (['dev', 'registry'] as $source_type) {
+		$manifest = PackageLocalOverrideHelper::loadEffectiveManifest();
+		$key = PackageTypeHelper::getKey($type, $id);
+		$package = is_array($manifest['packages'][$key] ?? null) ? $manifest['packages'][$key] : null;
+		$source = is_array($package['source'] ?? null) ? $package['source'] : [];
+		$manifest_path = trim((string) ($source['resolved_path'] ?? ''));
+
+		if ($manifest_path !== '' && is_dir($manifest_path)) {
+			return self::normalizePath($manifest_path);
+		}
+
+		foreach (self::getFallbackSourceTypes($type) as $source_type) {
 			$candidate = DEPLOY_ROOT . PackageTypeHelper::getDefaultPath($type, $source_type, $id);
 
 			if (is_dir($candidate)) {
@@ -154,6 +166,20 @@ class PackageConfig
 		}
 
 		return self::normalizePath($resolved_path);
+	}
+
+	/**
+	 * @return list<string>
+	 */
+	private static function getFallbackSourceTypes(string $type): array
+	{
+		$type = PackageTypeHelper::normalizeType($type, 'Package config');
+
+		if ($type === 'plugin') {
+			return ['dev', 'registry'];
+		}
+
+		return ['registry'];
 	}
 
 	/**
