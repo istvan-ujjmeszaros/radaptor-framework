@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/class.PackageLocalOverrideHelper.php';
+
 class PackagePathHelper
 {
 	/** @var array<string, array{root: string, source_type: string, type: string, id: string}>|null */
@@ -22,7 +24,16 @@ class PackagePathHelper
 			return $packages[$key]['root'];
 		}
 
-		foreach (['dev', 'registry'] as $source_type) {
+		$manifest = PackageLocalOverrideHelper::loadEffectiveManifest();
+		$manifest_package = is_array($manifest['packages'][$key] ?? null) ? $manifest['packages'][$key] : null;
+		$manifest_source = is_array($manifest_package['source'] ?? null) ? $manifest_package['source'] : [];
+		$manifest_root = trim((string) ($manifest_source['resolved_path'] ?? ''));
+
+		if ($manifest_root !== '' && is_dir($manifest_root)) {
+			return self::normalizePath($manifest_root);
+		}
+
+		foreach (self::getDefaultFallbackSourceTypes($type) as $source_type) {
 			$default_path = DEPLOY_ROOT . PackageTypeHelper::getDefaultPath($type, $source_type, $id);
 
 			if (is_dir($default_path)) {
@@ -224,6 +235,32 @@ class PackagePathHelper
 			}
 		}
 
+		$manifest = PackageLocalOverrideHelper::loadEffectiveManifest();
+
+		foreach ($manifest['packages'] as $package) {
+			$type = PackageTypeHelper::normalizeType($package['type'] ?? null, 'Manifest package');
+			$id = PackageTypeHelper::normalizeId($package['id'] ?? null, 'Manifest package');
+			$key = PackageTypeHelper::getKey($type, $id);
+
+			if (isset($packages[$key])) {
+				continue;
+			}
+
+			$source = is_array($package['source'] ?? null) ? $package['source'] : [];
+			$active_root = self::resolveActivePackageRoot($type, $id, [], $source);
+
+			if ($active_root === null) {
+				continue;
+			}
+
+			$packages[$key] = [
+				'root' => $active_root['root'],
+				'source_type' => $active_root['source_type'],
+				'type' => $type,
+				'id' => $id,
+			];
+		}
+
 		self::$_activePackages = $packages;
 		self::$_cacheKey = $cache_key;
 
@@ -256,7 +293,16 @@ class PackagePathHelper
 			];
 		}
 
-		foreach (['dev', 'registry'] as $source_type) {
+		$override_root = PackageLocalOverrideHelper::getResolvedOverridePath($type, $id);
+
+		if (is_string($override_root) && $override_root !== '') {
+			$candidate_paths[] = [
+				'path' => $override_root,
+				'source_type' => 'dev',
+			];
+		}
+
+		foreach (self::getDefaultFallbackSourceTypes($type) as $source_type) {
 			$candidate_paths[] = [
 				'path' => PackageTypeHelper::getDefaultPath($type, $source_type, $id),
 				'source_type' => $source_type,
@@ -284,6 +330,20 @@ class PackagePathHelper
 		}
 
 		return null;
+	}
+
+	/**
+	 * @return list<string>
+	 */
+	private static function getDefaultFallbackSourceTypes(string $type): array
+	{
+		$type = PackageTypeHelper::normalizeType($type, 'Package');
+
+		if ($type === 'plugin') {
+			return ['dev', 'registry'];
+		}
+
+		return ['registry'];
 	}
 
 	private static function buildCacheKey(): string

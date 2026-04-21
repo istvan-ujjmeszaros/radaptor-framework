@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/class.PackageLocalOverrideHelper.php';
+
 class PackageInstallService
 {
 	private const int REGISTRY_DOWNLOAD_TIMEOUT_SECONDS = 30;
@@ -12,22 +14,17 @@ class PackageInstallService
 		bool $include_demo_seeds = false,
 		bool $rerun_demo_seeds = false,
 		bool $skip_seeds = false,
-		?callable $confirm_demo_rerun = null
+		?callable $confirm_demo_rerun = null,
+		bool $ignore_local_overrides = false
 	): array {
-		return self::syncPaths(
-			PackageManifest::getPath(),
-			PackageLockfile::getPath(),
+		return self::syncUsingEffectiveDocuments(
 			false,
 			$dry_run,
-			PluginManifest::getPath(),
-			PluginLockfile::getPath(),
-			ComposerJsonHelper::getPath(),
-			PluginComposerLockfile::getPath(),
-			PackageAssetsBuilder::getStatePath(),
 			$include_demo_seeds,
 			$rerun_demo_seeds,
 			$skip_seeds,
-			$confirm_demo_rerun
+			$confirm_demo_rerun,
+			$ignore_local_overrides
 		);
 	}
 
@@ -39,12 +36,77 @@ class PackageInstallService
 		bool $include_demo_seeds = false,
 		bool $rerun_demo_seeds = false,
 		bool $skip_seeds = false,
-		?callable $confirm_demo_rerun = null
+		?callable $confirm_demo_rerun = null,
+		bool $ignore_local_overrides = false
 	): array {
-		return self::syncPaths(
-			PackageManifest::getPath(),
-			PackageLockfile::getPath(),
+		return self::syncUsingEffectiveDocuments(
 			true,
+			$dry_run,
+			$include_demo_seeds,
+			$rerun_demo_seeds,
+			$skip_seeds,
+			$confirm_demo_rerun,
+			$ignore_local_overrides
+		);
+	}
+
+	/**
+	 * @return array<string, mixed>
+	 */
+	public static function refreshLocalLock(
+		bool $dry_run = false,
+		bool $include_demo_seeds = false,
+		bool $rerun_demo_seeds = false,
+		bool $skip_seeds = false,
+		?callable $confirm_demo_rerun = null,
+		bool $ignore_local_overrides = false
+	): array {
+		return self::syncUsingEffectiveDocuments(
+			false,
+			$dry_run,
+			$include_demo_seeds,
+			$rerun_demo_seeds,
+			$skip_seeds,
+			$confirm_demo_rerun,
+			$ignore_local_overrides,
+			true
+		);
+	}
+
+	/**
+	 * @return array<string, mixed>
+	 */
+	private static function syncUsingEffectiveDocuments(
+		bool $update,
+		bool $dry_run,
+		bool $include_demo_seeds,
+		bool $rerun_demo_seeds,
+		bool $skip_seeds,
+		?callable $confirm_demo_rerun,
+		bool $ignore_local_overrides = false,
+		bool $refresh_local_lock = false
+	): array {
+		$manifest = PackageLocalOverrideHelper::loadEffectiveManifest($ignore_local_overrides);
+		$local_override_active = PackageLocalOverrideHelper::isLocalOverrideActive($ignore_local_overrides);
+		$write_lock_path = PackageLockfile::getPath($ignore_local_overrides);
+		$read_lock_path = $write_lock_path;
+
+		if ($local_override_active && ($refresh_local_lock || !is_file($write_lock_path))) {
+			$read_lock_path = PackageLockfile::getCommittedPath();
+		}
+
+		if (
+			$refresh_local_lock
+			&& !$local_override_active
+		) {
+			throw new RuntimeException('Local lock refresh requires an active and valid radaptor.local.json override.');
+		}
+
+		return self::syncResolvedState(
+			$manifest,
+			$read_lock_path,
+			$write_lock_path,
+			$update,
 			$dry_run,
 			PluginManifest::getPath(),
 			PluginLockfile::getPath(),
@@ -93,16 +155,76 @@ class PackageInstallService
 		bool $skip_seeds = false,
 		?callable $confirm_demo_rerun = null
 	): array {
-		$manifest = PackageManifest::loadFromPath($manifest_path);
-		$current_lock = file_exists($lock_path)
-			? PackageLockfile::loadFromPath($lock_path)
+		return self::syncResolvedState(
+			PackageManifest::loadFromPath($manifest_path),
+			$lock_path,
+			$lock_path,
+			$update,
+			$dry_run,
+			$plugin_manifest_path,
+			$plugin_lock_path,
+			$composer_json_path,
+			$plugin_composer_lock_path,
+			$assets_state_path,
+			$include_demo_seeds,
+			$rerun_demo_seeds,
+			$skip_seeds,
+			$confirm_demo_rerun
+		);
+	}
+
+	/**
+	 * @param array{
+	 *     manifest_version: int,
+	 *     registries: array<string, array{name: string, url: string, resolved_url: string}>,
+	 *     packages: array<string, array<string, mixed>>,
+	 *     path: string,
+	 *     base_dir: string
+	 * } $manifest
+	 * @return array{
+	 *     mode: string,
+	 *     dry_run: bool,
+	 *     lockfile_changed: bool,
+	 *     lockfile_written: bool,
+	 *     packages_processed: int,
+	 *     packages_removed: int,
+	 *     removed_package_keys: string[],
+	 *     packages: array<int, array<string, mixed>>,
+	 *     plugin_bridge_written: bool,
+	 *     plugin_sync: array<string, mixed>|null,
+	 *     package_migrations_ran: bool,
+	 *     package_migrations: array<int, array<string, mixed>>|null,
+	 *     seeds_ran: bool,
+	 *     seeds: array<string, mixed>|null,
+	 *     assets_built: bool,
+	 *     assets: array<string, mixed>|null
+	 * }
+	 */
+	private static function syncResolvedState(
+		array $manifest,
+		string $read_lock_path,
+		string $write_lock_path,
+		bool $update = false,
+		bool $dry_run = false,
+		?string $plugin_manifest_path = null,
+		?string $plugin_lock_path = null,
+		?string $composer_json_path = null,
+		?string $plugin_composer_lock_path = null,
+		?string $assets_state_path = null,
+		bool $include_demo_seeds = false,
+		bool $rerun_demo_seeds = false,
+		bool $skip_seeds = false,
+		?callable $confirm_demo_rerun = null
+	): array {
+		$current_lock = file_exists($read_lock_path)
+			? PackageLockfile::loadFromPath($read_lock_path)
 			: [
 				'lockfile_version' => 1,
 				'packages' => [],
-				'path' => $lock_path,
-				'base_dir' => dirname($lock_path),
+				'path' => $write_lock_path,
+				'base_dir' => dirname($write_lock_path),
 			];
-		$next = self::buildNextLockState($manifest, $current_lock, dirname($lock_path), $update);
+		$next = self::buildNextLockState($manifest, $current_lock, dirname($write_lock_path), $update);
 		$next_lock = [
 			'lockfile_version' => max(1, (int) $current_lock['lockfile_version']),
 			'packages' => $next['packages'],
@@ -110,7 +232,8 @@ class PackageInstallService
 		$current_export = PackageLockfile::exportDocument($current_lock);
 		$next_lock_for_storage = self::sanitizeLockfileForStorage($next_lock, $manifest['registries']);
 		$next_export = PackageLockfile::exportDocument($next_lock_for_storage);
-		$lockfile_changed = $current_export !== $next_export;
+		$must_initialize_target_lock = $read_lock_path !== $write_lock_path && !file_exists($write_lock_path);
+		$lockfile_changed = $current_export !== $next_export || $must_initialize_target_lock;
 		$lockfile_written = false;
 		$plugin_bridge_written = false;
 		$plugin_sync = null;
@@ -139,7 +262,7 @@ class PackageInstallService
 			}
 
 			if ($assets_state_path !== null) {
-				$temp_lock_path = self::writeTempLockfile($next_lock, dirname($lock_path));
+				$temp_lock_path = self::writeTempLockfile($next_lock, dirname($write_lock_path));
 
 				try {
 					$assets = PackageAssetsBuilder::buildPaths($temp_lock_path, $assets_state_path, false, DEPLOY_ROOT);
@@ -150,7 +273,7 @@ class PackageInstallService
 			}
 
 			if ($lockfile_changed) {
-				PackageLockfile::write($next_lock_for_storage, $lock_path);
+				PackageLockfile::write($next_lock_for_storage, $write_lock_path);
 				$lockfile_written = true;
 			}
 
@@ -164,7 +287,7 @@ class PackageInstallService
 
 			if (!self::hasFailedMigration($package_migrations)) {
 				$seeds = SeedRunner::runPaths(
-					$lock_path,
+					$write_lock_path,
 					DEPLOY_ROOT . 'app',
 					$include_demo_seeds,
 					$rerun_demo_seeds,
@@ -206,7 +329,7 @@ class PackageInstallService
 			}
 
 			if ($assets_state_path !== null) {
-				$temp_lock_path = self::writeTempLockfile($next_lock, dirname($lock_path));
+				$temp_lock_path = self::writeTempLockfile($next_lock, dirname($write_lock_path));
 
 				try {
 					$assets = PackageAssetsBuilder::buildPaths($temp_lock_path, $assets_state_path, true, DEPLOY_ROOT);
@@ -216,7 +339,7 @@ class PackageInstallService
 				}
 			}
 
-			$temp_lock_path = self::writeTempLockfile($next_lock, dirname($lock_path));
+			$temp_lock_path = self::writeTempLockfile($next_lock, dirname($write_lock_path));
 
 			try {
 				$seeds = SeedRunner::runPaths(

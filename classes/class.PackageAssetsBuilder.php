@@ -39,7 +39,7 @@ class PackageAssetsBuilder
 		$lock_base_dir = dirname($lock_path);
 		$app_base_dir = $app_base_dir !== null ? self::normalizePathPreservingLinks($app_base_dir) : $lock_base_dir;
 		$lock = PackageLockfile::loadFromPath($lock_path);
-		$desired_links = self::collectDesiredLinks($lock['packages'], $app_base_dir);
+		$desired_links = self::collectDesiredLinks($lock['packages'], $app_base_dir, $dry_run);
 		$current_state = self::loadState($state_path);
 		$links = [];
 		$created = 0;
@@ -79,7 +79,11 @@ class PackageAssetsBuilder
 				continue;
 			}
 
-			if ($current_source !== null && $current_source !== $normalized_source) {
+			if (
+				$current_source !== null
+				&& $current_source !== $normalized_source
+				&& !isset($current_state[$normalized_target])
+			) {
 				throw new RuntimeException("Asset target '{$normalized_target}' is already managed by a different source.");
 			}
 
@@ -120,7 +124,7 @@ class PackageAssetsBuilder
 	 * @param array<string, array<string, mixed>> $packages
 	 * @return array<string, string>
 	 */
-	private static function collectDesiredLinks(array $packages, string $app_base_dir): array
+	private static function collectDesiredLinks(array $packages, string $app_base_dir, bool $dry_run = false): array
 	{
 		$links = [];
 
@@ -142,6 +146,7 @@ class PackageAssetsBuilder
 
 			$resolved = is_array($package['resolved'] ?? null) ? $package['resolved'] : [];
 			$source = is_array($package['source'] ?? null) ? $package['source'] : [];
+			$source_type = strtolower(trim((string) ($source['type'] ?? $resolved['type'] ?? '')));
 			$package_root = $resolved['resolved_path'] ?? $source['resolved_path'] ?? null;
 
 			if ((!is_string($package_root) || !is_dir($package_root)) && is_string($resolved['path'] ?? null)) {
@@ -153,6 +158,13 @@ class PackageAssetsBuilder
 			}
 
 			if (!is_string($package_root) || !is_dir($package_root)) {
+				if ($dry_run && $source_type === 'registry') {
+					// During registry-first dry-run we may be planning to reinstall packages that are
+					// currently absent because the active worktree was switched to local dev sources.
+					// Skip asset-link synthesis for those not-yet-installed registry packages.
+					continue;
+				}
+
 				throw new RuntimeException("Asset package '{$package_key}' is missing an installed filesystem path.");
 			}
 

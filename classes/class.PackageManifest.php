@@ -2,6 +2,11 @@
 
 class PackageManifest
 {
+	public static function getCommittedPath(): string
+	{
+		return DEPLOY_ROOT . 'radaptor.json';
+	}
+
 	public static function getPlaceholderRegistryUrl(): string
 	{
 		return 'https://packages.example.invalid/registry.json';
@@ -14,7 +19,7 @@ class PackageManifest
 
 	public static function getPath(): string
 	{
-		return DEPLOY_ROOT . 'radaptor.json';
+		return self::getCommittedPath();
 	}
 
 	/**
@@ -203,8 +208,24 @@ class PackageManifest
 			throw new RuntimeException("Package manifest not found: {$path}");
 		}
 
-		$base_dir = dirname($path);
 		$data = self::decodeJsonFile($path);
+
+		return self::loadFromDocument($data, $path);
+	}
+
+	/**
+	 * @param array<string, mixed> $data
+	 * @return array{
+	 *     manifest_version: int,
+	 *     registries: array<string, array{name: string, url: string, resolved_url: string}>,
+	 *     packages: array<string, array<string, mixed>>,
+	 *     path: string,
+	 *     base_dir: string
+	 * }
+	 */
+	public static function loadFromDocument(array $data, string $path): array
+	{
+		$base_dir = dirname($path);
 		$registries = self::normalizeRegistries($data['registries'] ?? []);
 		$packages = [];
 

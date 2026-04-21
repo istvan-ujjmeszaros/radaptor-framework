@@ -42,11 +42,17 @@ class CLICommandBuildLayouts extends AbstractCLICommand
 
 	private static function _initConfig(): void
 	{
-		self::$scannableDirectories = [DEPLOY_ROOT, ];
+		self::$scannableDirectories = PackagePathHelper::getScannableRoots();
 	}
 
 	private static function _parseDir(string $dir_path): void
 	{
+		$dir_path = rtrim($dir_path, '/') . '/';
+
+		if (PackagePathHelper::shouldSkipPath($dir_path)) {
+			return;
+		}
+
 		if (GeneratorHelper::folderIsExcluded($dir_path)) {
 			return;
 		}
@@ -108,10 +114,15 @@ class CLICommandBuildLayouts extends AbstractCLICommand
 	public static function create(): void
 	{
 		self::$cacheFilename = DEPLOY_ROOT . ApplicationConfig::GENERATED_LAYOUTS_FILE;
+		self::$_index = [];
+		self::$scannableDirectories = [];
 		self::_initConfig();
 
-		foreach (self::$scannableDirectories as $dir) {
-			self::_parseDir($dir);
+		/** @var list<string> $scannable_directories */
+		$scannable_directories = self::$scannableDirectories;
+
+		foreach ($scannable_directories as $dir) {
+			self::_parseDir(rtrim($dir, '/') . '/');
 		}
 
 		$layout_type_names = array_keys(self::$_index);

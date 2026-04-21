@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/class.PackageLocalOverrideHelper.php';
+
 class PackagePublishService
 {
 	/**
@@ -166,12 +168,6 @@ class PackagePublishService
 
 	private static function resolveSourcePath(string $type, string $id, ?string $manifest_path, ?string $lock_path): string
 	{
-		$default_dev_path = self::normalizePath(DEPLOY_ROOT . PackageTypeHelper::getDefaultPath($type, 'dev', $id));
-
-		if (is_dir($default_dev_path) && is_file($default_dev_path . '/.registry-package.json')) {
-			return $default_dev_path;
-		}
-
 		foreach (self::discoverCandidateSourcePaths($type, $id, $manifest_path, $lock_path) as $candidate) {
 			if (is_dir($candidate) && is_file($candidate . '/.registry-package.json')) {
 				return $candidate;
@@ -223,8 +219,12 @@ class PackagePublishService
 	 */
 	private static function loadManifestSafely(?string $manifest_path): ?array
 	{
+		if ($manifest_path === null) {
+			return PackageLocalOverrideHelper::loadEffectiveManifest();
+		}
+
 		try {
-			return PackageManifest::loadFromPath($manifest_path ?? PackageManifest::getPath());
+			return PackageManifest::loadFromPath($manifest_path);
 		} catch (Throwable) {
 			return null;
 		}
@@ -237,8 +237,18 @@ class PackagePublishService
 	 */
 	private static function loadLockfileSafely(?string $lock_path): ?array
 	{
+		if ($lock_path === null) {
+			$effective_lock_path = PackageLockfile::getPath();
+
+			if (!is_file($effective_lock_path)) {
+				return null;
+			}
+
+			return PackageLockfile::loadFromPath($effective_lock_path);
+		}
+
 		try {
-			return PackageLockfile::loadFromPath($lock_path ?? PackageLockfile::getPath());
+			return PackageLockfile::loadFromPath($lock_path);
 		} catch (Throwable) {
 			return null;
 		}
@@ -273,21 +283,6 @@ class PackagePublishService
 						break;
 					}
 				}
-			}
-		}
-
-		foreach ([
-			DEPLOY_ROOT . 'packages/dev/core/*/.registry-package.json',
-			DEPLOY_ROOT . 'packages/dev/themes/*/.registry-package.json',
-		] as $pattern) {
-			$matches = glob($pattern) ?: [];
-			sort($matches);
-
-			foreach ($matches as $metadata_path) {
-				$source_path = self::normalizePath(dirname($metadata_path));
-				$metadata = PackageMetadataHelper::loadFromSourcePath($source_path);
-				$package_key = PackageTypeHelper::getKey($metadata['type'], $metadata['id']);
-				$discovered[$package_key] = $source_path;
 			}
 		}
 

@@ -3,7 +3,7 @@
 /**
  * Update packages from radaptor.json by resolving newer compatible registry versions.
  *
- * Usage: radaptor update [--include-demo-seeds] [--rerun-demo-seeds] [--skip-seeds] [--dry-run] [--json]
+ * Usage: radaptor update [--include-demo-seeds] [--rerun-demo-seeds] [--skip-seeds] [--dry-run] [--json] [--ignore-local-overrides]
  */
 class CLICommandUpdate extends CLICommandInstall
 {
@@ -17,7 +17,7 @@ class CLICommandUpdate extends CLICommandInstall
 		return <<<'DOC'
 			Update packages from radaptor.json by resolving newer compatible registry versions.
 
-			Usage: radaptor update [--include-demo-seeds] [--rerun-demo-seeds] [--skip-seeds] [--dry-run] [--json]
+			Usage: radaptor update [--include-demo-seeds] [--rerun-demo-seeds] [--skip-seeds] [--dry-run] [--json] [--ignore-local-overrides]
 
 			Examples:
 			  radaptor update
@@ -26,6 +26,7 @@ class CLICommandUpdate extends CLICommandInstall
 			  radaptor update --skip-seeds
 			  radaptor update --dry-run
 			  radaptor update --json
+			  radaptor update --ignore-local-overrides
 			DOC;
 	}
 
