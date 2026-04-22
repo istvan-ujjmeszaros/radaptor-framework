@@ -39,25 +39,46 @@ find_consumer_app_root() {
 	return 1
 }
 
-run_fixer_locally() {
-	if [ -x "$REPO_ROOT/php-cs-fixer.sh" ]; then
-		"$REPO_ROOT/php-cs-fixer.sh" --config=.php-cs-fixer.php --quiet --path-mode=intersection -- "${STAGED_FILES[@]}"
-		return $?
+find_running_consumer_app_container() {
+	local app_root="$1"
+	local docker_service="${RADAPTOR_DOCKER_PHP_SERVICE:-php}"
+	local preferred_container=""
+	local fallback_container=""
+	local container_name=""
+	local config_files=""
+
+	if ! command -v docker >/dev/null 2>&1; then
+		return 1
 	fi
 
-	if [ -x "$REPO_ROOT/tools/php-cs-fixer" ]; then
-		"$REPO_ROOT/tools/php-cs-fixer" fix --config=.php-cs-fixer.php --quiet --path-mode=intersection -- "${STAGED_FILES[@]}"
-		return $?
+	while IFS=$'\t' read -r container_name config_files; do
+		if [ -z "$container_name" ]; then
+			continue
+		fi
+
+		if [ -z "$fallback_container" ]; then
+			fallback_container="$container_name"
+		fi
+
+		if [[ "$config_files" == *"docker-compose.packages-dev.yml"* ]]; then
+			preferred_container="$container_name"
+			break
+		fi
+	done < <(
+		docker ps \
+			--filter "label=com.docker.compose.project.working_dir=$app_root" \
+			--filter "label=com.docker.compose.service=$docker_service" \
+			--format '{{.Names}}\t{{.Label "com.docker.compose.project.config_files"}}'
+	)
+
+	if [ -n "$preferred_container" ]; then
+		printf '%s\n' "$preferred_container"
+		return 0
 	fi
 
-	if [ -x "$REPO_ROOT/vendor/bin/php-cs-fixer" ]; then
-		"$REPO_ROOT/vendor/bin/php-cs-fixer" fix --config=.php-cs-fixer.php --quiet --path-mode=intersection -- "${STAGED_FILES[@]}"
-		return $?
-	fi
-
-	if command -v php-cs-fixer >/dev/null 2>&1; then
-		php-cs-fixer fix --config=.php-cs-fixer.php --quiet --path-mode=intersection -- "${STAGED_FILES[@]}"
-		return $?
+	if [ -n "$fallback_container" ]; then
+		printf '%s\n' "$fallback_container"
+		return 0
 	fi
 
 	return 1
@@ -65,19 +86,15 @@ run_fixer_locally() {
 
 run_fixer_in_consumer_app() {
 	local app_root="$1"
-	local docker_service="${RADAPTOR_DOCKER_PHP_SERVICE:-php}"
+	local container_name=""
 	local repo_relative_path="${REPO_ROOT#"$app_root"}"
 	local container_repo_root="/app${repo_relative_path}"
 
-	if ! command -v docker >/dev/null 2>&1; then
+	if ! container_name="$(find_running_consumer_app_container "$app_root")"; then
 		return 1
 	fi
 
-	if ! docker compose -f "$app_root/docker-compose-dev.yml" ps "$docker_service" 2>/dev/null | grep -q "Up"; then
-		return 1
-	fi
-
-	docker compose -f "$app_root/docker-compose-dev.yml" exec -T "$docker_service" bash -lc \
+	docker exec "$container_name" bash -lc \
 		"cd '$container_repo_root' && php-cs-fixer fix --config=.php-cs-fixer.php --quiet --path-mode=intersection -- \"\$@\"" \
 		bash "${STAGED_FILES[@]}"
 }
@@ -95,19 +112,45 @@ find_packages_dev_runtime() {
 			workspace_root=$(dirname "$dir")
 			local repo_relative_to_packages_dev="${REPO_ROOT#"$dir/"}"
 			local container_repo_root="/workspace/packages-dev/$repo_relative_to_packages_dev"
+			local docker_service="${RADAPTOR_DOCKER_PHP_SERVICE:-php}"
+			local preferred_container=""
+			local fallback_container=""
+			local container_name=""
+			local project_working_dir=""
+			local config_files=""
 
 			if ! command -v docker >/dev/null 2>&1; then
 				return 1
 			fi
 
-			local container
-			container=$(docker ps --format '{{.Names}}' 2>/dev/null | grep -E -- '-workspace-dev-php-1$' | head -n 1 || true)
+			while IFS=$'\t' read -r container_name project_working_dir config_files; do
+				if [ -z "$container_name" ]; then
+					continue
+				fi
 
-			if [ -z "$container" ]; then
+				if [[ "$config_files" != *"$workspace_root/docker-compose.packages-dev.yml"* ]]; then
+					continue
+				fi
+
+				if [ -z "$fallback_container" ]; then
+					fallback_container="$container_name"
+				fi
+
+				if [ "$project_working_dir" = "$workspace_root/radaptor-app" ]; then
+					preferred_container="$container_name"
+					break
+				fi
+			done < <(
+				docker ps \
+					--filter "label=com.docker.compose.service=$docker_service" \
+					--format '{{.Names}}\t{{.Label "com.docker.compose.project.working_dir"}}\t{{.Label "com.docker.compose.project.config_files"}}'
+			)
+
+			if [ -z "$preferred_container" ] && [ -z "$fallback_container" ]; then
 				return 1
 			fi
 
-			printf '%s|%s\n' "$container" "$container_repo_root"
+			printf '%s|%s\n' "${preferred_container:-$fallback_container}" "$container_repo_root"
 			return 0
 		fi
 
@@ -122,16 +165,14 @@ run_fixer_in_packages_dev_runtime() {
 	local container="${runtime%%|*}"
 	local container_repo_root="${runtime#*|}"
 
-	docker exec -i "$container" bash -lc \
+	docker exec "$container" bash -lc \
 		"cd '$container_repo_root' && php-cs-fixer fix --config=.php-cs-fixer.php --quiet --path-mode=intersection -- \"\$@\"" \
 		bash "${STAGED_FILES[@]}"
 }
 
 echo -e "${YELLOW}Running PHP-CS-Fixer on staged PHP files...${NC}"
 
-if run_fixer_locally; then
-	:
-elif app_root="$(find_consumer_app_root)"; then
+if app_root="$(find_consumer_app_root)"; then
 	echo -e "${YELLOW}Using consumer app container at $app_root for PHP-CS-Fixer.${NC}"
 	if ! run_fixer_in_consumer_app "$app_root"; then
 		echo -e "${RED}Unable to run PHP-CS-Fixer inside the detected consumer app container.${NC}"
@@ -144,8 +185,8 @@ elif runtime_spec="$(find_packages_dev_runtime)"; then
 		exit 1
 	fi
 else
-	echo -e "${RED}Unable to locate a php-cs-fixer executable or a running consumer app / packages-dev container.${NC}"
-	echo -e "${YELLOW}Install php-cs-fixer locally or start a workspace package-dev stack (./bin/docker-compose-packages-dev.sh radaptor-app up -d).${NC}"
+	echo -e "${RED}Unable to locate a supported Docker PHP runtime for this repo.${NC}"
+	echo -e "${YELLOW}Start the relevant consumer app stack or workspace package-dev stack and retry.${NC}"
 	exit 1
 fi
 
