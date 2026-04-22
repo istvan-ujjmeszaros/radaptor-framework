@@ -82,6 +82,51 @@ run_fixer_in_consumer_app() {
 		bash "${STAGED_FILES[@]}"
 }
 
+# Locate a packages-dev workspace container that has this repo bind-mounted at
+# /workspace/packages-dev/<path>. Used when this package repo lives under a
+# workspace-root packages-dev/ directory rather than nested inside a consumer
+# app. Returns a "<container_name>|<container_repo_root>" pair on stdout.
+find_packages_dev_runtime() {
+	local dir="$REPO_ROOT"
+
+	while [ "$dir" != "/" ]; do
+		if [ "$(basename "$dir")" = "packages-dev" ] && [ -d "$dir" ]; then
+			local workspace_root
+			workspace_root=$(dirname "$dir")
+			local repo_relative_to_packages_dev="${REPO_ROOT#"$dir/"}"
+			local container_repo_root="/workspace/packages-dev/$repo_relative_to_packages_dev"
+
+			if ! command -v docker >/dev/null 2>&1; then
+				return 1
+			fi
+
+			local container
+			container=$(docker ps --format '{{.Names}}' 2>/dev/null | grep -E -- '-workspace-dev-php-1$' | head -n 1 || true)
+
+			if [ -z "$container" ]; then
+				return 1
+			fi
+
+			printf '%s|%s\n' "$container" "$container_repo_root"
+			return 0
+		fi
+
+		dir=$(dirname "$dir")
+	done
+
+	return 1
+}
+
+run_fixer_in_packages_dev_runtime() {
+	local runtime="$1"
+	local container="${runtime%%|*}"
+	local container_repo_root="${runtime#*|}"
+
+	docker exec -i "$container" bash -lc \
+		"cd '$container_repo_root' && php-cs-fixer fix --config=.php-cs-fixer.php --quiet --path-mode=intersection -- \"\$@\"" \
+		bash "${STAGED_FILES[@]}"
+}
+
 echo -e "${YELLOW}Running PHP-CS-Fixer on staged PHP files...${NC}"
 
 if run_fixer_locally; then
@@ -92,9 +137,15 @@ elif app_root="$(find_consumer_app_root)"; then
 		echo -e "${RED}Unable to run PHP-CS-Fixer inside the detected consumer app container.${NC}"
 		exit 1
 	fi
+elif runtime_spec="$(find_packages_dev_runtime)"; then
+	echo -e "${YELLOW}Using packages-dev workspace container ${runtime_spec%%|*} for PHP-CS-Fixer.${NC}"
+	if ! run_fixer_in_packages_dev_runtime "$runtime_spec"; then
+		echo -e "${RED}Unable to run PHP-CS-Fixer inside the packages-dev workspace container.${NC}"
+		exit 1
+	fi
 else
-	echo -e "${RED}Unable to locate a php-cs-fixer executable or a running consumer app container.${NC}"
-	echo -e "${YELLOW}Install php-cs-fixer locally or run the repo from within a workspace that has a running consumer app PHP container.${NC}"
+	echo -e "${RED}Unable to locate a php-cs-fixer executable or a running consumer app / packages-dev container.${NC}"
+	echo -e "${YELLOW}Install php-cs-fixer locally or start a workspace package-dev stack (./bin/docker-compose-packages-dev.sh radaptor-app up -d).${NC}"
 	exit 1
 fi
 

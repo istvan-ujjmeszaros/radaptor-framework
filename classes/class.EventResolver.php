@@ -50,22 +50,44 @@ abstract class EventResolver implements iEvent
 		return $ctx->currentEvent = EventResolver::factory($event_name, self::EXECUTION_CONTEXT_EVENT_PREFIX_CLI);
 	}
 
-	public static function getEventnameFromCommandline(): string
+	/**
+	 * Pure parser: returns the PascalCase event class name from $argv[1] when it
+	 * matches the legacy "context:event" format, or null when it does not.
+	 *
+	 * Safe to call from any context (autoloader, class_exists checks, boot) because
+	 * it never aborts the process and has no side effects. Callers that need the
+	 * strict dispatch semantics (abort on malformed argv, plus --flag parsing into
+	 * $_GET) should use getEventnameFromCommandline() instead.
+	 */
+	public static function tryGetEventnameFromCommandline(): ?string
 	{
 		global $argv;
 
 		if (!isset($argv[1])) {
-			Kernel::abort("Context and event must be provided as the first argument.");
+			return null;
 		}
 
 		$contextEvent = explode(':', $argv[1]);
 
 		if (count($contextEvent) !== 2) {
-			Kernel::abort("Invalid format. Use 'contextname:eventname'.");
+			return null;
 		}
 
-		$context = $contextEvent[0];
-		$event = $contextEvent[1];
+		return ucwords($contextEvent[0]) . ucwords($contextEvent[1]);
+	}
+
+	public static function getEventnameFromCommandline(): string
+	{
+		global $argv;
+
+		$eventName = self::tryGetEventnameFromCommandline();
+
+		if ($eventName === null) {
+			if (!isset($argv[1])) {
+				Kernel::abort("Context and event must be provided as the first argument.");
+			}
+			Kernel::abort("Invalid format. Use 'contextname:eventname'.");
+		}
 
 		// Process additional parameters
 		for ($i = 2; $i < count($argv); $i += 2) {
@@ -77,7 +99,7 @@ abstract class EventResolver implements iEvent
 			}
 		}
 
-		return ucwords($context) . ucwords($event);
+		return $eventName;
 	}
 
 	/**
