@@ -40,7 +40,11 @@ class PackageAssetsBuilder
 		$app_base_dir = $app_base_dir !== null ? self::normalizePathPreservingLinks($app_base_dir) : $lock_base_dir;
 		$lock = PackageLockfile::loadFromPath($lock_path);
 		$desired_links = self::collectDesiredLinks($lock['packages'], $app_base_dir, $dry_run);
-		$current_state = self::loadState($state_path);
+		$current_state = self::adoptLegacyManagedLinks(
+			self::loadState($state_path),
+			$lock_path,
+			$app_base_dir
+		);
 		$links = [];
 		$created = 0;
 		$removed = 0;
@@ -124,8 +128,12 @@ class PackageAssetsBuilder
 	 * @param array<string, array<string, mixed>> $packages
 	 * @return array<string, string>
 	 */
-	private static function collectDesiredLinks(array $packages, string $app_base_dir, bool $dry_run = false): array
-	{
+	private static function collectDesiredLinks(
+		array $packages,
+		string $app_base_dir,
+		bool $dry_run = false,
+		bool $validate_sources = true
+	): array {
 		$links = [];
 
 		foreach ($packages as $package_key => $package) {
@@ -149,15 +157,15 @@ class PackageAssetsBuilder
 			$source_type = strtolower(trim((string) ($source['type'] ?? $resolved['type'] ?? '')));
 			$package_root = $resolved['resolved_path'] ?? $source['resolved_path'] ?? null;
 
-			if ((!is_string($package_root) || !is_dir($package_root)) && is_string($resolved['path'] ?? null)) {
+			if ((!is_string($package_root) || ($validate_sources && !is_dir($package_root))) && is_string($resolved['path'] ?? null)) {
 				$package_root = PackagePathHelper::resolveStoragePath((string) $resolved['path']);
 			}
 
-			if ((!is_string($package_root) || !is_dir($package_root)) && is_string($source['path'] ?? null)) {
+			if ((!is_string($package_root) || ($validate_sources && !is_dir($package_root))) && is_string($source['path'] ?? null)) {
 				$package_root = PackagePathHelper::resolveStoragePath((string) $source['path']);
 			}
 
-			if (!is_string($package_root) || !is_dir($package_root)) {
+			if (!is_string($package_root) || trim($package_root) === '' || ($validate_sources && !is_dir($package_root))) {
 				if ($dry_run && $source_type === 'registry') {
 					// During registry-first dry-run we may be planning to reinstall packages that are
 					// currently absent because the active worktree was switched to local dev sources.
@@ -178,7 +186,7 @@ class PackageAssetsBuilder
 
 				$source_path = self::normalizePath(rtrim($package_root, '/') . '/' . $source_relative);
 
-				if (!file_exists($source_path)) {
+				if ($validate_sources && !file_exists($source_path)) {
 					throw new RuntimeException("Asset source '{$source_relative}' does not exist for package '{$package_key}'.");
 				}
 
@@ -190,6 +198,81 @@ class PackageAssetsBuilder
 		ksort($links);
 
 		return $links;
+	}
+
+	/**
+	 * @param array<string, string> $current_state
+	 * @return array<string, string>
+	 */
+	private static function adoptLegacyManagedLinks(array $current_state, string $lock_path, string $app_base_dir): array
+	{
+		$legacy_links = self::collectLegacyManagedLinks($lock_path, $app_base_dir);
+
+		foreach ($legacy_links as $target => $sources) {
+			if (isset($current_state[$target])) {
+				continue;
+			}
+
+			$current_source = self::readLinkTarget($target);
+
+			if ($current_source === null || !isset($sources[$current_source])) {
+				continue;
+			}
+
+			$current_state[$target] = $current_source;
+		}
+
+		ksort($current_state);
+
+		return $current_state;
+	}
+
+	/**
+	 * @return array<string, array<string, true>>
+	 */
+	private static function collectLegacyManagedLinks(string $lock_path, string $app_base_dir): array
+	{
+		$links = [];
+
+		foreach (self::getRelatedLockPaths($lock_path) as $candidate_lock_path) {
+			if (!is_file($candidate_lock_path)) {
+				continue;
+			}
+
+			try {
+				$lock = PackageLockfile::loadFromPath($candidate_lock_path);
+				$candidate_links = self::collectDesiredLinks($lock['packages'], $app_base_dir, false, false);
+			} catch (Throwable) {
+				continue;
+			}
+
+			foreach ($candidate_links as $target => $source) {
+				$links[$target] ??= [];
+				$links[$target][$source] = true;
+			}
+		}
+
+		ksort($links);
+
+		return $links;
+	}
+
+	/**
+	 * @return list<string>
+	 */
+	private static function getRelatedLockPaths(string $lock_path): array
+	{
+		$directory = dirname($lock_path);
+		$paths = [
+			$lock_path,
+			$directory . '/radaptor.lock.json',
+			$directory . '/radaptor.local.lock.json',
+		];
+
+		return array_values(array_unique(array_map(
+			static fn (string $path): string => self::normalizePathPreservingLinks($path),
+			$paths
+		)));
 	}
 
 	/**
