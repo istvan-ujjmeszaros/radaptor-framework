@@ -87,5 +87,9 @@ class CLICommandPackagePrerelease extends AbstractCLICommand
 			echo "Dist URL: {$result['build']['dist_url']}\n";
 			echo "SHA256: {$result['build']['sha256']}\n";
 		}
+
+		foreach ($result['warnings'] as $warning) {
+			echo "Warning: {$warning}\n";
+		}
 	}
 }

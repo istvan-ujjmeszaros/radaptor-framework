@@ -1337,6 +1337,8 @@ class PackageInstallService
 	 */
 	private static function removeStaleRegistryDirectories(array $current_lock_packages, array $next_lock_packages): void
 	{
+		$cleanup_targets = [];
+
 		foreach ($current_lock_packages as $package_key => $current_locked_package) {
 			if (($current_locked_package['type'] ?? null) === 'plugin') {
 				continue;
@@ -1362,8 +1364,6 @@ class PackageInstallService
 				DEPLOY_ROOT
 			);
 
-			self::assertRegistryTargetSafe($current_path, "stale directory removal for '{$package_key}'");
-
 			if ($next_type === 'registry') {
 				$next_path = self::resolveStoredPath(
 					is_string($next_resolved['path'] ?? null)
@@ -1372,17 +1372,46 @@ class PackageInstallService
 					DEPLOY_ROOT
 				);
 
-				self::assertRegistryTargetSafe($next_path, "next registry path for '{$package_key}'");
-
 				if ($current_path !== $next_path && is_dir($current_path)) {
-					self::removeDirectory($current_path);
+					$cleanup_targets[$current_path] = "stale directory removal for '{$package_key}'";
 				}
 
 				continue;
 			}
 
 			if (is_dir($current_path)) {
-				self::removeDirectory($current_path);
+				$cleanup_targets[$current_path] = "override cleanup for '{$package_key}'";
+			}
+		}
+
+		foreach ($next_lock_packages as $package_key => $next_locked_package) {
+			if (($next_locked_package['type'] ?? null) === 'plugin') {
+				continue;
+			}
+
+			$next_source = is_array($next_locked_package['source'] ?? null) ? $next_locked_package['source'] : [];
+			$next_resolved = is_array($next_locked_package['resolved'] ?? null) ? $next_locked_package['resolved'] : [];
+			$next_type = $next_resolved['type'] ?? $next_source['type'] ?? null;
+
+			if ($next_type === 'registry') {
+				continue;
+			}
+
+			$registry_path = self::resolveStoredPath(
+				PackageTypeHelper::getDefaultPath($next_locked_package['type'], 'registry', $next_locked_package['id']),
+				DEPLOY_ROOT
+			);
+
+			if (is_dir($registry_path)) {
+				$cleanup_targets[$registry_path] = "override cleanup for '{$package_key}'";
+			}
+		}
+
+		foreach ($cleanup_targets as $path => $operation) {
+			self::assertRegistryCleanupSafe($path, $operation);
+
+			if (is_dir($path)) {
+				self::removeDirectory($path);
 			}
 		}
 	}
@@ -1878,5 +1907,68 @@ class PackageInstallService
 
 			$check = dirname($check);
 		}
+	}
+
+	private static function assertRegistryCleanupSafe(string $absolute_path, string $operation): void
+	{
+		self::assertRegistryTargetSafe($absolute_path, $operation);
+
+		if (!is_dir($absolute_path)) {
+			return;
+		}
+
+		$relative = ltrim(substr(self::normalizePath($absolute_path), strlen(rtrim(self::normalizePath(DEPLOY_ROOT), '/') . '/')), '/');
+
+		if (self::hasTrackedFilesUnder($relative)) {
+			throw new RuntimeException(
+				"Registry {$operation} refused: '{$relative}' contains tracked consumer-repo files."
+			);
+		}
+
+		if (self::containsNestedGitMetadata($absolute_path)) {
+			throw new RuntimeException(
+				"Registry {$operation} refused: '{$relative}' contains .git metadata or a nested repository marker."
+			);
+		}
+	}
+
+	private static function hasTrackedFilesUnder(string $relative_path): bool
+	{
+		$repository = GitRepositoryInspector::inspect(DEPLOY_ROOT);
+
+		if ($repository['is_repository'] !== true) {
+			return false;
+		}
+
+		$prefix = rtrim(str_replace('\\', '/', $relative_path), '/');
+		$prefix_with_slash = $prefix . '/';
+
+		foreach (GitRepositoryInspector::listTrackedFiles(DEPLOY_ROOT) as $tracked_file) {
+			if ($tracked_file === $prefix || str_starts_with($tracked_file, $prefix_with_slash)) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	private static function containsNestedGitMetadata(string $absolute_path): bool
+	{
+		if (!is_dir($absolute_path)) {
+			return false;
+		}
+
+		$iterator = new RecursiveIteratorIterator(
+			new RecursiveDirectoryIterator($absolute_path, FilesystemIterator::SKIP_DOTS),
+			RecursiveIteratorIterator::SELF_FIRST
+		);
+
+		foreach ($iterator as $item) {
+			if ($item->getFilename() === '.git') {
+				return true;
+			}
+		}
+
+		return false;
 	}
 }

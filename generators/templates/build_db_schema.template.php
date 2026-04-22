@@ -31,6 +31,44 @@ class DbSchemaData
 	/** @var array<string, array<string, ShapeSQLTable>> */
 	public const array TABLE_DATA = <?= $schema_array_export ?>;
 
+	/** @var array<int, array<string, array<string, ShapeSQLTable>>> */
+	private static array $_runtime_schema_stack = [];
+
+	private static int $_runtime_schema_counter = 0;
+
+	/**
+	 * @param array<string, array<string, ShapeSQLTable>> $schema_info
+	 */
+	public static function pushRuntimeSchema(array $schema_info): int
+	{
+		$token = ++self::$_runtime_schema_counter;
+		self::$_runtime_schema_stack[$token] = $schema_info;
+
+		return $token;
+	}
+
+	public static function popRuntimeSchema(int $token): void
+	{
+		unset(self::$_runtime_schema_stack[$token]);
+	}
+
+	/**
+	 * @template T
+	 * @param array<string, array<string, ShapeSQLTable>> $schema_info
+	 * @param callable(): T $callback
+	 * @return T
+	 */
+	public static function withRuntimeSchema(array $schema_info, callable $callback): mixed
+	{
+		$token = self::pushRuntimeSchema($schema_info);
+
+		try {
+			return $callback();
+		} finally {
+			self::popRuntimeSchema($token);
+		}
+	}
+
 	/**
 	 * @param string $table_name
 	 * @param string $dsn
@@ -38,8 +76,13 @@ class DbSchemaData
 	 */
 	public static function getTableData(string $table_name, string $dsn = ''): ?array
 	{
-		$dsn = Db::normalizeDsn($dsn);
-		$clean_dsn = Db::redactDSNUserAndPassword($dsn);
+		$clean_dsn = self::normalizeCleanDsn($dsn);
+
+		foreach (array_reverse(self::$_runtime_schema_stack, true) as $schema_info) {
+			if (isset($schema_info[$clean_dsn][$table_name])) {
+				return $schema_info[$clean_dsn][$table_name];
+			}
+		}
 
 		return self::TABLE_DATA[$clean_dsn][$table_name] ?? null;
 	}
@@ -50,9 +93,21 @@ class DbSchemaData
 	 */
 	public static function getSchemaInfo(string $dsn = ''): ?array
 	{
-		$dsn = Db::normalizeDsn($dsn);
-		$clean_dsn = Db::redactDSNUserAndPassword($dsn);
+		$clean_dsn = self::normalizeCleanDsn($dsn);
+
+		foreach (array_reverse(self::$_runtime_schema_stack, true) as $schema_info) {
+			if (isset($schema_info[$clean_dsn])) {
+				return $schema_info[$clean_dsn];
+			}
+		}
 
 		return self::TABLE_DATA[$clean_dsn] ?? null;
+	}
+
+	private static function normalizeCleanDsn(string $dsn = ''): string
+	{
+		$dsn = Db::normalizeDsn($dsn);
+
+		return Db::redactDSNUserAndPassword($dsn);
 	}
 }

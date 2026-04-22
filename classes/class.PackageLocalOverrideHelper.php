@@ -13,6 +13,7 @@ class PackageLocalOverrideHelper
 	private const string LOCAL_MANIFEST_FILENAME = 'radaptor.local.json';
 	private const string LOCAL_LOCK_FILENAME = 'radaptor.local.lock.json';
 	private const string DEV_ROOT_ENV = 'RADAPTOR_DEV_ROOT';
+	private const string WORKSPACE_DEV_MODE_ENV = 'RADAPTOR_WORKSPACE_DEV_MODE';
 	private const string DISABLE_ENV = 'RADAPTOR_DISABLE_LOCAL_OVERRIDES';
 
 	/** @var array<string, array<string, mixed>> */
@@ -33,39 +34,68 @@ class PackageLocalOverrideHelper
 
 	public static function getCommittedManifestPath(): string
 	{
-		return DEPLOY_ROOT . 'radaptor.json';
+		return self::getCommittedManifestPathForAppRoot(DEPLOY_ROOT);
 	}
 
 	public static function getLocalManifestPath(): string
 	{
-		return DEPLOY_ROOT . self::LOCAL_MANIFEST_FILENAME;
+		return self::getLocalManifestPathForAppRoot(DEPLOY_ROOT);
 	}
 
 	public static function getCommittedLockPath(): string
 	{
-		return DEPLOY_ROOT . 'radaptor.lock.json';
+		return self::getCommittedLockPathForAppRoot(DEPLOY_ROOT);
 	}
 
 	public static function getLocalLockPath(): string
 	{
-		return DEPLOY_ROOT . self::LOCAL_LOCK_FILENAME;
+		return self::getLocalLockPathForAppRoot(DEPLOY_ROOT);
+	}
+
+	public static function getCommittedManifestPathForAppRoot(string $app_root): string
+	{
+		return self::normalizePath($app_root) . '/radaptor.json';
+	}
+
+	public static function getLocalManifestPathForAppRoot(string $app_root): string
+	{
+		return self::normalizePath($app_root) . '/' . self::LOCAL_MANIFEST_FILENAME;
+	}
+
+	public static function getCommittedLockPathForAppRoot(string $app_root): string
+	{
+		return self::normalizePath($app_root) . '/radaptor.lock.json';
+	}
+
+	public static function getLocalLockPathForAppRoot(string $app_root): string
+	{
+		return self::normalizePath($app_root) . '/' . self::LOCAL_LOCK_FILENAME;
 	}
 
 	public static function getDevRoot(?string $deploy_root = null): string
 	{
-		$configured = trim((string) getenv(self::DEV_ROOT_ENV));
+		return self::getDevRootForAppRoot($deploy_root ?? DEPLOY_ROOT);
+	}
+
+	public static function getDevRootForAppRoot(string $app_root, ?string $dev_root = null): string
+	{
+		$app_root = self::normalizePath($app_root);
+		self::assertWorkspaceDevModeEnabled($app_root);
+		$configured = trim((string) ($dev_root ?? getenv(self::DEV_ROOT_ENV)));
 
 		if ($configured !== '') {
 			return self::normalizePath($configured);
 		}
 
-		$deploy_root ??= DEPLOY_ROOT;
-		$app_root = self::normalizePath($deploy_root);
-
 		throw new RuntimeException(
-			"RADAPTOR_DEV_ROOT must be set when local package overrides are active. "
+			"RADAPTOR_WORKSPACE_DEV_MODE=1 and RADAPTOR_DEV_ROOT must be set when local package overrides are active. "
 			. "Current app root: {$app_root}. Enable the workspace package-dev compose override or pass --ignore-local-overrides."
 		);
+	}
+
+	public static function isWorkspaceDevModeEnabled(): bool
+	{
+		return trim((string) getenv(self::WORKSPACE_DEV_MODE_ENV)) === '1';
 	}
 
 	public static function areLocalOverridesDisabled(bool $ignore_local_overrides = false): bool
@@ -89,12 +119,26 @@ class PackageLocalOverrideHelper
 
 	public static function hasLocalManifest(): bool
 	{
-		return is_file(self::getLocalManifestPath());
+		return self::hasLocalManifestForAppRoot(DEPLOY_ROOT);
+	}
+
+	public static function hasLocalManifestForAppRoot(string $app_root): bool
+	{
+		return is_file(self::getLocalManifestPathForAppRoot($app_root));
 	}
 
 	public static function isLocalOverrideActive(bool $ignore_local_overrides = false): bool
 	{
-		$cache_key = $ignore_local_overrides ? 'ignore' : 'default';
+		return self::isLocalOverrideActiveForAppRoot(DEPLOY_ROOT, $ignore_local_overrides);
+	}
+
+	public static function isLocalOverrideActiveForAppRoot(
+		string $app_root,
+		bool $ignore_local_overrides = false,
+		?string $dev_root = null
+	): bool {
+		$app_root = self::normalizePath($app_root);
+		$cache_key = self::buildCacheKey($app_root, $ignore_local_overrides, $dev_root);
 
 		if (array_key_exists($cache_key, self::$_activeCache)) {
 			return self::$_activeCache[$cache_key];
@@ -106,13 +150,13 @@ class PackageLocalOverrideHelper
 			return false;
 		}
 
-		if (!self::hasLocalManifest()) {
+		if (!self::hasLocalManifestForAppRoot($app_root)) {
 			self::$_activeCache[$cache_key] = false;
 
 			return false;
 		}
 
-		self::loadLocalOverrideDocument();
+		self::loadLocalOverrideDocumentForAppRoot($app_root, $dev_root);
 		self::$_activeCache[$cache_key] = true;
 
 		return true;
@@ -120,9 +164,17 @@ class PackageLocalOverrideHelper
 
 	public static function getEffectiveLockPath(bool $ignore_local_overrides = false): string
 	{
-		return self::isLocalOverrideActive($ignore_local_overrides)
-			? self::getLocalLockPath()
-			: self::getCommittedLockPath();
+		return self::getEffectiveLockPathForAppRoot(DEPLOY_ROOT, $ignore_local_overrides);
+	}
+
+	public static function getEffectiveLockPathForAppRoot(
+		string $app_root,
+		bool $ignore_local_overrides = false,
+		?string $dev_root = null
+	): string {
+		return self::isLocalOverrideActiveForAppRoot($app_root, $ignore_local_overrides, $dev_root)
+			? self::getLocalLockPathForAppRoot($app_root)
+			: self::getCommittedLockPathForAppRoot($app_root);
 	}
 
 	/**
@@ -136,23 +188,41 @@ class PackageLocalOverrideHelper
 	 */
 	public static function loadEffectiveManifest(bool $ignore_local_overrides = false): array
 	{
-		$cache_key = $ignore_local_overrides ? 'ignore' : 'default';
+		return self::loadEffectiveManifestForAppRoot(DEPLOY_ROOT, $ignore_local_overrides);
+	}
+
+	/**
+	 * @return array{
+	 *     manifest_version: int,
+	 *     registries: array<string, array{name: string, url: string, resolved_url: string}>,
+	 *     packages: array<string, array<string, mixed>>,
+	 *     path: string,
+	 *     base_dir: string
+	 * }
+	 */
+	public static function loadEffectiveManifestForAppRoot(
+		string $app_root,
+		bool $ignore_local_overrides = false,
+		?string $dev_root = null
+	): array {
+		$app_root = self::normalizePath($app_root);
+		$cache_key = self::buildCacheKey($app_root, $ignore_local_overrides, $dev_root);
 
 		if (isset(self::$_effectiveManifestCache[$cache_key])) {
 			return self::$_effectiveManifestCache[$cache_key];
 		}
 
-		$committed_path = self::getCommittedManifestPath();
+		$committed_path = self::getCommittedManifestPathForAppRoot($app_root);
 
-		if (!self::isLocalOverrideActive($ignore_local_overrides)) {
+		if (!self::isLocalOverrideActiveForAppRoot($app_root, $ignore_local_overrides, $dev_root)) {
 			self::$_effectiveManifestCache[$cache_key] = PackageManifest::loadFromPath($committed_path);
 
 			return self::$_effectiveManifestCache[$cache_key];
 		}
 
 		$committed_document = self::decodeJsonFile($committed_path, 'package manifest');
-		$local_document = self::loadLocalOverrideDocument();
-		$merged_document = self::applyLocalOverrides($committed_document, $local_document);
+		$local_document = self::loadLocalOverrideDocumentForAppRoot($app_root, $dev_root);
+		$merged_document = self::applyLocalOverrides($committed_document, $local_document, $app_root, $dev_root);
 
 		self::$_effectiveManifestCache[$cache_key] = PackageManifest::loadFromDocument($merged_document, $committed_path);
 
@@ -161,14 +231,24 @@ class PackageLocalOverrideHelper
 
 	public static function getResolvedOverridePath(string $type, string $id, bool $ignore_local_overrides = false): ?string
 	{
-		if (!self::isLocalOverrideActive($ignore_local_overrides)) {
+		return self::getResolvedOverridePathForAppRoot(DEPLOY_ROOT, $type, $id, $ignore_local_overrides);
+	}
+
+	public static function getResolvedOverridePathForAppRoot(
+		string $app_root,
+		string $type,
+		string $id,
+		bool $ignore_local_overrides = false,
+		?string $dev_root = null
+	): ?string {
+		if (!self::isLocalOverrideActiveForAppRoot($app_root, $ignore_local_overrides, $dev_root)) {
 			return null;
 		}
 
 		$type = PackageTypeHelper::normalizeType($type, 'Package');
 		$id = PackageTypeHelper::normalizeId($id, 'Package');
 		$section = PackageTypeHelper::getSectionForType($type);
-		$local_document = self::loadLocalOverrideDocument();
+		$local_document = self::loadLocalOverrideDocumentForAppRoot($app_root, $dev_root);
 		$package = $local_document[$section][$id] ?? null;
 
 		if (!is_array($package)) {
@@ -182,18 +262,28 @@ class PackageLocalOverrideHelper
 			return null;
 		}
 
-		return self::resolveLocation($location);
+		return self::resolveLocation($location, $app_root, $dev_root);
 	}
 
 	/**
 	 * @return array<string, mixed>
 	 */
-	private static function loadLocalOverrideDocument(): array
+	public static function loadLocalOverrideDocument(): array
 	{
-		$path = self::getLocalManifestPath();
+		return self::loadLocalOverrideDocumentForAppRoot(DEPLOY_ROOT);
+	}
 
-		if (isset(self::$_localDocumentCache[$path])) {
-			return self::$_localDocumentCache[$path];
+	/**
+	 * @return array<string, mixed>
+	 */
+	public static function loadLocalOverrideDocumentForAppRoot(string $app_root, ?string $dev_root = null): array
+	{
+		$app_root = self::normalizePath($app_root);
+		$cache_key = self::buildCacheKey($app_root, false, $dev_root);
+		$path = self::getLocalManifestPathForAppRoot($app_root);
+
+		if (isset(self::$_localDocumentCache[$cache_key])) {
+			return self::$_localDocumentCache[$cache_key];
 		}
 
 		if (!is_file($path)) {
@@ -201,10 +291,65 @@ class PackageLocalOverrideHelper
 		}
 
 		$document = self::decodeJsonFile($path, 'local package override');
-		self::validateLocalOverrideDocument($document);
-		self::$_localDocumentCache[$path] = $document;
+		self::validateLocalOverrideDocument($document, $app_root, $dev_root);
+		self::$_localDocumentCache[$cache_key] = $document;
 
-		return self::$_localDocumentCache[$path];
+		return self::$_localDocumentCache[$cache_key];
+	}
+
+	public static function resolveLocation(string $location, ?string $app_root = null, ?string $dev_root = null): string
+	{
+		$app_root = self::normalizePath($app_root ?? DEPLOY_ROOT);
+		$location = trim(str_replace('\\', '/', $location));
+
+		if ($location === '') {
+			throw new RuntimeException('Local package override source.location must not be empty.');
+		}
+
+		if (str_starts_with($location, '/')) {
+			throw new RuntimeException("Local package override location '{$location}' must be relative.");
+		}
+
+		$segments = explode('/', $location);
+
+		foreach ($segments as $segment) {
+			if ($segment === '' || $segment === '.' || $segment === '..') {
+				throw new RuntimeException(
+					"Local package override location '{$location}' contains an invalid path segment."
+				);
+			}
+
+			if (preg_match('/^[A-Za-z0-9._-]+$/', $segment) !== 1) {
+				throw new RuntimeException(
+					"Local package override location '{$location}' contains unsupported characters."
+				);
+			}
+		}
+
+		$resolved_dev_root = self::getDevRootForAppRoot($app_root, $dev_root);
+		$resolved = self::normalizePath(rtrim($resolved_dev_root, '/') . '/' . implode('/', $segments));
+
+		if (!str_starts_with($resolved . '/', rtrim($resolved_dev_root, '/') . '/')) {
+			throw new RuntimeException("Local package override location '{$location}' resolves outside RADAPTOR_DEV_ROOT.");
+		}
+
+		if ($resolved === $app_root || str_starts_with($resolved, $app_root . '/')) {
+			throw new RuntimeException("Local package override location '{$location}' must resolve outside the current app root.");
+		}
+
+		return $resolved;
+	}
+
+	private static function assertWorkspaceDevModeEnabled(string $app_root): void
+	{
+		if (self::isWorkspaceDevModeEnabled()) {
+			return;
+		}
+
+		throw new RuntimeException(
+			"RADAPTOR_WORKSPACE_DEV_MODE=1 must be set when local package overrides are active. "
+			. "Current app root: {$app_root}. Enable the workspace package-dev compose override or pass --ignore-local-overrides."
+		);
 	}
 
 	/**
@@ -212,8 +357,12 @@ class PackageLocalOverrideHelper
 	 * @param array<string, mixed> $local_document
 	 * @return array<string, mixed>
 	 */
-	private static function applyLocalOverrides(array $committed_document, array $local_document): array
-	{
+	private static function applyLocalOverrides(
+		array $committed_document,
+		array $local_document,
+		string $app_root,
+		?string $dev_root = null
+	): array {
 		$merged = $committed_document;
 
 		foreach (['core', 'themes'] as $section) {
@@ -234,7 +383,7 @@ class PackageLocalOverrideHelper
 
 				$source = is_array($package['source'] ?? null) ? $package['source'] : [];
 				$location = trim((string) ($source['location'] ?? ''));
-				$resolved_path = self::resolveLocation($location);
+				$resolved_path = self::resolveLocation($location, $app_root, $dev_root);
 				$merged[$section][$id]['source'] = [
 					'type' => 'dev',
 					'path' => $resolved_path,
@@ -248,8 +397,11 @@ class PackageLocalOverrideHelper
 	/**
 	 * @param array<string, mixed> $document
 	 */
-	private static function validateLocalOverrideDocument(array $document): void
-	{
+	private static function validateLocalOverrideDocument(
+		array $document,
+		string $app_root,
+		?string $dev_root = null
+	): void {
 		$allowed_sections = ['core', 'themes'];
 		$allowed_root_keys = array_merge(['manifest_version'], $allowed_sections);
 
@@ -309,52 +461,21 @@ class PackageLocalOverrideHelper
 					throw new RuntimeException("Local package override '{$section}.{$id}' is missing source.location.");
 				}
 
-				self::resolveLocation($location);
+				self::resolveLocation($location, $app_root, $dev_root);
 			}
 		}
 	}
 
-	public static function resolveLocation(string $location): string
+	private static function buildCacheKey(string $app_root, bool $ignore_local_overrides = false, ?string $dev_root = null): string
 	{
-		$location = trim(str_replace('\\', '/', $location));
+		$context_dev_root = trim((string) ($dev_root ?? getenv(self::DEV_ROOT_ENV)));
+		$normalized_dev_root = $context_dev_root === '' ? '' : self::normalizePath($context_dev_root);
 
-		if ($location === '') {
-			throw new RuntimeException('Local package override source.location must not be empty.');
-		}
-
-		if (str_starts_with($location, '/')) {
-			throw new RuntimeException("Local package override location '{$location}' must be relative.");
-		}
-
-		$segments = explode('/', $location);
-
-		foreach ($segments as $segment) {
-			if ($segment === '' || $segment === '.' || $segment === '..') {
-				throw new RuntimeException(
-					"Local package override location '{$location}' contains an invalid path segment."
-				);
-			}
-
-			if (preg_match('/^[A-Za-z0-9._-]+$/', $segment) !== 1) {
-				throw new RuntimeException(
-					"Local package override location '{$location}' contains unsupported characters."
-				);
-			}
-		}
-
-		$resolved = self::normalizePath(rtrim(self::getDevRoot(), '/') . '/' . implode('/', $segments));
-		$dev_root = self::normalizePath(self::getDevRoot());
-		$deploy_root = self::normalizePath(DEPLOY_ROOT);
-
-		if (!str_starts_with($resolved . '/', $dev_root . '/')) {
-			throw new RuntimeException("Local package override location '{$location}' resolves outside RADAPTOR_DEV_ROOT.");
-		}
-
-		if ($resolved === $deploy_root || str_starts_with($resolved, $deploy_root . '/')) {
-			throw new RuntimeException("Local package override location '{$location}' must resolve outside the current app root.");
-		}
-
-		return $resolved;
+		return self::normalizePath($app_root)
+			. '|'
+			. ($ignore_local_overrides ? 'ignore' : 'use')
+			. '|'
+			. $normalized_dev_root;
 	}
 
 	/**

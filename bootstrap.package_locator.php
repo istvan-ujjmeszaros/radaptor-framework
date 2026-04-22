@@ -89,6 +89,15 @@ if (!function_exists('radaptorBootstrapLocalOverridesDisabled')) {
 if (!function_exists('radaptorBootstrapResolveDevRoot')) {
 	function radaptorBootstrapResolveDevRoot(string $app_root): string
 	{
+		$workspace_mode = trim((string) getenv('RADAPTOR_WORKSPACE_DEV_MODE'));
+
+		if ($workspace_mode !== '1') {
+			throw new RuntimeException(
+				'RADAPTOR_WORKSPACE_DEV_MODE=1 must be set when local package overrides are active. '
+				. 'Enable the workspace package-dev compose override or pass --ignore-local-overrides.'
+			);
+		}
+
 		$configured = trim((string) getenv('RADAPTOR_DEV_ROOT'));
 
 		if ($configured !== '') {
@@ -96,7 +105,7 @@ if (!function_exists('radaptorBootstrapResolveDevRoot')) {
 		}
 
 		throw new RuntimeException(
-			'RADAPTOR_DEV_ROOT must be set when local package overrides are active. '
+			'RADAPTOR_WORKSPACE_DEV_MODE=1 and RADAPTOR_DEV_ROOT must be set when local package overrides are active. '
 			. 'Enable the workspace package-dev compose override or pass --ignore-local-overrides.'
 		);
 	}

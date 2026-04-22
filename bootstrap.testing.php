@@ -17,32 +17,11 @@ require_once __DIR__ . '/bootstrap.php';
 
 // Tests run with native PHP sessions to avoid external Redis dependency in unit/integration execution.
 SessionContextHolder::setStorage(new NativeSessionStorage());
+$bootstrap = TestDatabaseSchemaSyncService::bootstrap();
 
-// Test database schema verification and sync
-// Classes are autoloaded by the failsafe autoloader from tests/helpers/
-
-// Safety check: ensure we're connected to test database
-TestDatabaseGuard::assertTestDatabase();
-
-// Compare schema between dev and test databases
-$schemaErrors = TestDatabaseGuard::getSchemaErrors();
-
-if (!empty($schemaErrors)) {
-	// Schema mismatch detected - recreate from dev and load fixtures
-	fwrite(STDERR, "[Test Bootstrap] Schema mismatch detected, syncing from dev database...\n");
-
-	TestDatabaseGuard::recreateSchema();
-	Fixtures::loadAll();
-
-	fwrite(STDERR, "[Test Bootstrap] Schema synced and fixtures loaded.\n");
-} else {
-	// Schema matches - check if fixtures are present
-	$stmt = Db::instance()->query('SELECT COUNT(*) FROM users');
-	$userCount = (int) $stmt->fetchColumn();
-
-	if ($userCount === 0) {
-		fwrite(STDERR, "[Test Bootstrap] Fixtures missing, loading...\n");
-		Fixtures::loadAll();
-		fwrite(STDERR, "[Test Bootstrap] Fixtures loaded.\n");
-	}
+if ($bootstrap['schema_rebuilt']) {
+	fwrite(STDERR, "[Test Bootstrap] Schema mismatch detected, synced test databases from dev and reloaded fixtures.\n");
+} elseif ($bootstrap['fixtures_loaded']) {
+	fwrite(STDERR, "[Test Bootstrap] Fixtures missing, loading...\n");
+	fwrite(STDERR, "[Test Bootstrap] Fixtures loaded.\n");
 }

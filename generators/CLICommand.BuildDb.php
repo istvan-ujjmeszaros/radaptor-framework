@@ -12,10 +12,12 @@ class CLICommandBuildDb extends AbstractCLICommand
 		return <<<'DOC'
 			Regenerate the database schema cache.
 
-			Usage: radaptor build:db
+			Usage: radaptor build:db [--auto-sync]
 
 			Reads table structures from both the app and test databases
-			and generates the schema cache file.
+			and generates the schema cache file. By default this command
+			aborts when the test schema drifts from dev; run
+			`radaptor db:test-sync --json` first or pass --auto-sync.
 			DOC;
 	}
 
@@ -33,40 +35,21 @@ class CLICommandBuildDb extends AbstractCLICommand
 	 */
 	public function run(): void
 	{
-		// Creating the app database schema and its testing schema, and their triggers
+		$auto_sync = Request::hasArg('auto-sync');
+		$sync = TestDatabaseSchemaSyncService::sync(!$auto_sync);
+
+		if ($sync['drift_detected'] && !$auto_sync) {
+			Kernel::abort(
+				"Test schema drift detected. Run `radaptor db:test-sync --json` first or rerun `radaptor build:db --auto-sync`."
+			);
+		}
+
 		self::create(
 			[
 				Config::DB_DEFAULT_DSN->value(),
 				Db::rewriteDsnToTesting(Config::DB_DEFAULT_DSN->value()),
 			]
 		);
-	}
-
-	/**
-	 * Builds schema data from the given DSN.
-	 *
-	 * @param string $dsn The Data Source Name for the database connection.
-	 * @return array<string, structSQLTable> An associative array where the key is the table name and the value is a structSQLTable object containing table data.
-	 */
-	private static function _buildSchemaData(string $dsn): array
-	{
-		$stmt = Db::instance($dsn)->prepare('SHOW TABLES');
-		$stmt->execute();
-
-		$tables = $stmt->fetchAll(PDO::FETCH_COLUMN, 0);
-
-		unset($stmt);
-
-		$db_data = [];
-
-		foreach ($tables as $tablename) {
-			$db_data[$tablename] = GeneratorHelper::getTableDataFromDb(
-				dsn: $dsn,
-				tablename: $tablename,
-			);
-		}
-
-		return $db_data;
 	}
 
 	/**
@@ -77,42 +60,7 @@ class CLICommandBuildDb extends AbstractCLICommand
 	 */
 	public static function create(array $dsn_array): void
 	{
-		$schema_array = [];
-
-		foreach ($dsn_array as $dsn) {
-			$db_data = self::_buildSchemaData($dsn);
-
-			// Convert structs to arrays for storage (human-readable, opcache-optimized)
-			$db_data_array = [];
-
-			foreach ($db_data as $table_name => $tableData) {
-				$db_data_array[$table_name] = [
-					'table_name' => $tableData->table_name,
-					'fields' => array_map(fn (structSQLColumn $col) => [
-						'column_name' => $col->column_name,
-						'type_sql' => $col->type_sql,
-						'type_php' => $col->type_php,
-						'comment' => $col->comment,
-						'default' => $col->default,
-						'extra' => $col->extra,
-						'is_optional' => $col->is_optional,
-						'is_processable' => $col->is_processable,
-						'is_primary_key' => $col->is_primary_key,
-						'is_auto_increment' => $col->is_auto_increment,
-					], $tableData->fields),
-					'field_names' => $tableData->field_names,
-					'pkeys' => $tableData->pkeys,
-					'processable_fields' => $tableData->processable_fields,
-					'is_auto_increment' => $tableData->is_auto_increment,
-				];
-			}
-
-			$clean_dsn = Db::redactDSNUserAndPassword($dsn);
-
-			$schema_array[$clean_dsn] = $db_data_array;
-
-			PluginLifecycleManager::runAfterBuildDb($dsn, $db_data);
-		}
+		$schema_array = DbSchemaDataBuilder::buildSchemaArray($dsn_array, run_plugin_hooks: true);
 
 		$schema_array_string = GeneratorHelper::formatArrayForExport($schema_array);
 

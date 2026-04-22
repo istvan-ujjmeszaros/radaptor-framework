@@ -14,7 +14,8 @@ class PackageReleaseService
 	 *     source_commit: string,
 	 *     released_at: string,
 	 *     dry_run: bool,
-	 *     build: array<string, mixed>|null
+	 *     build: array<string, mixed>|null,
+	 *     warnings: list<string>
 	 * }
 	 */
 	public static function release(
@@ -41,7 +42,8 @@ class PackageReleaseService
 	 *     source_commit: string,
 	 *     released_at: string,
 	 *     dry_run: bool,
-	 *     build: array<string, mixed>|null
+	 *     build: array<string, mixed>|null,
+	 *     warnings: list<string>
 	 * }
 	 */
 	public static function prerelease(
@@ -69,7 +71,8 @@ class PackageReleaseService
 	 *     source_commit: string,
 	 *     released_at: string,
 	 *     dry_run: bool,
-	 *     build: array<string, mixed>|null
+	 *     build: array<string, mixed>|null,
+	 *     warnings: list<string>
 	 * }
 	 */
 	public static function releaseFromSourcePath(
@@ -95,7 +98,8 @@ class PackageReleaseService
 	 *     source_commit: string,
 	 *     released_at: string,
 	 *     dry_run: bool,
-	 *     build: array<string, mixed>|null
+	 *     build: array<string, mixed>|null,
+	 *     warnings: list<string>
 	 * }
 	 */
 	public static function prereleaseFromSourcePath(
@@ -122,7 +126,8 @@ class PackageReleaseService
 	 *     source_commit: string,
 	 *     released_at: string,
 	 *     dry_run: bool,
-	 *     build: array<string, mixed>|null
+	 *     build: array<string, mixed>|null,
+	 *     warnings: list<string>
 	 * }
 	 */
 	private static function run(
@@ -180,6 +185,7 @@ class PackageReleaseService
 			'released_at' => $released_at,
 			'dry_run' => $dry_run,
 			'build' => null,
+			'warnings' => [],
 		];
 
 		if ($dry_run) {
@@ -213,6 +219,16 @@ class PackageReleaseService
 		}
 
 		$result['build'] = $build;
+		$stale_consumers = PackageStateInspector::findStaleWorkspaceConsumersForPackage($normalized_package_key);
+
+		if ($stale_consumers !== []) {
+			$result['warnings'][] = sprintf(
+				'Workspace consumers behind %s %s: %s. Refresh committed locks after the registry update.',
+				$normalized_package_key,
+				$version_plan['new_version'],
+				implode(', ', $stale_consumers)
+			);
+		}
 
 		return $result;
 	}
