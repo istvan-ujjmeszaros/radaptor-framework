@@ -531,8 +531,14 @@ class MigrationRunner
 
 	public static function rebuildDbSchema(): void
 	{
-		$command = new CLICommandBuildDb();
-		$command->run();
+		// Fresh migration runs leave the test schema behind until it is synchronized.
+		// Rebuild the cache with the same auto-sync semantics as `radaptor build:db --auto-sync`
+		// so install/update/migrate flows remain non-interactive.
+		TestDatabaseSchemaSyncService::sync(false);
+		CLICommandBuildDb::create([
+			Config::DB_DEFAULT_DSN->value(),
+			Db::rewriteDsnToTesting(Config::DB_DEFAULT_DSN->value()),
+		]);
 	}
 
 	/**
