@@ -132,13 +132,9 @@ class Kernel
 		$trace_id = self::generateTraceId();
 		$expose_details = self::shouldExposeErrorDetails();
 
-		if (!defined('RADAPTOR_CLI')) {
+		if (!defined('RADAPTOR_CLI') && !headers_sent()) {
 			http_response_code($error_map['status']);
 		}
-
-		// In production, log the error and show a generic message
-		$logger = new Monolog\Logger('app');
-		$logger->pushHandler(new Monolog\Handler\StreamHandler(DEPLOY_ROOT . '.logs/app_errors.log', Monolog\Level::Error));
 
 		$redacted_session_data = self::safeGetSessionDataForLogging();
 
@@ -146,11 +142,23 @@ class Kernel
 			$redacted_session_data['password'] = '<redacted>';
 		}
 
-		$logger->error("Uncaught exception: " . $e->getMessage(), [
-			'trace_id' => $trace_id,
-			'exception' => $e,
-			'SESSION' => $redacted_session_data,
-		]);
+		// Preserve the original exception even if the file logger is temporarily unavailable.
+		try {
+			$logger = new Monolog\Logger('app');
+			$logger->pushHandler(new Monolog\Handler\StreamHandler(DEPLOY_ROOT . '.logs/app_errors.log', Monolog\Level::Error));
+			$logger->error("Uncaught exception: " . $e->getMessage(), [
+				'trace_id' => $trace_id,
+				'exception' => $e,
+				'SESSION' => $redacted_session_data,
+			]);
+		} catch (Throwable $logging_exception) {
+			error_log(sprintf(
+				'Radaptor unexpected exception [%s]: %s (logging fallback: %s)',
+				$trace_id,
+				$e->getMessage(),
+				$logging_exception->getMessage()
+			));
+		}
 
 		if (defined('RADAPTOR_CLI')) {
 			$details = self::buildExceptionDetails($e);

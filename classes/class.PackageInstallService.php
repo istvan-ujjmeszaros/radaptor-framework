@@ -247,6 +247,7 @@ class PackageInstallService
 		if (!$dry_run) {
 			self::removeStaleRegistryDirectories($current_lock['packages'], $next_lock['packages']);
 			self::installRegistryPackages($current_lock['packages'], $next_lock['packages']);
+			self::refreshInstalledPackageDiscoveryState();
 
 			if ($plugin_manifest_path !== null && $plugin_lock_path !== null) {
 				PackageBridgeHelper::writePluginManifest($plugin_manifest_path, $next_lock['packages']);
@@ -705,6 +706,13 @@ class PackageInstallService
 		} finally {
 			ob_end_clean();
 		}
+	}
+
+	private static function refreshInstalledPackageDiscoveryState(): void
+	{
+		PackageConfig::reset();
+		PackagePathHelper::reset();
+		PackageThemeScanHelper::reset();
 	}
 
 	/**
