@@ -356,7 +356,19 @@ class PackageRegistryClient
 			self::normalizePath(DEPLOY_ROOT . 'tmp'),
 			self::normalizePath($workspace_root . '/radaptor_plugin_registry'),
 			self::normalizePath($workspace_root . '/radaptor-plugin-registry'),
+			self::normalizePath('/workspace/radaptor_plugin_registry'),
+			self::normalizePath('/workspace/radaptor-plugin-registry'),
 		];
+
+		foreach (['RADAPTOR_PACKAGE_REGISTRY_ROOT', 'RADAPTOR_PLUGIN_REGISTRY_ROOT'] as $env_name) {
+			$env_root = getenv($env_name);
+
+			if (!is_string($env_root) || trim($env_root) === '') {
+				continue;
+			}
+
+			$roots[] = self::normalizePath(trim($env_root));
+		}
 
 		sort($roots);
 
