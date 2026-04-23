@@ -7,6 +7,10 @@ class AttributeHandler
 		$return = AttributeHandler::getAttributes($resource);
 
 		foreach ($attributes as $attributeName) {
+			if (!is_string($attributeName) || $attributeName === '') {
+				continue;
+			}
+
 			$return[$attributeName] ??= '';
 		}
 

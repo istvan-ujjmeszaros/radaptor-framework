@@ -17,6 +17,12 @@ function testingEnvironmentErrorToExceptionConversionHandler(int $error_number, 
 		return true;
 	}
 
+	// PHP 8.5 deprecates SplObjectStorage::attach(). Third-party tooling (for example
+	// static analyzers) may still call it while bootstrapping in test mode.
+	if (str_contains($error_string, 'SplObjectStorage::attach() is deprecated')) {
+		return true;
+	}
+
 	throw new Exception($error_string, $error_number);
 }
 

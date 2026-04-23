@@ -113,11 +113,30 @@ class Fixtures
 	{
 		$fixtures = [];
 
-		// Calculate fixtures directory relative to the application root
-		// The tests/fixtures/ path should be in the app directory
-		$fixturesDir = dirname(__DIR__, 4) . '/tests/fixtures';
+		$fixtureDirectories = [];
 
-		foreach (glob($fixturesDir . '/Fixture.*.php') as $file) {
+		if (defined('DEPLOY_ROOT')) {
+			$fixtureDirectories[] = rtrim((string) DEPLOY_ROOT, '/') . '/tests/fixtures';
+		}
+
+		// Fallback for non-standard runtime bootstraps where DEPLOY_ROOT is not yet available.
+		$fixtureDirectories[] = dirname(__DIR__, 6) . '/tests/fixtures';
+
+		$fixturesDir = null;
+
+		foreach ($fixtureDirectories as $candidate) {
+			if (is_dir($candidate)) {
+				$fixturesDir = $candidate;
+
+				break;
+			}
+		}
+
+		if ($fixturesDir === null) {
+			throw new RuntimeException('Fixture discovery failed: tests/fixtures directory was not found.');
+		}
+
+		foreach (glob($fixturesDir . '/Fixture.*.php') ?: [] as $file) {
 			// Fixture.Users.php -> FixtureUsers
 			$fileName = basename($file, '.php');
 			$className = str_replace('.', '', $fileName);
@@ -128,6 +147,10 @@ class Fixtures
 			}
 
 			$fixtures[] = self::get($className);
+		}
+
+		if ($fixtures === []) {
+			throw new RuntimeException("Fixture discovery failed: no fixture classes found under {$fixturesDir}.");
 		}
 
 		return $fixtures;

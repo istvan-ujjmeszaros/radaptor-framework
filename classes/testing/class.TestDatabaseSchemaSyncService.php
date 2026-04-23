@@ -74,7 +74,10 @@ class TestDatabaseSchemaSyncService
 	public static function assertTestDatabaseTargets(): void
 	{
 		self::assertSafeTestDsn(self::getTestDsn(), 'default');
-		self::assertSafeTestDsn(self::getTestAuditDsn(), 'audit');
+
+		if (self::isAuditRuntimeAvailable()) {
+			self::assertSafeTestDsn(self::getTestAuditDsn(), 'audit');
+		}
 	}
 
 	/**
@@ -92,14 +95,16 @@ class TestDatabaseSchemaSyncService
 			self::extractDbNameFromDsn(self::getTestDsn())
 		);
 
-		self::collectSchemaErrors(
-			$errors,
-			self::getDevAuditPdo(),
-			self::extractDbNameFromDsn(self::getDevAuditDsn()),
-			Db::instance(self::getTestAuditDsn()),
-			self::extractDbNameFromDsn(self::getTestAuditDsn()),
-			'audit_'
-		);
+		if (self::isAuditRuntimeAvailable()) {
+			self::collectSchemaErrors(
+				$errors,
+				self::getDevAuditPdo(),
+				self::extractDbNameFromDsn(self::getDevAuditDsn()),
+				Db::instance(self::getTestAuditDsn()),
+				self::extractDbNameFromDsn(self::getTestAuditDsn()),
+				'audit_'
+			);
+		}
 
 		return array_filter($errors, static fn (array $items): bool => $items !== []);
 	}
@@ -113,22 +118,25 @@ class TestDatabaseSchemaSyncService
 			self::extractDbNameFromDsn(self::getTestDsn())
 		);
 
-		self::recreateDatabaseSchema(
-			self::getDevAuditPdo(),
-			self::extractDbNameFromDsn(self::getDevAuditDsn()),
-			Db::instance(self::getTestAuditDsn()),
-			self::extractDbNameFromDsn(self::getTestAuditDsn())
-		);
+		if (self::isAuditRuntimeAvailable()) {
+			self::recreateDatabaseSchema(
+				self::getDevAuditPdo(),
+				self::extractDbNameFromDsn(self::getDevAuditDsn()),
+				Db::instance(self::getTestAuditDsn()),
+				self::extractDbNameFromDsn(self::getTestAuditDsn())
+			);
+		}
 	}
 
 	public static function refreshRuntimeSchemaOverride(): void
 	{
-		$schema = DbSchemaDataBuilder::buildSchemaArray(
-			[
-				self::getTestDsn(),
-				self::getTestAuditDsn(),
-			]
-		);
+		$target_dsns = [self::getTestDsn()];
+
+		if (self::isAuditRuntimeAvailable()) {
+			$target_dsns[] = self::getTestAuditDsn();
+		}
+
+		$schema = DbSchemaDataBuilder::buildSchemaArray($target_dsns);
 
 		if (self::$_runtimeSchemaToken !== null) {
 			DbSchemaData::popRuntimeSchema(self::$_runtimeSchemaToken);
@@ -150,24 +158,64 @@ class TestDatabaseSchemaSyncService
 
 	private static function hasFixtureBaseline(): bool
 	{
+		$pdo = Db::instance(self::getTestDsn());
+
 		try {
-			$stmt = Db::instance(self::getTestDsn())->query('SELECT COUNT(*) FROM users');
+			$stmt = $pdo->prepare(
+				'SELECT COUNT(*) FROM users WHERE username IN (?, ?)'
+			);
+			$stmt->execute(['admin_developer', 'user_noroles']);
+
+			if ((int) $stmt->fetchColumn() !== 2) {
+				return false;
+			}
+
+			$domain_root_stmt = $pdo->prepare(
+				"SELECT node_id
+				FROM resource_tree
+				WHERE node_type = 'root' AND resource_name = ?
+				LIMIT 1"
+			);
+			$domain_root_stmt->execute([Config::APP_DOMAIN_CONTEXT->value()]);
+			$domain_root_id = $domain_root_stmt->fetchColumn();
+
+			if (!is_numeric($domain_root_id) || (int) $domain_root_id <= 0) {
+				return false;
+			}
+
+			$required_pages_stmt = $pdo->prepare(
+				"SELECT COUNT(*)
+				FROM resource_tree
+				WHERE parent_id = ?
+					AND node_type = 'webpage'
+					AND path = '/'
+					AND resource_name IN ('index.html', 'login.html')"
+			);
+			$required_pages_stmt->execute([(int) $domain_root_id]);
 		} catch (Throwable) {
 			return false;
 		}
 
-		return (int) $stmt->fetchColumn() > 0;
+		return (int) $required_pages_stmt->fetchColumn() === 2;
 	}
 
 	private static function rebuildTestDatabaseHooks(): void
 	{
+		$target_dsns = [self::getTestDsn()];
+
+		if (self::isAuditRuntimeAvailable()) {
+			$target_dsns[] = self::getTestAuditDsn();
+		}
+
 		DbSchemaDataBuilder::buildSchemaArray(
-			[
-				self::getTestDsn(),
-				self::getTestAuditDsn(),
-			],
+			$target_dsns,
 			run_plugin_hooks: true
 		);
+	}
+
+	private static function isAuditRuntimeAvailable(): bool
+	{
+		return class_exists('AuditTriggerManager');
 	}
 
 	private static function getDevDsn(): string
