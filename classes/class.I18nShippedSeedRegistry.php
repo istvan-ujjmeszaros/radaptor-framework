@@ -21,7 +21,6 @@ class I18nShippedSeedRegistry
 
 		$cms_root = rtrim($cms_root, '/');
 		$blog_root = rtrim(PackagePathHelper::getPackageRoot('plugin', 'blog') ?? (DEPLOY_ROOT . 'plugins/dev/blog'), '/');
-		$tracker_root = rtrim(PackagePathHelper::getPackageRoot('plugin', 'tracker') ?? (DEPLOY_ROOT . 'plugins/dev/tracker'), '/');
 
 		return [
 			[
@@ -80,41 +79,6 @@ class I18nShippedSeedRegistry
 				'group_id' => 'blog',
 				'seed_dir' => $blog_root . '/modules/Blog/i18n/seeds',
 				'domains' => ['blog'],
-				'key_prefixes' => [],
-			],
-			[
-				'group_type' => 'plugin',
-				'group_id' => 'tracker_company',
-				'seed_dir' => $tracker_root . '/modules/Company/i18n/seeds',
-				'domains' => ['company'],
-				'key_prefixes' => [],
-			],
-			[
-				'group_type' => 'plugin',
-				'group_id' => 'tracker_contact_person',
-				'seed_dir' => $tracker_root . '/modules/ContactPerson/i18n/seeds',
-				'domains' => ['contact'],
-				'key_prefixes' => [],
-			],
-			[
-				'group_type' => 'plugin',
-				'group_id' => 'tracker_project',
-				'seed_dir' => $tracker_root . '/modules/Project/i18n/seeds',
-				'domains' => ['project'],
-				'key_prefixes' => [],
-			],
-			[
-				'group_type' => 'plugin',
-				'group_id' => 'tracker_ticket',
-				'seed_dir' => $tracker_root . '/modules/Ticket/i18n/seeds',
-				'domains' => ['ticket'],
-				'key_prefixes' => [],
-			],
-			[
-				'group_type' => 'plugin',
-				'group_id' => 'tracker_time_tracker',
-				'seed_dir' => $tracker_root . '/modules/TimeTracker/i18n/seeds',
-				'domains' => ['timetracker'],
 				'key_prefixes' => [],
 			],
 		];

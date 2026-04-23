@@ -6,7 +6,7 @@
  * Usage: radaptor webpage:info <path> [--json]
  *
  * Examples:
- *   radaptor webpage:info /contact-persons/
+ *   radaptor webpage:info /login/
  *   radaptor webpage:info / --json
  */
 class CLICommandWebpageInfo extends AbstractCLICommand
@@ -24,7 +24,7 @@ class CLICommandWebpageInfo extends AbstractCLICommand
 			Usage: radaptor webpage:info <path> [--json]
 
 			Examples:
-			  radaptor webpage:info /contact-persons/
+			  radaptor webpage:info /login/
 			  radaptor webpage:info / --json
 			DOC;
 	}
