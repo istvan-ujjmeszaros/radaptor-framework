@@ -54,6 +54,14 @@ class CLICommandMcpTokenCreate extends AbstractCLICommand
 		$days_option = CLIOptionHelper::getOption('days', (string) McpTokenService::DEFAULT_EXPIRY_DAYS);
 		$days = is_numeric($days_option) ? (int) $days_option : McpTokenService::DEFAULT_EXPIRY_DAYS;
 
+		if ($days < 0) {
+			$this->writeError('--days must be 0 or a positive integer.', $json);
+
+			return;
+		}
+
+		$days = min(3650, $days);
+
 		try {
 			$result = McpTokenService::createToken($user_id, (string) $name, $days, User::getCurrentUserId() > 0 ? User::getCurrentUserId() : null);
 		} catch (Throwable $exception) {

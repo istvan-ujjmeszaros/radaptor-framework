@@ -69,10 +69,14 @@ class McpAuthenticator
 		return [
 			'http://127.0.0.1',
 			'https://127.0.0.1',
+			'http://[::1]',
+			'https://[::1]',
 			'http://localhost',
 			'https://localhost',
 			"http://127.0.0.1:{$port}",
 			"https://127.0.0.1:{$port}",
+			"http://[::1]:{$port}",
+			"https://[::1]:{$port}",
 			"http://localhost:{$port}",
 			"https://localhost:{$port}",
 		];
