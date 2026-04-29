@@ -419,6 +419,47 @@ class Db
 		return DbSchemaData::getTableData($table, $dsn)['field_names'];
 	}
 
+	public static function isNestedSetTable(string $table, string $dsn = ''): bool
+	{
+		$dsn = self::normalizeDsn($dsn);
+		$table_data = DbSchemaData::getTableData($table, $dsn);
+
+		if (is_null($table_data)) {
+			return false;
+		}
+
+		$fields = $table_data['field_names'];
+
+		return in_array('lft', $fields, true) && in_array('rgt', $fields, true);
+	}
+
+	/**
+	 * @return list<string>
+	 */
+	public static function getNestedSetTables(string $dsn = ''): array
+	{
+		$dsn = self::normalizeDsn($dsn);
+		$schema_info = DbSchemaData::getSchemaInfo($dsn);
+
+		if (is_null($schema_info)) {
+			return [];
+		}
+
+		$tables = [];
+
+		foreach ($schema_info as $table => $table_data) {
+			$fields = $table_data['field_names'];
+
+			if (in_array('lft', $fields, true) && in_array('rgt', $fields, true)) {
+				$tables[] = $table;
+			}
+		}
+
+		sort($tables);
+
+		return $tables;
+	}
+
 	/**
 	 * Extracts values for specified primary keys from a given array.
 	 *

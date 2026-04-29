@@ -2,14 +2,6 @@
 
 class CLICommandTreeCheck extends AbstractCLICommand
 {
-	private const array TREE_TABLES = [
-		'resource' => 'resource_tree',
-		'roles' => 'roles_tree',
-		'usergroups' => 'usergroups_tree',
-		'mainmenu' => 'mainmenu_tree',
-		'adminmenu' => 'adminmenu_tree',
-	];
-
 	public function getName(): string
 	{
 		return 'Check nested tree consistency';
@@ -20,7 +12,7 @@ class CLICommandTreeCheck extends AbstractCLICommand
 		return <<<'DOC'
 			Check nested-set consistency across one or more known tree tables.
 
-			Usage: radaptor tree:check [--tree all|resource|roles|usergroups|mainmenu|adminmenu] [--json]
+			Usage: radaptor tree:check [--tree all|<tree-key>|<table-name>] [--json]
 
 			Examples:
 			  radaptor tree:check
@@ -35,8 +27,14 @@ class CLICommandTreeCheck extends AbstractCLICommand
 
 	public function getWebParams(): array
 	{
+		$choices = ['all' => 'all'];
+
+		foreach (array_keys(NestedSet::getTreeTableChoices()) as $choice) {
+			$choices[$choice] = $choice;
+		}
+
 		return [
-			['name' => 'tree', 'label' => 'Tree', 'type' => 'option', 'required' => false, 'choices' => ['all' => 'all', 'resource' => 'resource', 'roles' => 'roles', 'usergroups' => 'usergroups', 'mainmenu' => 'mainmenu', 'adminmenu' => 'adminmenu']],
+			['name' => 'tree', 'label' => 'Tree', 'type' => 'option', 'required' => false, 'choices' => $choices],
 			['name' => 'json', 'label' => 'JSON output', 'type' => 'flag'],
 		];
 	}
@@ -48,14 +46,17 @@ class CLICommandTreeCheck extends AbstractCLICommand
 
 		try {
 			$reports = [];
-			$selected = $tree === 'all' ? array_keys(self::TREE_TABLES) : [$tree];
+			$tables = NestedSet::getTreeTableChoices();
+			$selected = $tree === 'all' ? array_keys($tables) : [$tree];
 
 			foreach ($selected as $tree_key) {
-				if (!isset(self::TREE_TABLES[$tree_key])) {
+				$table = NestedSet::resolveTreeTable($tree_key);
+
+				if (is_null($table)) {
 					throw new InvalidArgumentException("Unknown tree: {$tree_key}");
 				}
 
-				$reports[$tree_key] = NestedSet::analyzeConsistency(self::TREE_TABLES[$tree_key]);
+				$reports[$tree_key] = NestedSet::analyzeConsistency($table);
 			}
 
 			$ok = array_reduce(
