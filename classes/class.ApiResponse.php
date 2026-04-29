@@ -26,6 +26,15 @@ final class ApiResponse
 
 	public static function renderResponse(self $response): void
 	{
+		$ctx = RequestContextHolder::current();
+
+		if ($ctx->apiResponseCaptureEnabled) {
+			$ctx->capturedApiResponse = $response->toArray();
+			$ctx->capturedApiResponseHttpCode = $response->getHttpCode();
+
+			return;
+		}
+
 		(new TemplateJson($response))->render();
 	}
 

@@ -360,7 +360,17 @@ class CLICommandWebRunner
 			return null;
 		}
 
-		@chmod($directory, 0o770);
+		if (is_writable($directory)) {
+			return $directory;
+		}
+
+		set_error_handler(static fn (): bool => true);
+
+		try {
+			chmod($directory, 0o770);
+		} finally {
+			restore_error_handler();
+		}
 
 		return is_writable($directory) ? $directory : null;
 	}

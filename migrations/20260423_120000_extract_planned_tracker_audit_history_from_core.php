@@ -242,7 +242,7 @@ class Migration_20260423_120000_extract_planned_tracker_audit_history_from_core
 
 	private function deleteResourceSubtree(PDO $pdo, int $node_id): void
 	{
-		NestedSet::deleteNode('resource_tree', $node_id);
+		ResourceTreeHandler::deleteResourceEntry($node_id);
 	}
 
 	/**
