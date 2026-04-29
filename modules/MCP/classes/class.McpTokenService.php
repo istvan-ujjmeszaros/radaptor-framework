@@ -33,7 +33,8 @@ class McpTokenService
 		foreach ($rows as $row) {
 			$expires_at = (string) ($row['expires_at'] ?? '');
 			$revoked_at = (string) ($row['revoked_at'] ?? '');
-			$is_expired = $expires_at !== '' && strtotime($expires_at) < $now;
+			$expires_at_timestamp = self::utcTimestamp($expires_at);
+			$is_expired = $expires_at_timestamp !== null && $expires_at_timestamp < $now;
 			$is_revoked = $revoked_at !== '';
 
 			$row['display_token'] = 'mcp_' . (string) ($row['prefix'] ?? '') . '_...';
@@ -165,7 +166,9 @@ class McpTokenService
 			return null;
 		}
 
-		if (!empty($row['expires_at']) && strtotime((string) $row['expires_at']) < time()) {
+		$expires_at_timestamp = self::utcTimestamp($row['expires_at'] ?? null);
+
+		if ($expires_at_timestamp !== null && $expires_at_timestamp < time()) {
 			return null;
 		}
 
@@ -202,5 +205,22 @@ class McpTokenService
 	private static function base64Url(string $bytes): string
 	{
 		return rtrim(strtr(base64_encode($bytes), '+/', '-_'), '=');
+	}
+
+	private static function utcTimestamp(mixed $value): ?int
+	{
+		$value = is_string($value) ? trim($value) : '';
+
+		if ($value === '') {
+			return null;
+		}
+
+		$date = DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $value, new DateTimeZone('UTC'));
+
+		if (!$date instanceof DateTimeImmutable) {
+			return null;
+		}
+
+		return $date->getTimestamp();
 	}
 }

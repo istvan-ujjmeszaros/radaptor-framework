@@ -62,6 +62,12 @@ class McpJsonRpcRouter
 			return $this->jsonRpcResponse(200, $response_headers, self::error($id, -32600, 'Invalid Request'));
 		}
 
+		if (!str_starts_with($method, 'notifications/') && !self::hasValidRequestId($payload)) {
+			McpRequestLogger::log($request_id, null, null, self::toolNameFromPayload($payload), self::argumentsFromPayload($payload), 'protocol_error', 'invalid_request_id', self::durationMs($started), self::ip($server), self::userAgent($headers));
+
+			return $this->jsonRpcResponse(200, $response_headers, self::error(null, -32600, 'Invalid Request id'));
+		}
+
 		$header_error = self::validateTransportHeaders($headers, $payload);
 
 		if ($header_error !== null) {
@@ -231,6 +237,18 @@ class McpJsonRpcRouter
 		}
 
 		return null;
+	}
+
+	/**
+	 * @param array<string, mixed> $payload
+	 */
+	private static function hasValidRequestId(array $payload): bool
+	{
+		if (!array_key_exists('id', $payload)) {
+			return false;
+		}
+
+		return is_int($payload['id']) || is_string($payload['id']);
 	}
 
 	/**
