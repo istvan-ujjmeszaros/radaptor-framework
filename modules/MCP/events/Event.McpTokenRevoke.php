@@ -42,7 +42,7 @@ class EventMcpTokenRevoke extends AbstractEvent implements iBrowserEventDocument
 	public function run(): void
 	{
 		$user_id = User::getCurrentUserId();
-		$token_id = (int) Request::_POST('token_id', Request::_GET('token_id', 0));
+		$token_id = (int) Request::_POST('token_id', 0);
 
 		if ($token_id <= 0) {
 			self::respondError($user_id, 'MCP_TOKEN_REVOKE_INVALID_ID', 'Missing token id.');

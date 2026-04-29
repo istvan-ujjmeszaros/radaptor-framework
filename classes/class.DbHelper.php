@@ -320,7 +320,7 @@ class DbHelper
 		$seq_field = 'seq';
 
 		$savedata = self::normalizeSavedataValues($savedata);
-		self::assertNestedSetHelperMutationAllowed('insert', $table, $savedata);
+		self::assertNestedSetHelperMutationAllowed('insert', $table, $savedata, $dsn);
 
 		Db::validateParameters($table, $savedata, false, $dsn);
 
@@ -368,7 +368,7 @@ class DbHelper
 		$seq_field = 'seq';
 
 		$savedata = self::normalizeSavedataValues($savedata);
-		self::assertNestedSetHelperMutationAllowed('insertOrUpdate', $table, $savedata);
+		self::assertNestedSetHelperMutationAllowed('insertOrUpdate', $table, $savedata, $dsn);
 
 		DbHelper::_setOwnerId($table, $savedata, $dsn);
 
@@ -508,9 +508,9 @@ class DbHelper
 	/**
 	 * @param array<string, mixed> $savedata
 	 */
-	private static function assertNestedSetHelperMutationAllowed(string $operation, string $table, array $savedata = []): void
+	private static function assertNestedSetHelperMutationAllowed(string $operation, string $table, array $savedata = [], string $dsn = ''): void
 	{
-		if (!Db::isNestedSetTable($table)) {
+		if (!Db::isNestedSetTable($table, $dsn)) {
 			return;
 		}
 
@@ -546,7 +546,7 @@ class DbHelper
 		$comment = self::getComment($savedata);
 
 		$savedata = self::normalizeSavedataValues($savedata);
-		self::assertNestedSetHelperMutationAllowed('update', $table, $savedata);
+		self::assertNestedSetHelperMutationAllowed('update', $table, $savedata, $dsn);
 
 		$update_savedata = Db::filterChangedParameters($table, $savedata, $id);
 
@@ -634,7 +634,7 @@ class DbHelper
 			return false;
 		}
 
-		self::assertNestedSetHelperMutationAllowed('delete', $table);
+		self::assertNestedSetHelperMutationAllowed('delete', $table, [], $dsn);
 
 		$limittext = '';
 
