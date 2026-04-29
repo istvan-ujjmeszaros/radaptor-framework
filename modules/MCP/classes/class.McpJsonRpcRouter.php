@@ -71,7 +71,7 @@ class McpJsonRpcRouter
 			]));
 		}
 
-		if ($method === 'notifications/initialized') {
+		if (str_starts_with($method, 'notifications/')) {
 			return [
 				'status' => 202,
 				'headers' => $response_headers,
