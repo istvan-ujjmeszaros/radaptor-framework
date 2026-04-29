@@ -42,11 +42,17 @@ class CLICommandBuildImportExportDatasets extends AbstractCLICommand
 
 	private static function _initConfig(): void
 	{
-		self::$_scannableDirectories = [DEPLOY_ROOT];
+		self::$_scannableDirectories = PackagePathHelper::getScannableRoots();
 	}
 
 	private static function _parseDir(string $dir_path): void
 	{
+		$dir_path = rtrim($dir_path, '/') . '/';
+
+		if (PackagePathHelper::shouldSkipPath($dir_path)) {
+			return;
+		}
+
 		if (GeneratorHelper::folderIsExcluded($dir_path)) {
 			return;
 		}
@@ -103,6 +109,8 @@ class CLICommandBuildImportExportDatasets extends AbstractCLICommand
 	public static function create(): void
 	{
 		self::$_cacheFilename = DEPLOY_ROOT . ApplicationConfig::GENERATED_IMPORT_EXPORT_DATASETS_FILE;
+		self::$_datasetIndex = [];
+		self::$_scannableDirectories = [];
 		self::_initConfig();
 
 		foreach (self::$_scannableDirectories as $dir) {
