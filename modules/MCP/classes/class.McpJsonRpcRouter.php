@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 class McpJsonRpcRouter
 {
+	private const string SUPPORTED_PROTOCOL_VERSION = '2025-11-25';
+	private const string BACKWARD_COMPATIBILITY_PROTOCOL_VERSION = '2025-03-26';
+	private const int HEADER_MISMATCH_ERROR_CODE = -32001;
+
 	private McpApiEventResolver $resolver;
 
 	public function __construct()
@@ -56,6 +60,14 @@ class McpJsonRpcRouter
 			McpRequestLogger::log($request_id, null, null, null, null, 'protocol_error', 'invalid_request', self::durationMs($started), self::ip($server), self::userAgent($headers));
 
 			return $this->jsonRpcResponse(200, $response_headers, self::error($id, -32600, 'Invalid Request'));
+		}
+
+		$header_error = self::validateTransportHeaders($headers, $payload);
+
+		if ($header_error !== null) {
+			McpRequestLogger::log($request_id, null, null, self::toolNameFromPayload($payload), self::argumentsFromPayload($payload), 'protocol_error', $header_error['code'], self::durationMs($started), self::ip($server), self::userAgent($headers));
+
+			return $this->jsonRpcResponse(400, $response_headers, self::error($id, self::HEADER_MISMATCH_ERROR_CODE, $header_error['message']));
 		}
 
 		$auth = McpAuthenticator::authenticateBearer($headers);
@@ -165,6 +177,91 @@ class McpJsonRpcRouter
 		}
 
 		return $this->resolver->callTool($name, $arguments);
+	}
+
+	/**
+	 * @param array<string, mixed> $headers
+	 * @param array<string, mixed> $payload
+	 * @return array{code: string, message: string}|null
+	 */
+	private static function validateTransportHeaders(array $headers, array $payload): ?array
+	{
+		$method = (string) ($payload['method'] ?? '');
+		$protocol_version = self::header($headers, 'MCP-Protocol-Version');
+
+		if ($protocol_version !== null && $protocol_version !== self::SUPPORTED_PROTOCOL_VERSION) {
+			return [
+				'code' => 'unsupported_protocol_version',
+				'message' => "Unsupported MCP protocol version: {$protocol_version}",
+			];
+		}
+
+		if ($method !== 'initialize' && $protocol_version === null) {
+			return [
+				'code' => 'unsupported_protocol_version',
+				'message' => 'Missing MCP-Protocol-Version header. This server requires ' . self::SUPPORTED_PROTOCOL_VERSION . '; missing headers imply ' . self::BACKWARD_COMPATIBILITY_PROTOCOL_VERSION . ', which is not supported.',
+			];
+		}
+
+		// 2025-11-25 clients do not send these draft transport headers. When a
+		// client/proxy does send them, reject mismatches so headers cannot route
+		// one operation while the body executes another.
+		$mcp_method = self::header($headers, 'Mcp-Method');
+
+		if ($mcp_method !== null && $mcp_method !== '' && $mcp_method !== $method) {
+			return [
+				'code' => 'mcp_method_mismatch',
+				'message' => "Mcp-Method header '{$mcp_method}' does not match JSON-RPC method '{$method}'.",
+			];
+		}
+
+		$expected_name = self::expectedMcpName($payload);
+
+		if ($expected_name === null) {
+			return null;
+		}
+
+		$mcp_name = self::header($headers, 'Mcp-Name');
+
+		if ($mcp_name !== null && $mcp_name !== '' && $mcp_name !== $expected_name) {
+			return [
+				'code' => 'mcp_name_mismatch',
+				'message' => "Mcp-Name header '{$mcp_name}' does not match JSON-RPC request name '{$expected_name}'.",
+			];
+		}
+
+		return null;
+	}
+
+	/**
+	 * @param array<string, mixed> $payload
+	 */
+	private static function expectedMcpName(array $payload): ?string
+	{
+		$method = (string) ($payload['method'] ?? '');
+		$params = is_array($payload['params'] ?? null) ? $payload['params'] : [];
+
+		return match ($method) {
+			'tools/call', 'prompts/get' => is_string($params['name'] ?? null) ? (string) $params['name'] : '',
+			'resources/read' => is_string($params['uri'] ?? null) ? (string) $params['uri'] : '',
+			default => null,
+		};
+	}
+
+	/**
+	 * @param array<string, mixed> $headers
+	 */
+	private static function header(array $headers, string $name): ?string
+	{
+		foreach ($headers as $key => $value) {
+			if (strtolower((string) $key) === strtolower($name)) {
+				$value = is_array($value) ? reset($value) : $value;
+
+				return trim((string) $value);
+			}
+		}
+
+		return null;
 	}
 
 	/**
