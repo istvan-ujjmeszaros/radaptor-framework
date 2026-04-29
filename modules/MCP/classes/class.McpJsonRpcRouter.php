@@ -58,6 +58,22 @@ class McpJsonRpcRouter
 			return $this->jsonRpcResponse(200, $response_headers, self::error($id, -32600, 'Invalid Request'));
 		}
 
+		$auth = McpAuthenticator::authenticateBearer($headers);
+
+		if ($auth === null) {
+			McpRequestLogger::log($request_id, null, null, self::toolNameFromPayload($payload), self::argumentsFromPayload($payload), 'auth_failed', 'invalid_token', self::durationMs($started), self::ip($server), self::userAgent($headers));
+
+			return [
+				'status' => 401,
+				'headers' => $response_headers,
+				'body' => json_encode(['error' => 'Unauthorized'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+			];
+		}
+
+		$user = $auth['user'];
+		$token = $auth['token'];
+		User::bootstrapTrustedCurrentUser($user);
+
 		if ($method === 'initialize') {
 			return $this->jsonRpcResponse(200, $response_headers, self::success($id, [
 				'protocolVersion' => '2025-11-25',
@@ -78,22 +94,6 @@ class McpJsonRpcRouter
 				'body' => '',
 			];
 		}
-
-		$auth = McpAuthenticator::authenticateBearer($headers);
-
-		if ($auth === null) {
-			McpRequestLogger::log($request_id, null, null, self::toolNameFromPayload($payload), self::argumentsFromPayload($payload), 'auth_failed', 'invalid_token', self::durationMs($started), self::ip($server), self::userAgent($headers));
-
-			return [
-				'status' => 401,
-				'headers' => $response_headers,
-				'body' => json_encode(['error' => 'Unauthorized'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
-			];
-		}
-
-		$user = $auth['user'];
-		$token = $auth['token'];
-		User::bootstrapTrustedCurrentUser($user);
 
 		try {
 			$result = match ($method) {

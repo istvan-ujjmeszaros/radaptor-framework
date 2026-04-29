@@ -75,9 +75,23 @@ class McpTokenPanelView
 
 	private static function getMcpEndpointUrl(): string
 	{
-		$port = getenv('APP_MCP_PORT') ?: '9512';
+		$configured = getenv('APP_MCP_PUBLIC_URL');
 
-		return "http://127.0.0.1:{$port}/mcp";
+		if (is_string($configured) && trim($configured) !== '') {
+			return rtrim(trim($configured), '/') . '/mcp';
+		}
+
+		$port = getenv('APP_MCP_PORT') ?: '9512';
+		$server = RequestContextHolder::current()->SERVER;
+		$host = (string) ($server['HTTP_X_FORWARDED_HOST'] ?? $server['HTTP_HOST'] ?? '127.0.0.1');
+		$host = preg_replace('/:\\d+$/', '', $host) ?? $host;
+		$scheme = (string) ($server['HTTP_X_FORWARDED_PROTO'] ?? '');
+
+		if ($scheme === '') {
+			$scheme = !empty($server['HTTPS']) && $server['HTTPS'] !== 'off' ? 'https' : 'http';
+		}
+
+		return "{$scheme}://{$host}:{$port}/mcp";
 	}
 
 	private static function translate(string $key, string $fallback): string

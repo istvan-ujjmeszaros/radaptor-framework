@@ -35,5 +35,23 @@ class Migration_20260429_020000_create_mcp_tokens_webpage
 				'description' => 'Personal MCP token management.',
 			]
 		);
+
+		if (class_exists(CmsResourceSpecService::class)) {
+			$logged_in_acl = [
+				'inherit' => false,
+				'usergroups' => [
+					'Logged in users' => [
+						'list' => true,
+						'view' => true,
+						'create' => false,
+						'edit' => false,
+						'delete' => false,
+					],
+				],
+			];
+
+			CmsResourceSpecService::syncAclForPath('/account/mcp-tokens/', $logged_in_acl);
+			CmsResourceSpecService::syncAclForPath('/account/mcp-tokens/index.html', $logged_in_acl);
+		}
 	}
 }
