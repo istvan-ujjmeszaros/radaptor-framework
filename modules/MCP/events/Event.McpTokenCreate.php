@@ -43,6 +43,22 @@ class EventMcpTokenCreate extends AbstractEvent implements iBrowserEventDocument
 	public function run(): void
 	{
 		$user_id = User::getCurrentUserId();
+
+		if (strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET')) !== 'POST') {
+			header('Allow: POST');
+
+			if (self::wantsJson()) {
+				ApiResponse::renderError('METHOD_NOT_ALLOWED', 'This endpoint accepts POST requests only.', 405);
+
+				return;
+			}
+
+			http_response_code(405);
+			McpTokenPanelView::renderPanelForUser($user_id, null, 'This endpoint accepts POST requests only.');
+
+			return;
+		}
+
 		$name = trim((string) Request::_POST('name', 'MCP token'));
 		$days = self::parseDays(Request::_POST('days', (string) McpTokenService::DEFAULT_EXPIRY_DAYS));
 
