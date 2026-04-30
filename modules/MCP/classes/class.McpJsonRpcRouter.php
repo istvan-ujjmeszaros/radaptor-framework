@@ -121,6 +121,7 @@ class McpJsonRpcRouter
 
 		try {
 			$result = match ($method) {
+				'ping' => new stdClass(),
 				'tools/list' => [
 					'tools' => $this->resolver->listTools(),
 				],
