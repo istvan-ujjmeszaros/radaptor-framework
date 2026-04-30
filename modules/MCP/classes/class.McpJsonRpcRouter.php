@@ -54,9 +54,52 @@ class McpJsonRpcRouter
 		}
 
 		$id = $payload['id'] ?? null;
-		$method = (string) ($payload['method'] ?? '');
 
-		if (($payload['jsonrpc'] ?? null) !== '2.0' || $method === '') {
+		if (($payload['jsonrpc'] ?? null) !== '2.0') {
+			McpRequestLogger::log($request_id, null, null, null, null, 'protocol_error', 'invalid_request', self::durationMs($started), self::ip($server), self::userAgent($headers));
+
+			return $this->jsonRpcResponse(200, $response_headers, self::error($id, -32600, 'Invalid Request'));
+		}
+
+		if (!array_key_exists('method', $payload)) {
+			if (!self::isJsonRpcResponse($payload)) {
+				McpRequestLogger::log($request_id, null, null, null, self::argumentsFromPayload($payload), 'protocol_error', 'invalid_request', self::durationMs($started), self::ip($server), self::userAgent($headers));
+
+				return $this->jsonRpcResponse(200, $response_headers, self::error(self::isValidRequestId($id) ? $id : null, -32600, 'Invalid Request'));
+			}
+
+			$header_error = self::validateTransportHeaders($headers, $payload);
+
+			if ($header_error !== null) {
+				McpRequestLogger::log($request_id, null, null, null, self::argumentsFromPayload($payload), 'protocol_error', $header_error['code'], self::durationMs($started), self::ip($server), self::userAgent($headers));
+
+				return $this->jsonRpcResponse(400, $response_headers, self::error(self::isValidRequestId($id) ? $id : null, self::HEADER_MISMATCH_ERROR_CODE, $header_error['message']));
+			}
+
+			$auth = McpAuthenticator::authenticateBearer($headers);
+
+			if ($auth === null) {
+				McpRequestLogger::log($request_id, null, null, null, self::argumentsFromPayload($payload), 'auth_failed', 'invalid_token', self::durationMs($started), self::ip($server), self::userAgent($headers));
+
+				return [
+					'status' => 401,
+					'headers' => $response_headers,
+					'body' => json_encode(['error' => 'Unauthorized'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+				];
+			}
+
+			McpRequestLogger::log($request_id, (int) $auth['user']['user_id'], (int) $auth['token']['mcp_token_id'], null, self::argumentsFromPayload($payload), 'accepted', 'client_response', self::durationMs($started), self::ip($server), self::userAgent($headers));
+
+			return [
+				'status' => 202,
+				'headers' => $response_headers,
+				'body' => '',
+			];
+		}
+
+		$method = (string) $payload['method'];
+
+		if ($method === '') {
 			McpRequestLogger::log($request_id, null, null, null, null, 'protocol_error', 'invalid_request', self::durationMs($started), self::ip($server), self::userAgent($headers));
 
 			return $this->jsonRpcResponse(200, $response_headers, self::error($id, -32600, 'Invalid Request'));
@@ -310,7 +353,26 @@ class McpJsonRpcRouter
 
 	private static function isValidRequestId(mixed $id): bool
 	{
-		return is_int($id) || is_string($id);
+		return $id === null || is_int($id) || is_string($id);
+	}
+
+	/**
+	 * @param array<string, mixed> $payload
+	 */
+	private static function isJsonRpcResponse(array $payload): bool
+	{
+		if (!array_key_exists('id', $payload) || !self::isValidRequestId($payload['id'])) {
+			return false;
+		}
+
+		$has_result = array_key_exists('result', $payload);
+		$has_error = array_key_exists('error', $payload);
+
+		if ($has_result === $has_error) {
+			return false;
+		}
+
+		return !$has_error || is_array($payload['error']);
 	}
 
 	/**
