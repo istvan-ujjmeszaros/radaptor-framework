@@ -44,7 +44,7 @@ class EventMcpTokenCreate extends AbstractEvent implements iBrowserEventDocument
 	{
 		$user_id = User::getCurrentUserId();
 
-		if (strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET')) !== 'POST') {
+		if (Request::getMethod() !== 'POST') {
 			header('Allow: POST');
 
 			if (self::wantsJson()) {

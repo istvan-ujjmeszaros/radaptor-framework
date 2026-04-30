@@ -110,7 +110,7 @@ class EventEmailSend extends AbstractEvent implements iBrowserEventDocumentable
 
 	public function run(): void
 	{
-		if (strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET')) !== 'POST') {
+		if (Request::getMethod() !== 'POST') {
 			header('Allow: POST');
 			ApiResponse::renderError('METHOD_NOT_ALLOWED', 'This endpoint accepts POST requests only.', 405);
 
