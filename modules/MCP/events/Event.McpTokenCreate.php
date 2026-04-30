@@ -87,11 +87,19 @@ class EventMcpTokenCreate extends AbstractEvent implements iBrowserEventDocument
 
 	private static function parseDays(mixed $value): int
 	{
-		if (!is_numeric($value)) {
-			return McpTokenService::DEFAULT_EXPIRY_DAYS;
+		if (is_int($value)) {
+			return max(0, min(3650, $value));
 		}
 
-		return max(0, min(3650, (int) $value));
+		if (is_string($value)) {
+			$value = trim($value);
+
+			if ($value !== '' && ctype_digit($value)) {
+				return min(3650, (int) $value);
+			}
+		}
+
+		return McpTokenService::DEFAULT_EXPIRY_DAYS;
 	}
 
 	private static function wantsJson(): bool

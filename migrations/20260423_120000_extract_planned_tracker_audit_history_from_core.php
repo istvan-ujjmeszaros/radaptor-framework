@@ -242,7 +242,11 @@ class Migration_20260423_120000_extract_planned_tracker_audit_history_from_core
 
 	private function deleteResourceSubtree(PDO $pdo, int $node_id): void
 	{
-		ResourceTreeHandler::deleteResourceEntry($node_id);
+		$result = ResourceTreeHandler::deleteResourceEntriesRecursive($node_id);
+
+		if (($result['success'] ?? false) !== true || (int) ($result['erroneous'] ?? 0) > 0) {
+			throw new RuntimeException("Unable to delete planned tracker resource subtree {$node_id}.");
+		}
 	}
 
 	/**
