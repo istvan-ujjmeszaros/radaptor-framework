@@ -99,6 +99,14 @@ class McpJsonRpcRouter
 		User::bootstrapTrustedCurrentUser($user);
 
 		if ($method === 'initialize') {
+			$initialize_error = self::validateInitializePayload($payload);
+
+			if ($initialize_error !== null) {
+				McpRequestLogger::log($request_id, (int) $user['user_id'], (int) $token['mcp_token_id'], null, self::argumentsFromPayload($payload), 'protocol_error', 'invalid_initialize_params', self::durationMs($started), self::ip($server), self::userAgent($headers));
+
+				return $this->jsonRpcResponse(200, $response_headers, self::error($id, -32602, $initialize_error));
+			}
+
 			return $this->jsonRpcResponse(200, $response_headers, self::success($id, [
 				'protocolVersion' => '2025-11-25',
 				'capabilities' => [
@@ -190,6 +198,48 @@ class McpJsonRpcRouter
 		}
 
 		return $this->resolver->callTool($name, $arguments);
+	}
+
+	/**
+	 * @param array<string, mixed> $payload
+	 */
+	private static function validateInitializePayload(array $payload): ?string
+	{
+		$params = $payload['params'] ?? null;
+
+		if (!is_array($params)) {
+			return 'Missing initialize params.';
+		}
+
+		$protocol_version = (string) ($params['protocolVersion'] ?? '');
+
+		if ($protocol_version === '') {
+			return 'Missing initialize protocolVersion.';
+		}
+
+		if ($protocol_version !== self::SUPPORTED_PROTOCOL_VERSION) {
+			return "Unsupported initialize protocolVersion: {$protocol_version}";
+		}
+
+		if (!is_array($params['capabilities'] ?? null)) {
+			return 'Missing initialize capabilities.';
+		}
+
+		$client_info = $params['clientInfo'] ?? null;
+
+		if (!is_array($client_info)) {
+			return 'Missing initialize clientInfo.';
+		}
+
+		if (trim((string) ($client_info['name'] ?? '')) === '') {
+			return 'Missing initialize clientInfo.name.';
+		}
+
+		if (trim((string) ($client_info['version'] ?? '')) === '') {
+			return 'Missing initialize clientInfo.version.';
+		}
+
+		return null;
 	}
 
 	/**
