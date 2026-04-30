@@ -353,7 +353,7 @@ class McpJsonRpcRouter
 
 	private static function isValidRequestId(mixed $id): bool
 	{
-		return $id === null || is_int($id) || is_string($id);
+		return is_int($id) || is_string($id);
 	}
 
 	/**
@@ -361,10 +361,6 @@ class McpJsonRpcRouter
 	 */
 	private static function isJsonRpcResponse(array $payload): bool
 	{
-		if (!array_key_exists('id', $payload) || !self::isValidRequestId($payload['id'])) {
-			return false;
-		}
-
 		$has_result = array_key_exists('result', $payload);
 		$has_error = array_key_exists('error', $payload);
 
@@ -372,7 +368,15 @@ class McpJsonRpcRouter
 			return false;
 		}
 
-		return !$has_error || is_array($payload['error']);
+		if ($has_result) {
+			return array_key_exists('id', $payload) && self::isValidRequestId($payload['id']);
+		}
+
+		if (array_key_exists('id', $payload) && !self::isValidRequestId($payload['id'])) {
+			return false;
+		}
+
+		return is_array($payload['error']);
 	}
 
 	/**
