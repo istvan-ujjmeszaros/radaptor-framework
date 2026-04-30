@@ -81,11 +81,7 @@ class McpJsonRpcRouter
 			if ($auth === null) {
 				McpRequestLogger::log($request_id, null, null, null, self::argumentsFromPayload($payload), 'auth_failed', 'invalid_token', self::durationMs($started), self::ip($server), self::userAgent($headers));
 
-				return [
-					'status' => 401,
-					'headers' => $response_headers,
-					'body' => json_encode(['error' => 'Unauthorized'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
-				];
+				return $this->unauthorizedResponse($response_headers);
 			}
 
 			McpRequestLogger::log($request_id, (int) $auth['user']['user_id'], (int) $auth['token']['mcp_token_id'], null, self::argumentsFromPayload($payload), 'accepted', 'client_response', self::durationMs($started), self::ip($server), self::userAgent($headers));
@@ -97,13 +93,13 @@ class McpJsonRpcRouter
 			];
 		}
 
-		$method = (string) $payload['method'];
+		if (!is_string($payload['method']) || $payload['method'] === '') {
+			McpRequestLogger::log($request_id, null, null, self::toolNameFromPayload($payload), self::argumentsFromPayload($payload), 'protocol_error', 'invalid_request', self::durationMs($started), self::ip($server), self::userAgent($headers));
 
-		if ($method === '') {
-			McpRequestLogger::log($request_id, null, null, null, null, 'protocol_error', 'invalid_request', self::durationMs($started), self::ip($server), self::userAgent($headers));
-
-			return $this->jsonRpcResponse(200, $response_headers, self::error($id, -32600, 'Invalid Request'));
+			return $this->jsonRpcResponse(200, $response_headers, self::error(self::isValidRequestId($id) ? $id : null, -32600, 'Invalid Request method'));
 		}
+
+		$method = $payload['method'];
 
 		if (str_starts_with($method, 'notifications/') && array_key_exists('id', $payload)) {
 			McpRequestLogger::log($request_id, null, null, self::toolNameFromPayload($payload), self::argumentsFromPayload($payload), 'protocol_error', 'invalid_notification_id', self::durationMs($started), self::ip($server), self::userAgent($headers));
@@ -130,11 +126,7 @@ class McpJsonRpcRouter
 		if ($auth === null) {
 			McpRequestLogger::log($request_id, null, null, self::toolNameFromPayload($payload), self::argumentsFromPayload($payload), 'auth_failed', 'invalid_token', self::durationMs($started), self::ip($server), self::userAgent($headers));
 
-			return [
-				'status' => 401,
-				'headers' => $response_headers,
-				'body' => json_encode(['error' => 'Unauthorized'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
-			];
+			return $this->unauthorizedResponse($response_headers);
 		}
 
 		$user = $auth['user'];
@@ -421,6 +413,21 @@ class McpJsonRpcRouter
 			'status' => $status,
 			'headers' => $headers,
 			'body' => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+		];
+	}
+
+	/**
+	 * @param array<string, string> $headers
+	 * @return array{status: int, headers: array<string, string>, body: string}
+	 */
+	private function unauthorizedResponse(array $headers): array
+	{
+		$headers['WWW-Authenticate'] = 'Bearer realm="radaptor-mcp"';
+
+		return [
+			'status' => 401,
+			'headers' => $headers,
+			'body' => json_encode(['error' => 'Unauthorized'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
 		];
 	}
 
