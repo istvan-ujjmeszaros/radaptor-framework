@@ -986,7 +986,7 @@ lft>=? AND rgt<=?
 			'planned_updates' => count($updates),
 			'updates' => $updates,
 			'issues' => $issues,
-			'ok' => $issues === [],
+			'ok' => $issues === [] && (bool) ($before['ok'] ?? false),
 		];
 
 		if ($issues !== [] || $dry_run || $updates === []) {
