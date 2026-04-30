@@ -36,6 +36,14 @@ class McpApiEventResolver
 		$ctx = RequestContextHolder::current();
 		$ctx->GET = $get;
 		$ctx->POST = $post;
+		$request_method = strtoupper((string) ($meta['request']['method'] ?? 'POST'));
+
+		if (!in_array($request_method, ['GET', 'POST'], true)) {
+			$request_method = 'POST';
+		}
+
+		$ctx->SERVER['REQUEST_METHOD'] = $request_method;
+		$ctx->SERVER['request_method'] = strtolower($request_method);
 		$ctx->capturedApiResponse = null;
 		$ctx->capturedApiResponseHttpCode = null;
 		$ctx->apiResponseCaptureEnabled = false;

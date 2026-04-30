@@ -62,6 +62,12 @@ class McpJsonRpcRouter
 			return $this->jsonRpcResponse(200, $response_headers, self::error($id, -32600, 'Invalid Request'));
 		}
 
+		if (str_starts_with($method, 'notifications/') && array_key_exists('id', $payload)) {
+			McpRequestLogger::log($request_id, null, null, self::toolNameFromPayload($payload), self::argumentsFromPayload($payload), 'protocol_error', 'invalid_notification_id', self::durationMs($started), self::ip($server), self::userAgent($headers));
+
+			return $this->jsonRpcResponse(200, $response_headers, self::error(self::isValidRequestId($id) ? $id : null, -32600, 'Notifications must not include an id.'));
+		}
+
 		if (!str_starts_with($method, 'notifications/') && !self::hasValidRequestId($payload)) {
 			McpRequestLogger::log($request_id, null, null, self::toolNameFromPayload($payload), self::argumentsFromPayload($payload), 'protocol_error', 'invalid_request_id', self::durationMs($started), self::ip($server), self::userAgent($headers));
 
@@ -248,7 +254,12 @@ class McpJsonRpcRouter
 			return false;
 		}
 
-		return is_int($payload['id']) || is_string($payload['id']);
+		return self::isValidRequestId($payload['id']);
+	}
+
+	private static function isValidRequestId(mixed $id): bool
+	{
+		return is_int($id) || is_string($id);
 	}
 
 	/**
