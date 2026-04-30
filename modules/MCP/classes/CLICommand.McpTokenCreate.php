@@ -51,15 +51,15 @@ class CLICommandMcpTokenCreate extends AbstractCLICommand
 		$user_id = (int) $user['user_id'];
 
 		$name = CLIOptionHelper::getOption('name', 'MCP token');
-		$days_option = CLIOptionHelper::getOption('days', (string) McpTokenService::DEFAULT_EXPIRY_DAYS);
-		$days = is_numeric($days_option) ? (int) $days_option : McpTokenService::DEFAULT_EXPIRY_DAYS;
+		$days_option = self::getDaysOption();
 
-		if ($days < 0) {
+		if ($days_option === '' || !ctype_digit($days_option)) {
 			$this->writeError('--days must be 0 or a positive integer.', $json);
 
 			return;
 		}
 
+		$days = (int) $days_option;
 		$days = min(3650, $days);
 
 		try {
@@ -101,5 +101,22 @@ class CLICommandMcpTokenCreate extends AbstractCLICommand
 		}
 
 		echo "MCP token create failed: {$message}\n";
+	}
+
+	private static function getDaysOption(): string
+	{
+		global $argv;
+
+		foreach ($argv ?? [] as $index => $arg) {
+			if ($arg !== '--days') {
+				continue;
+			}
+
+			$value = $argv[$index + 1] ?? null;
+
+			return is_string($value) && !str_starts_with($value, '--') ? trim($value) : '';
+		}
+
+		return CLIOptionHelper::getOption('days', (string) McpTokenService::DEFAULT_EXPIRY_DAYS);
 	}
 }
