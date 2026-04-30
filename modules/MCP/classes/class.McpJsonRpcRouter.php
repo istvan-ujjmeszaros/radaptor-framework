@@ -353,6 +353,10 @@ class McpJsonRpcRouter
 	 */
 	private static function ip(array $server): ?string
 	{
+		if (isset($server['REMOTE_ADDR'])) {
+			return (string) $server['REMOTE_ADDR'];
+		}
+
 		return isset($server['remote_addr']) ? (string) $server['remote_addr'] : null;
 	}
 
