@@ -10,7 +10,7 @@ class McpAuthenticator
 	 */
 	public static function authenticateBearer(array $headers): ?array
 	{
-		$authorization = self::header($headers, 'authorization');
+		$authorization = McpHttpHeaders::firstScalar($headers, 'authorization');
 
 		if ($authorization === null || !preg_match('/^Bearer\s+(.+)$/i', $authorization, $matches)) {
 			return null;
@@ -24,30 +24,16 @@ class McpAuthenticator
 	 */
 	public static function validateOrigin(array $headers): bool
 	{
-		$origin = self::header($headers, 'origin');
+		$origin = McpHttpHeaders::firstScalar($headers, 'origin');
 
-		if ($origin === null || trim($origin) === '') {
+		if ($origin === null || $origin === '') {
 			return true;
 		}
 
-		$origin = rtrim(trim($origin), '/');
+		$origin = rtrim($origin, '/');
 		$allowed = self::allowedOrigins();
 
 		return in_array($origin, $allowed, true);
-	}
-
-	/**
-	 * @param array<string, mixed> $headers
-	 */
-	private static function header(array $headers, string $name): ?string
-	{
-		foreach ($headers as $key => $value) {
-			if (strtolower((string) $key) === strtolower($name)) {
-				return is_array($value) ? (string) reset($value) : (string) $value;
-			}
-		}
-
-		return null;
 	}
 
 	/**

@@ -23,7 +23,7 @@ class McpRequestLogger
 			$redacted = $args === null ? null : self::redact($args);
 			$args_json = $redacted === null
 				? null
-				: json_encode($redacted, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+				: json_encode($redacted, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
 			$args_hash = $args === null
 				? null
 				: hash('sha256', json_encode($args, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));

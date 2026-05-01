@@ -343,9 +343,7 @@ lft>=? AND rgt<=?
 				$pdo->rollBack();
 			}
 
-			error_log("NestedSet wrapExistingTreeWithRoot failed for {$table}: " . $exception->getMessage());
-
-			return null;
+			throw $exception;
 		}
 
 		Cache::flush();

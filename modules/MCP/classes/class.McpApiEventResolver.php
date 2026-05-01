@@ -32,8 +32,44 @@ class McpApiEventResolver
 			throw new InvalidArgumentException("Unknown MCP tool: {$tool_name}");
 		}
 
-		[$get, $post] = $this->mapArguments($meta, $arguments);
+		try {
+			[$get, $post] = $this->mapArguments($meta, $arguments);
+		} catch (InvalidArgumentException $exception) {
+			return self::toolError('validation_failed', $exception->getMessage());
+		}
+
 		$ctx = RequestContextHolder::current();
+		$snapshot = [
+			'GET' => $ctx->GET,
+			'POST' => $ctx->POST,
+			'SERVER' => $ctx->SERVER,
+			'currentEvent' => $ctx->currentEvent,
+			'apiResponseCaptureEnabled' => $ctx->apiResponseCaptureEnabled,
+			'capturedApiResponse' => $ctx->capturedApiResponse,
+			'capturedApiResponseHttpCode' => $ctx->capturedApiResponseHttpCode,
+		];
+
+		try {
+			return $this->dispatchTool($tool_name, $meta, $get, $post, $ctx);
+		} finally {
+			$ctx->GET = $snapshot['GET'];
+			$ctx->POST = $snapshot['POST'];
+			$ctx->SERVER = $snapshot['SERVER'];
+			$ctx->currentEvent = $snapshot['currentEvent'];
+			$ctx->apiResponseCaptureEnabled = $snapshot['apiResponseCaptureEnabled'];
+			$ctx->capturedApiResponse = $snapshot['capturedApiResponse'];
+			$ctx->capturedApiResponseHttpCode = $snapshot['capturedApiResponseHttpCode'];
+		}
+	}
+
+	/**
+	 * @param array<string, mixed> $meta
+	 * @param array<string, mixed> $get
+	 * @param array<string, mixed> $post
+	 * @return array<string, mixed>
+	 */
+	private function dispatchTool(string $tool_name, array $meta, array $get, array $post, RequestContext $ctx): array
+	{
 		$ctx->GET = $get;
 		$ctx->POST = $post;
 		$request_method = strtoupper((string) ($meta['request']['method'] ?? 'POST'));
@@ -98,24 +134,14 @@ class McpApiEventResolver
 
 			return [
 				'isError' => true,
-				'content' => [
-					[
-						'type' => 'text',
-						'text' => $message,
-					],
-				],
+				'content' => self::contentBlocks($message, $response),
 				'structuredContent' => $response,
 				'_mcp_error_code' => $error_code,
 			];
 		}
 
 		return [
-			'content' => [
-				[
-					'type' => 'text',
-					'text' => (string) ($response['message'] ?? 'OK'),
-				],
-			],
+			'content' => self::contentBlocks((string) ($response['message'] ?? 'OK'), $response),
 			'structuredContent' => $response,
 		];
 	}
@@ -201,22 +227,51 @@ class McpApiEventResolver
 	}
 
 	/**
+	 * Content blocks include the human summary and a JSON mirror of
+	 * structuredContent, per MCP 2025-11-25 back-compat guidance for clients
+	 * that don't read structuredContent.
+	 *
+	 * @param array<string, mixed> $structured
+	 * @return list<array<string, string>>
+	 */
+	private static function contentBlocks(string $summary, array $structured): array
+	{
+		$blocks = [
+			[
+				'type' => 'text',
+				'text' => $summary,
+			],
+		];
+
+		try {
+			$json = json_encode($structured, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+			$blocks[] = [
+				'type' => 'text',
+				'text' => $json,
+			];
+		} catch (JsonException) {
+			// Skip the JSON mirror if the structured content is not encodable;
+			// the summary block already conveys the result and structuredContent
+			// will still ship at the result level.
+		}
+
+		return $blocks;
+	}
+
+	/**
 	 * @return array<string, mixed>
 	 */
 	private static function toolError(string $error_code, string $reason): array
 	{
+		$structured = [
+			'error_code' => $error_code,
+			'reason' => $reason,
+		];
+
 		return [
 			'isError' => true,
-			'content' => [
-				[
-					'type' => 'text',
-					'text' => $reason,
-				],
-			],
-			'structuredContent' => [
-				'error_code' => $error_code,
-				'reason' => $reason,
-			],
+			'content' => self::contentBlocks($reason, $structured),
+			'structuredContent' => $structured,
 			'_mcp_error_code' => $error_code,
 		];
 	}

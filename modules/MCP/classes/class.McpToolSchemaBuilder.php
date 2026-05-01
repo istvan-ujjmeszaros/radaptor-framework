@@ -15,17 +15,26 @@ class McpToolSchemaBuilder
 			(string) ($meta['description'] ?? ''),
 		])));
 		$mcp = is_array($meta['mcp'] ?? null) ? $meta['mcp'] : [];
-		$risk = (string) ($mcp['risk'] ?? 'write');
+		$title = trim((string) ($meta['name'] ?? ''));
 
-		return [
+		$tool = [
 			'name' => self::getToolName($meta),
 			'description' => $description,
 			'inputSchema' => self::buildInputSchema($meta),
-			'annotations' => [
-				'readOnlyHint' => $risk === 'read',
-				'destructiveHint' => in_array($risk, ['dangerous', 'destructive'], true),
-			],
+			'annotations' => self::buildAnnotations($mcp, $title),
 		];
+
+		if ($title !== '') {
+			$tool['title'] = $title;
+		}
+
+		$output_schema = $mcp['output_schema'] ?? null;
+
+		if (is_array($output_schema)) {
+			$tool['outputSchema'] = $output_schema;
+		}
+
+		return $tool;
 	}
 
 	/**
@@ -41,6 +50,45 @@ class McpToolSchemaBuilder
 		}
 
 		return 'radaptor.' . str_replace('_', '.', (string) ($meta['event_name'] ?? $meta['slug'] ?? 'unknown'));
+	}
+
+	/**
+	 * Annotation defaults follow MCP 2025-11-25 with a cautious AI-safety bias:
+	 * non-readonly tools default to destructive=true and openWorld=true unless
+	 * the event meta explicitly relaxes them. Read-only always wins over the
+	 * destructive override — read-only + destructive is not representable.
+	 *
+	 * @param array<string, mixed> $mcp
+	 * @return array<string, mixed>
+	 */
+	private static function buildAnnotations(array $mcp, string $title): array
+	{
+		$risk = (string) ($mcp['risk'] ?? 'write');
+		$read_only = $risk === 'read';
+
+		if ($read_only) {
+			$destructive = false;
+		} elseif (array_key_exists('destructive', $mcp)) {
+			$destructive = (bool) $mcp['destructive'];
+		} else {
+			$destructive = true;
+		}
+
+		$idempotent = ($mcp['idempotent'] ?? false) === true;
+		$open_world = array_key_exists('open_world', $mcp) ? (bool) $mcp['open_world'] : true;
+
+		$annotations = [
+			'readOnlyHint' => $read_only,
+			'destructiveHint' => $destructive,
+			'idempotentHint' => $idempotent,
+			'openWorldHint' => $open_world,
+		];
+
+		if ($title !== '') {
+			$annotations['title'] = $title;
+		}
+
+		return $annotations;
 	}
 
 	/**
