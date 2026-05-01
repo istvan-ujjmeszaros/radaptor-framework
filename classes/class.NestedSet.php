@@ -3,17 +3,84 @@
 /**
  * Low-level nested-set primitive.
  *
- * AI/agent rule: do not call this class directly from application, CLI, event, or controller
- * code for concrete trees such as `resource_tree`. Always go through the owning business-layer
+ * AI/agent rule: do not call this class directly from application, event, or controller code for
+ * concrete business trees such as `resource_tree`. Always go through the owning business-layer
  * service (for example `ResourceTreeHandler`) so ACL, lifecycle hooks, path rebuilds, attribute
- * handling, file cleanup, and other side effects stay correct.
+ * handling, file cleanup, and other side effects stay correct. Generic tree diagnostics/repair
+ * utilities may call this primitive directly.
  */
 class NestedSet
 {
 	public const int MAX_LEVEL = 128;
 
+	private const array STRUCTURAL_FIELDS = [
+		'lft' => true,
+		'rgt' => true,
+		'parent_id' => true,
+	];
+
 	/** @var array<string, mixed> */
 	public static array $debug = [];
+
+	/**
+	 * @return array<string, string>
+	 */
+	public static function getTreeTableChoices(string $dsn = ''): array
+	{
+		$choices = [];
+
+		foreach (Db::getNestedSetTables($dsn) as $table) {
+			$key = str_ends_with($table, '_tree') ? substr($table, 0, -5) : $table;
+			$choices[$key] = $table;
+		}
+
+		return $choices;
+	}
+
+	public static function resolveTreeTable(string $tree, string $dsn = ''): ?string
+	{
+		$tree = trim($tree);
+
+		if ($tree === '') {
+			return null;
+		}
+
+		if (Db::isNestedSetTable($tree, $dsn)) {
+			return $tree;
+		}
+
+		$choices = self::getTreeTableChoices($dsn);
+
+		if (isset($choices[$tree])) {
+			return $choices[$tree];
+		}
+
+		$candidate = $tree . '_tree';
+
+		return Db::isNestedSetTable($candidate, $dsn) ? $candidate : null;
+	}
+
+	public static function isStructuralField(string $field): bool
+	{
+		return isset(self::STRUCTURAL_FIELDS[strtolower($field)]);
+	}
+
+	/**
+	 * @param array<string, mixed> $savedata
+	 * @return list<string>
+	 */
+	public static function getStructuralFieldsInSavedata(array $savedata): array
+	{
+		$fields = [];
+
+		foreach (array_keys($savedata) as $field) {
+			if (self::isStructuralField((string) $field)) {
+				$fields[] = (string) $field;
+			}
+		}
+
+		return $fields;
+	}
 
 	/**
 	 * @param string $table
@@ -210,6 +277,78 @@ lft>=? AND rgt<=?
 		$rs = $stmt->fetch(PDO::FETCH_ASSOC);
 
 		return $rs['lft'] ?? null;
+	}
+
+	/**
+	 * Wrap existing rootless tree rows under a new root node.
+	 *
+	 * @param string $table
+	 * @param array<string, mixed> $savedata
+	 */
+	public static function wrapExistingTreeWithRoot(string $table, array $savedata): ?int
+	{
+		if (!Db::isNestedSetTable($table)) {
+			throw new InvalidArgumentException("Table '{$table}' is not a nested-set table.");
+		}
+
+		$structural_fields = self::getStructuralFieldsInSavedata($savedata);
+
+		if ($structural_fields !== []) {
+			throw new InvalidArgumentException('Root savedata must not contain nested-set structural fields: ' . implode(', ', $structural_fields));
+		}
+
+		$pdo = Db::instance();
+		$started_transaction = !$pdo->inTransaction();
+
+		try {
+			if ($started_transaction) {
+				$pdo->beginTransaction();
+			}
+
+			$max_rgt = (int) DbHelper::selectOneColumnFromQuery(
+				"SELECT COALESCE(MAX(rgt), 0) FROM {$table}"
+			);
+
+			$stmt = $pdo->prepare("UPDATE {$table} SET lft = lft + 1, rgt = rgt + 1");
+			$stmt->execute();
+
+			$root_savedata = [
+				'lft' => 1,
+				'rgt' => $max_rgt + 2,
+				'parent_id' => 0,
+			] + $savedata;
+
+			$insert_root = $pdo->prepare(
+				"INSERT INTO {$table} SET " . DbHelper::generateEnumeration($root_savedata)
+			);
+			$insert_root->execute(array_values($root_savedata));
+			$root_id = (int) $pdo->lastInsertId();
+
+			$update_children = $pdo->prepare(
+				"UPDATE {$table} SET parent_id = ? WHERE parent_id = 0 AND node_id <> ?"
+			);
+			$update_children->execute([$root_id, $root_id]);
+
+			$report = self::analyzeConsistency($table);
+
+			if (!$report['ok']) {
+				throw new RuntimeException("Nested-set wrap left {$table} inconsistent.");
+			}
+
+			if ($started_transaction) {
+				$pdo->commit();
+			}
+		} catch (Throwable $exception) {
+			if ($started_transaction && $pdo->inTransaction()) {
+				$pdo->rollBack();
+			}
+
+			throw $exception;
+		}
+
+		Cache::flush();
+
+		return $root_id;
 	}
 
 	/**
@@ -684,6 +823,215 @@ lft>=? AND rgt<=?
 	}
 
 	/**
+	 * Recompute lft/rgt from parent_id links and current sibling order.
+	 *
+	 * @return array{
+	 *     table: string,
+	 *     dry_run: bool,
+	 *     applied: bool,
+	 *     node_count: int,
+	 *     before: array<string, mixed>,
+	 *     after?: array<string, mixed>,
+	 *     planned_updates: int,
+	 *     updates: list<array{node_id: int, old_lft: int, old_rgt: int, new_lft: int, new_rgt: int}>,
+	 *     issues: list<array{code: string, message: string, node_id?: int, other_node_id?: int}>,
+	 *     ok: bool
+	 * }
+	 */
+	public static function repairConsistencyFromParentLinks(string $table, bool $dry_run = true): array
+	{
+		if (!Db::isNestedSetTable($table)) {
+			throw new InvalidArgumentException("Table '{$table}' is not a nested-set table.");
+		}
+
+		$before = self::analyzeConsistency($table);
+		$rows = DbHelper::selectManyFromQuery(
+			"SELECT node_id, parent_id, lft, rgt FROM {$table} ORDER BY lft ASC, rgt ASC, node_id ASC"
+		);
+		$by_id = [];
+		$children = [0 => []];
+		$issues = [];
+
+		foreach ($rows as $row) {
+			$node_id = (int) $row['node_id'];
+			$parent_id = (int) $row['parent_id'];
+
+			$by_id[$node_id] = [
+				'node_id' => $node_id,
+				'parent_id' => $parent_id,
+				'lft' => (int) $row['lft'],
+				'rgt' => (int) $row['rgt'],
+			];
+
+			$children[$parent_id] ??= [];
+			$children[$parent_id][] = $node_id;
+		}
+
+		foreach ($by_id as $node_id => $row) {
+			$parent_id = $row['parent_id'];
+
+			if ($parent_id !== 0 && !isset($by_id[$parent_id])) {
+				$issues[] = [
+					'code' => 'missing_parent',
+					'message' => "Node {$node_id} points to missing parent {$parent_id}.",
+					'node_id' => $node_id,
+					'other_node_id' => $parent_id,
+				];
+			}
+		}
+
+		foreach ($children as &$child_ids) {
+			usort(
+				$child_ids,
+				static fn (int $left, int $right): int => [
+					$by_id[$left]['lft'] ?? PHP_INT_MAX,
+					$by_id[$left]['rgt'] ?? PHP_INT_MAX,
+					$left,
+				] <=> [
+					$by_id[$right]['lft'] ?? PHP_INT_MAX,
+					$by_id[$right]['rgt'] ?? PHP_INT_MAX,
+					$right,
+				]
+			);
+		}
+		unset($child_ids);
+
+		if (count($rows) > 0 && ($children[0] ?? []) === []) {
+			$issues[] = [
+				'code' => 'missing_root',
+				'message' => "{$table} has no root-level node with parent_id=0.",
+			];
+		}
+
+		$visit_state = [];
+		$new_bounds = [];
+		$counter = 1;
+		$visit = function (int $node_id) use (&$visit, &$visit_state, &$new_bounds, &$counter, &$children, &$issues): void {
+			if (($visit_state[$node_id] ?? '') === 'visiting') {
+				$issues[] = [
+					'code' => 'cycle_detected',
+					'message' => "Cycle detected at node {$node_id}.",
+					'node_id' => $node_id,
+				];
+
+				return;
+			}
+
+			if (($visit_state[$node_id] ?? '') === 'visited') {
+				return;
+			}
+
+			$visit_state[$node_id] = 'visiting';
+			$lft = $counter++;
+
+			foreach ($children[$node_id] ?? [] as $child_id) {
+				$visit((int) $child_id);
+			}
+
+			$rgt = $counter++;
+			$new_bounds[$node_id] = [
+				'lft' => $lft,
+				'rgt' => $rgt,
+			];
+			$visit_state[$node_id] = 'visited';
+		};
+
+		if ($issues === []) {
+			foreach ($children[0] ?? [] as $root_id) {
+				$visit((int) $root_id);
+			}
+		}
+
+		if ($issues === []) {
+			foreach (array_keys($by_id) as $node_id) {
+				if (($visit_state[$node_id] ?? '') !== 'visited') {
+					$issues[] = [
+						'code' => 'unreachable_node',
+						'message' => "Node {$node_id} is not reachable from a root-level node.",
+						'node_id' => $node_id,
+					];
+				}
+			}
+		}
+
+		$updates = [];
+
+		if ($issues === []) {
+			foreach ($by_id as $node_id => $row) {
+				$new_lft = $new_bounds[$node_id]['lft'];
+				$new_rgt = $new_bounds[$node_id]['rgt'];
+
+				if ($row['lft'] === $new_lft && $row['rgt'] === $new_rgt) {
+					continue;
+				}
+
+				$updates[] = [
+					'node_id' => $node_id,
+					'old_lft' => $row['lft'],
+					'old_rgt' => $row['rgt'],
+					'new_lft' => $new_lft,
+					'new_rgt' => $new_rgt,
+				];
+			}
+		}
+
+		$result = [
+			'table' => $table,
+			'dry_run' => $dry_run,
+			'applied' => false,
+			'node_count' => count($rows),
+			'before' => $before,
+			'planned_updates' => count($updates),
+			'updates' => $updates,
+			'issues' => $issues,
+			'ok' => $issues === [] && (bool) ($before['ok'] ?? false),
+		];
+
+		if ($issues !== [] || $dry_run || $updates === []) {
+			$result['after'] = $before;
+
+			return $result;
+		}
+
+		$pdo = Db::instance();
+		$started_transaction = !$pdo->inTransaction();
+
+		try {
+			if ($started_transaction) {
+				$pdo->beginTransaction();
+			}
+
+			$stmt = $pdo->prepare("UPDATE {$table} SET lft = ?, rgt = ? WHERE node_id = ?");
+
+			foreach ($updates as $update) {
+				$stmt->execute([
+					$update['new_lft'],
+					$update['new_rgt'],
+					$update['node_id'],
+				]);
+			}
+
+			if ($started_transaction) {
+				$pdo->commit();
+			}
+		} catch (Throwable $exception) {
+			if ($started_transaction && $pdo->inTransaction()) {
+				$pdo->rollBack();
+			}
+
+			throw $exception;
+		}
+
+		Cache::flush();
+
+		$result['applied'] = true;
+		$result['after'] = self::analyzeConsistency($table);
+		$result['ok'] = (bool) $result['after']['ok'];
+
+		return $result;
+	}
+
+	/**
 	 * Gets the last child node ID or the parent ID if no children exist.
 	 *
 	 * @param string $table The name of the database table.
@@ -907,6 +1255,21 @@ lft>=? AND rgt<=?
 						'value' => $value,
 					];
 				}
+			}
+
+			foreach ($seen_values as $value => $node_id) {
+				$value = (int) $value;
+
+				if ($value <= $expected_max) {
+					continue;
+				}
+
+				$issues[] = [
+					'code' => 'overflow_boundary',
+					'message' => "Boundary value {$value} exceeds expected max {$expected_max} in {$table}.",
+					'node_id' => $node_id,
+					'value' => $value,
+				];
 			}
 		}
 

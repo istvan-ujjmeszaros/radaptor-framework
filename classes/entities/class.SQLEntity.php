@@ -60,6 +60,22 @@ abstract class SQLEntity implements iEntity
 	}
 
 	/**
+	 * @param TData $data
+	 * @return static
+	 */
+	private static function instantiateEntity(array $data): static
+	{
+		if (static::class === self::class) {
+			throw new LogicException('SQLEntity cannot instantiate the abstract base class directly.');
+		}
+
+		/** @var class-string<static> $entity_class */
+		$entity_class = static::class;
+
+		return new $entity_class($data);
+	}
+
+	/**
 	 * Magic getter for property access
 	 * Allows accessing array data as properties: $entity->key.
 	 *
@@ -397,11 +413,11 @@ abstract class SQLEntity implements iEntity
 					return $entity;
 				}
 
-				return new static($data);
+				return static::instantiateEntity($data);
 			}
 
 			$insertedId = DbHelper::insertHelper(table: $table, savedata: $data);
-			$entity = new static($data);
+			$entity = static::instantiateEntity($data);
 
 			if (count($pkeys) === 1) {
 				$entity->{$pkeys[0]} = $insertedId;
@@ -456,7 +472,7 @@ abstract class SQLEntity implements iEntity
 			);
 		}
 
-		$entity = new static($data);
+		$entity = static::instantiateEntity($data);
 
 		// Only set the auto-generated ID when one was actually returned (non-zero).
 		// Caller-supplied PKs are already in $data passed to the constructor above.
@@ -548,7 +564,7 @@ abstract class SQLEntity implements iEntity
 	 */
 	public static function instantiateFromArray(array $data): static
 	{
-		return new static($data);
+		return static::instantiateEntity($data);
 	}
 
 	/**

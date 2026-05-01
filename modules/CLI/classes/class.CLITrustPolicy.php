@@ -14,7 +14,7 @@ class CLITrustPolicy
 
 	public static function isCliRuntime(): bool
 	{
-		return defined('RADAPTOR_CLI');
+		return defined('RADAPTOR_CLI') && !defined('RADAPTOR_MCP');
 	}
 
 	public static function hasWebRunnerBridge(?bool $is_web_runner_process = null): bool

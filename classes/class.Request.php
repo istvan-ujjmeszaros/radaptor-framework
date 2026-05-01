@@ -92,6 +92,14 @@ class Request
 		return RequestContextHolder::current()->GET;
 	}
 
+	public static function getMethod(): string
+	{
+		$server = RequestContextHolder::current()->SERVER;
+		$method = $server['REQUEST_METHOD'] ?? $server['request_method'] ?? $_SERVER['REQUEST_METHOD'] ?? 'GET';
+
+		return strtoupper((string) $method);
+	}
+
 	/**
 	 * Get the _POST data.
 	 *

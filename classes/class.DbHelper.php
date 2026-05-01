@@ -320,6 +320,7 @@ class DbHelper
 		$seq_field = 'seq';
 
 		$savedata = self::normalizeSavedataValues($savedata);
+		self::assertNestedSetHelperMutationAllowed('insert', $table, $savedata, $dsn);
 
 		Db::validateParameters($table, $savedata, false, $dsn);
 
@@ -367,6 +368,7 @@ class DbHelper
 		$seq_field = 'seq';
 
 		$savedata = self::normalizeSavedataValues($savedata);
+		self::assertNestedSetHelperMutationAllowed('insertOrUpdate', $table, $savedata, $dsn);
 
 		DbHelper::_setOwnerId($table, $savedata, $dsn);
 
@@ -504,6 +506,32 @@ class DbHelper
 	}
 
 	/**
+	 * @param array<string, mixed> $savedata
+	 */
+	private static function assertNestedSetHelperMutationAllowed(string $operation, string $table, array $savedata = [], string $dsn = ''): void
+	{
+		if (!Db::isNestedSetTable($table, $dsn)) {
+			return;
+		}
+
+		if ($operation === 'update') {
+			$structural_fields = NestedSet::getStructuralFieldsInSavedata($savedata);
+
+			if ($structural_fields === []) {
+				return;
+			}
+
+			throw new LogicException(
+				"Nested-set table '{$table}' structural fields must be mutated through NestedSet, not DbHelper::updateHelper(): " . implode(', ', $structural_fields)
+			);
+		}
+
+		throw new LogicException(
+			"Nested-set table '{$table}' row {$operation} must be performed through NestedSet and the owning tree service, not DbHelper."
+		);
+	}
+
+	/**
 	 * Updates a row in a table with the given data.
 	 *
 	 * @param string $table The name of the database table.
@@ -518,6 +546,7 @@ class DbHelper
 		$comment = self::getComment($savedata);
 
 		$savedata = self::normalizeSavedataValues($savedata);
+		self::assertNestedSetHelperMutationAllowed('update', $table, $savedata, $dsn);
 
 		$update_savedata = Db::filterChangedParameters($table, $savedata, $id);
 
@@ -604,6 +633,8 @@ class DbHelper
 		if ($id == null) {
 			return false;
 		}
+
+		self::assertNestedSetHelperMutationAllowed('delete', $table, [], $dsn);
 
 		$limittext = '';
 
