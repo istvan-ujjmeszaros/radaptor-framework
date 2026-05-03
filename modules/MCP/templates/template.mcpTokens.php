@@ -12,6 +12,10 @@
 	</div>
 </section>
 
+<div class="alert alert-warning" role="alert">
+	<?= e($this->strings['mcp.tokens.security_note'] ?? 'MCP clients using one of these tokens run as your Radaptor user and have the same permissions you have. Keep tokens secret and revoke any token you no longer use.') ?>
+</div>
+
 <?php
 $panel = new Template('mcpTokenPanel', $this->getRenderer(), $this->getWidgetConnection());
 $panel->props = $this->props;
