@@ -37,7 +37,27 @@ class CLICommandLayoutUsage extends AbstractCLICommand
 	{
 		$layout = Request::getMainArg();
 		$layout = is_string($layout) && !str_starts_with($layout, '--') ? $layout : null;
-		$result = CmsUsageInspector::inspectLayoutUsage(is_string($layout) ? $layout : null);
+
+		try {
+			if (!class_exists(CmsUsageInspector::class)) {
+				throw new RuntimeException('CMS usage inspector is not available. Install or enable core:cms to use layout usage diagnostics.');
+			}
+
+			$result = CmsUsageInspector::inspectLayoutUsage(is_string($layout) ? $layout : null);
+		} catch (Throwable $exception) {
+			if (Request::hasArg('json')) {
+				echo json_encode([
+					'status' => 'error',
+					'message' => $exception->getMessage(),
+				], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
+
+				return;
+			}
+
+			echo "Layout usage check failed: {$exception->getMessage()}\n";
+
+			return;
+		}
 
 		if (Request::hasArg('json')) {
 			echo json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";

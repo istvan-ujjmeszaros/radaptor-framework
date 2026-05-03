@@ -46,14 +46,14 @@ final class RuntimeDiagnosticsRedactor
 
 	public static function isSecretKey(string $key): bool
 	{
-		$normalized = strtolower(trim($key));
+		$normalized = self::normalizeKey($key);
 
 		return preg_match('/(^|_)(password|token|secret|api_key|dsn)$/', $normalized) === 1;
 	}
 
 	public static function isDsnKey(string $key): bool
 	{
-		return preg_match('/(^|_)dsn$/', strtolower(trim($key))) === 1;
+		return preg_match('/(^|_)dsn$/', self::normalizeKey($key)) === 1;
 	}
 
 	public static function redactDsn(string $dsn): string
@@ -165,6 +165,11 @@ final class RuntimeDiagnosticsRedactor
 		$params = self::redactArray($params);
 
 		return http_build_query($params, '', '&', PHP_QUERY_RFC3986);
+	}
+
+	private static function normalizeKey(string $key): string
+	{
+		return str_replace('-', '_', strtolower(trim($key)));
 	}
 
 	/**
