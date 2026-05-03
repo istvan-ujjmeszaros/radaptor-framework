@@ -29,7 +29,8 @@ class McpTokenPanelView
 	{
 		return [
 			'mcp.tokens.title' => self::translate('mcp.tokens.title', 'MCP tokens'),
-			'mcp.tokens.description' => self::translate('mcp.tokens.description', 'Create and revoke personal MCP access tokens for external clients.'),
+			'mcp.tokens.description' => self::translate('mcp.tokens.description', 'Create and revoke MCP access tokens tied to your user account.'),
+			'mcp.tokens.security_note' => self::translate('mcp.tokens.security_note', 'MCP clients using one of these tokens run as your Radaptor user and have the same permissions you have. Keep tokens secret and revoke any token you no longer use.'),
 			'mcp.tokens.endpoint' => self::translate('mcp.tokens.endpoint', 'MCP endpoint'),
 			'mcp.tokens.create_title' => self::translate('mcp.tokens.create_title', 'Create token'),
 			'mcp.tokens.name' => self::translate('mcp.tokens.name', 'Name'),
@@ -41,7 +42,7 @@ class McpTokenPanelView
 			'mcp.tokens.expiry_never' => self::translate('mcp.tokens.expiry_never', 'No expiry'),
 			'mcp.tokens.create' => self::translate('mcp.tokens.create', 'Create token'),
 			'mcp.tokens.created_title' => self::translate('mcp.tokens.created_title', 'Token created'),
-			'mcp.tokens.created_help' => self::translate('mcp.tokens.created_help', 'Copy this token now. It will not be shown again.'),
+			'mcp.tokens.created_help' => self::translate('mcp.tokens.created_help', 'Copy this user-bound token now. It will not be shown again.'),
 			'mcp.tokens.existing_title' => self::translate('mcp.tokens.existing_title', 'Existing tokens'),
 			'mcp.tokens.empty' => self::translate('mcp.tokens.empty', 'No MCP tokens yet.'),
 			'mcp.tokens.col.name' => self::translate('mcp.tokens.col.name', 'Name'),
