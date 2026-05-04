@@ -247,7 +247,7 @@ class Url
 		$url = str_replace(':/', '://', $url);
 
 		if ($current_context != $domain_context) {
-			$target_host = class_exists('CmsSiteContext')
+			$target_host = class_exists('CmsSiteContext') && method_exists('CmsSiteContext', 'getPrimaryHostForSite')
 				? CmsSiteContext::getPrimaryHostForSite((string) $domain_context)
 				: (string) $domain_context;
 
