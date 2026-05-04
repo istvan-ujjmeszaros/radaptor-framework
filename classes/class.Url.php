@@ -213,7 +213,10 @@ class Url
 
 	public static function getSeoUrl(int $resource_id, bool $full = true, bool $skip_index = true, bool $skip_resource_name = false): ?string
 	{
-		$cache_key = Cache::key([$resource_id, $full, $skip_index, $skip_resource_name]);
+		$current_context = class_exists('CmsSiteContext') && method_exists('CmsSiteContext', 'resolve')
+			? CmsSiteContext::resolve()
+			: Config::APP_DOMAIN_CONTEXT->value();
+		$cache_key = Cache::key([$resource_id, $full, $skip_index, $skip_resource_name, $current_context]);
 
 		if (Cache::isset(self::class, $cache_key)) {
 			return Cache::get(self::class, $cache_key);
@@ -243,9 +246,16 @@ class Url
 
 		$url = str_replace(':/', '://', $url);
 
-		// We support multiple domains in one database router, so we need to check if the actual domain equals to the target domain
-		if (Config::APP_DOMAIN_CONTEXT->value() != $domain_context) {
-			$url = '//' . $domain_context . $url;
+		if ($current_context != $domain_context) {
+			$target_host = class_exists('CmsSiteContext') && method_exists('CmsSiteContext', 'getPrimaryHostForSite')
+				? CmsSiteContext::getPrimaryHostForSite((string) $domain_context)
+				: (string) $domain_context;
+
+			if ($target_host === null || $target_host === '') {
+				return Cache::set(self::class, $cache_key, null);
+			}
+
+			$url = '//' . $target_host . $url;
 		}
 
 		if (Config::APP_DISABLE_SEO_URL->value()) {

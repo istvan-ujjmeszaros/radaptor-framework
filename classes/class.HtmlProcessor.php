@@ -69,7 +69,11 @@ class HtmlProcessor implements Stringable
 				# belső weboldalra mutató link
 				########################################################################
 				if (isset($get['direction']) && $get['direction'] === 'in' && isset($get['id'])) {
-					$node->setAttribute('href', Url::getSeoUrl($get['id'], false));
+					$seo_url = Url::getSeoUrl((int) $get['id'], false);
+
+					if ($seo_url !== null) {
+						$node->setAttribute('href', $seo_url);
+					}
 				}
 				########################################################################
 				# külső weboldalra mutató link, vagy belső oldalra mutat, de kézzel be
@@ -163,7 +167,13 @@ class HtmlProcessor implements Stringable
 				# belső képre mutató link
 				########################################################################
 				if (isset($get['direction']) && $get['direction'] === 'in' && isset($get['id'])) {
-					$node->setAttribute('src', Url::getSeoUrl($get['id'], false));
+					$seo_url = Url::getSeoUrl((int) $get['id'], false);
+
+					if ($seo_url === null) {
+						continue;
+					}
+
+					$node->setAttribute('src', $seo_url);
 
 					self::_moveStyledSizeToAttributes($node);
 
