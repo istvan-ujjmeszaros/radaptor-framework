@@ -264,7 +264,18 @@ class MigrationRunner
 			$description = (string) $migration_instance->getDescription();
 		}
 
+		$pdo = Db::instance();
+		$started_transaction = false;
+		$savepoint_name = null;
+
 		try {
+			if ($pdo->inTransaction()) {
+				$savepoint_name = self::createMigrationSavepoint($pdo, $migration['hash']);
+			} else {
+				$pdo->beginTransaction();
+				$started_transaction = true;
+			}
+
 			MigrationContentGuard::assertMigrationSourceAllowed($migration['filepath']);
 			$resource_tree_snapshot = MigrationContentGuard::snapshotResourceTreeNodeIds();
 
@@ -281,7 +292,22 @@ class MigrationRunner
 			if (trim($captured_output) !== '') {
 				CLIOutput::write($captured_output);
 			}
+
+			$stmt = $pdo->prepare(
+				"INSERT INTO migrations (migration_hash, module, migration_name, applied_at)
+				 VALUES (?, ?, ?, ?)"
+			);
+			$stmt->execute([
+				$migration['hash'],
+				$migration['module'],
+				$migration['filename'],
+				date('Y-m-d H:i:s'),
+			]);
+
+			self::commitMigrationTransaction($pdo, $started_transaction, $savepoint_name);
 		} catch (Exception $e) {
+			self::rollbackMigrationTransaction($pdo, $started_transaction, $savepoint_name);
+
 			return [
 				'success' => false,
 				'message' => "Migration failed: " . $e->getMessage(),
@@ -291,17 +317,6 @@ class MigrationRunner
 			];
 		}
 
-		$stmt = Db::instance()->prepare(
-			"INSERT INTO migrations (migration_hash, module, migration_name, applied_at)
-			 VALUES (?, ?, ?, ?)"
-		);
-		$stmt->execute([
-			$migration['hash'],
-			$migration['module'],
-			$migration['filename'],
-			date('Y-m-d H:i:s'),
-		]);
-
 		return [
 			'success' => true,
 			'message' => "Applied: {$migration['module']} / {$migration['filename']}",
@@ -309,6 +324,41 @@ class MigrationRunner
 			'filename' => $migration['filename'],
 			'description' => $description,
 		];
+	}
+
+	private static function createMigrationSavepoint(PDO $pdo, string $migration_hash): string
+	{
+		$savepoint_name = 'migration_runner_' . (preg_replace('/[^A-Za-z0-9_]/', '_', $migration_hash) ?? $migration_hash);
+		$pdo->exec("SAVEPOINT {$savepoint_name}");
+
+		return $savepoint_name;
+	}
+
+	private static function commitMigrationTransaction(PDO $pdo, bool $started_transaction, ?string $savepoint_name): void
+	{
+		if ($savepoint_name !== null && $pdo->inTransaction()) {
+			$pdo->exec("RELEASE SAVEPOINT {$savepoint_name}");
+
+			return;
+		}
+
+		if ($started_transaction && $pdo->inTransaction()) {
+			$pdo->commit();
+		}
+	}
+
+	private static function rollbackMigrationTransaction(PDO $pdo, bool $started_transaction, ?string $savepoint_name): void
+	{
+		if ($savepoint_name !== null && $pdo->inTransaction()) {
+			$pdo->exec("ROLLBACK TO SAVEPOINT {$savepoint_name}");
+			$pdo->exec("RELEASE SAVEPOINT {$savepoint_name}");
+
+			return;
+		}
+
+		if ($started_transaction && $pdo->inTransaction()) {
+			$pdo->rollBack();
+		}
 	}
 
 	/**
