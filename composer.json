@@ -1,0 +1,7 @@
+{
+    "name": "radaptor/core-framework",
+    "type": "radaptor-package",
+    "require": {
+        "php": "^8.5"
+    }
+}
