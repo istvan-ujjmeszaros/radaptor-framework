@@ -33,6 +33,23 @@ class Usergroups
 	}
 
 	/**
+	 * Get the complete user group tree ordered by nested-set position.
+	 *
+	 * @return array<int, array{
+	 *     node_id: int,
+	 *     parent_id: int,
+	 *     lft: int,
+	 *     rgt: int,
+	 *     title: string,
+	 *     is_system_group: bool
+	 * }>
+	 */
+	public static function getFullUsergroupTree(): array
+	{
+		return array_values(NestedSet::getTree('usergroups_tree'));
+	}
+
+	/**
 	 * Get resource tree entry data by ID.
 	 *
 	 * @param int $resource_id The ID of the resource to retrieve
