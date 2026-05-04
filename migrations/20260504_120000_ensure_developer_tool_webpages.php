@@ -11,15 +11,33 @@ class Migration_20260504_120000_ensure_developer_tool_webpages
 
 	public function run(): void
 	{
-		$root_id = ResourceTreeHandler::ensureConfiguredSiteRoot();
+		$site_context = $this->getConfiguredSiteContext();
+		$root_id = $this->ensureConfiguredSiteRootIfSupported();
 
-		if (!is_int($root_id) || $root_id <= 0) {
+		if ($root_id !== null && $root_id <= 0) {
 			throw new RuntimeException('Unable to normalize the configured CMS site root.');
 		}
 
-		$site_context = CmsSiteContext::getConfiguredSiteKey();
 		$this->ensureWidgetPage('CLIRunner', '/admin/developer/', 'cli-runner.html', $site_context);
 		$this->ensureWidgetPage('PhpInfoFrame', '/admin/developer/', 'phpinfo.html', $site_context);
+	}
+
+	private function ensureConfiguredSiteRootIfSupported(): ?int
+	{
+		if (!class_exists(CmsSiteContext::class) || !method_exists(ResourceTreeHandler::class, 'ensureConfiguredSiteRoot')) {
+			return null;
+		}
+
+		return ResourceTreeHandler::ensureConfiguredSiteRoot();
+	}
+
+	private function getConfiguredSiteContext(): string
+	{
+		if (class_exists(CmsSiteContext::class) && method_exists(CmsSiteContext::class, 'getConfiguredSiteKey')) {
+			return CmsSiteContext::getConfiguredSiteKey();
+		}
+
+		return (string) Config::APP_DOMAIN_CONTEXT->value();
 	}
 
 	private function ensureWidgetPage(string $widget_name, string $path, string $resource_name, string $site_context): void

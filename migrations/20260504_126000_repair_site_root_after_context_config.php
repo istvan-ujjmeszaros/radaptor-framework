@@ -18,13 +18,31 @@ class Migration_20260504_126000_repair_site_root_after_context_config
 
 	public function run(): void
 	{
-		$root_id = ResourceTreeHandler::ensureConfiguredSiteRoot();
+		$root_id = $this->ensureConfiguredSiteRootIfSupported();
 
-		if (!is_int($root_id) || $root_id <= 0) {
+		if ($root_id !== null && $root_id <= 0) {
 			throw new RuntimeException('Unable to normalize the configured CMS site root.');
 		}
 
-		$this->ensureLoginPage(CmsSiteContext::getConfiguredSiteKey());
+		$this->ensureLoginPage($this->getConfiguredSiteContext());
+	}
+
+	private function ensureConfiguredSiteRootIfSupported(): ?int
+	{
+		if (!class_exists(CmsSiteContext::class) || !method_exists(ResourceTreeHandler::class, 'ensureConfiguredSiteRoot')) {
+			return null;
+		}
+
+		return ResourceTreeHandler::ensureConfiguredSiteRoot();
+	}
+
+	private function getConfiguredSiteContext(): string
+	{
+		if (class_exists(CmsSiteContext::class) && method_exists(CmsSiteContext::class, 'getConfiguredSiteKey')) {
+			return CmsSiteContext::getConfiguredSiteKey();
+		}
+
+		return (string) Config::APP_DOMAIN_CONTEXT->value();
 	}
 
 	private function ensureLoginPage(string $site_context): void

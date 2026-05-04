@@ -301,7 +301,11 @@ class CLIWebpageHelper
 	{
 		$path = ResourceTreeHandler::getPathFromId($node_id);
 		$site_context = ResourceTreeHandler::getActiveDomainContext();
-		$host = CmsSiteContext::getPrimaryHostForSite($site_context) ?? 'localhost';
+		$host = class_exists(CmsSiteContext::class)
+			? CmsSiteContext::getPrimaryHostForSite($site_context)
+			: null;
+		$host ??= (string) Config::APP_DOMAIN_CONTEXT->value();
+		$host = trim($host) !== '' ? $host : 'localhost';
 
 		$server = [
 			'SERVER_PROTOCOL' => 'HTTP/1.1',

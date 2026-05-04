@@ -11,8 +11,12 @@ class Migration_20260504_123000_ensure_domain_root
 
 	public function run(): void
 	{
-		if (!class_exists(ResourceTreeHandler::class)) {
-			throw new RuntimeException('CMS resource tree handler is not available.');
+		if (
+			!class_exists(CmsSiteContext::class)
+			|| !class_exists(ResourceTreeHandler::class)
+			|| !method_exists(ResourceTreeHandler::class, 'ensureConfiguredSiteRoot')
+		) {
+			return;
 		}
 
 		$root_id = ResourceTreeHandler::ensureConfiguredSiteRoot();
