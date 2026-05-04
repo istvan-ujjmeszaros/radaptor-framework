@@ -176,7 +176,7 @@ class TestDatabaseSchemaSyncService
 				WHERE node_type = 'root' AND resource_name = ?
 				LIMIT 1"
 			);
-			$site_context = class_exists('CmsSiteContext')
+			$site_context = class_exists('CmsSiteContext') && method_exists('CmsSiteContext', 'getConfiguredSiteKey')
 				? CmsSiteContext::getConfiguredSiteKey()
 				: Config::APP_DOMAIN_CONTEXT->value();
 			$domain_root_stmt->execute([$site_context]);

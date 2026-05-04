@@ -301,7 +301,7 @@ class CLIWebpageHelper
 	{
 		$path = ResourceTreeHandler::getPathFromId($node_id);
 		$site_context = ResourceTreeHandler::getActiveDomainContext();
-		$host = class_exists(CmsSiteContext::class)
+		$host = class_exists(CmsSiteContext::class) && method_exists(CmsSiteContext::class, 'getPrimaryHostForSite')
 			? CmsSiteContext::getPrimaryHostForSite($site_context)
 			: null;
 		$host ??= (string) Config::APP_DOMAIN_CONTEXT->value();
