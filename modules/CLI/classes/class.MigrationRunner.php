@@ -273,6 +273,8 @@ class MigrationRunner
 					$migration_instance->run();
 				});
 			} finally {
+				// Applies to package and app migrations. CMS content deletion belongs to
+				// explicit authoring/import tools, not to the migration pipeline.
 				MigrationContentGuard::assertNoResourceTreeRowsDeleted($resource_tree_snapshot, $migration['filename']);
 			}
 
