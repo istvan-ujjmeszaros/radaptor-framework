@@ -249,7 +249,7 @@ class Url
 		if ($current_context != $domain_context) {
 			$target_host = class_exists('CmsSiteContext')
 				? CmsSiteContext::getPrimaryHostForSite((string) $domain_context)
-				: null;
+				: (string) $domain_context;
 
 			if ($target_host === null || $target_host === '') {
 				return Cache::set(self::class, $cache_key, null);
