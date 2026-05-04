@@ -18,6 +18,14 @@ class ThemedTemplateList
 	}
 
 	/**
+	 * @return array<string, string>
+	 */
+	public static function getThemedTemplates(): array
+	{
+		return self::$_themedTemplateList;
+	}
+
+	/**
 	 * Reverse lookup: find the key for a given path (for debug info).
 	 */
 	public static function getKeyForPath(string $path): ?string

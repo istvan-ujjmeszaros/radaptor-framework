@@ -64,8 +64,14 @@ final class MigrationContentGuard
 	 */
 	public static function assertNoResourceTreeRowsDeleted(?array $before, string $filename): void
 	{
-		if ($before === null || !self::tableExists('resource_tree')) {
+		if ($before === null) {
 			return;
+		}
+
+		if (!self::tableExists('resource_tree')) {
+			throw new RuntimeException(
+				'Migration removed the CMS resource_tree table, which is forbidden: ' . $filename
+			);
 		}
 
 		$after = self::snapshotResourceTreeNodeIds() ?? [];
