@@ -57,7 +57,7 @@ class CLIWebpageHelper
 	 */
 	public static function getWebpagesUnderPath(string $base_path): array
 	{
-		$domain_context = Config::APP_DOMAIN_CONTEXT->value();
+		$domain_context = ResourceTreeHandler::getActiveDomainContext();
 
 		// Get domain root
 		$root_id = ResourceTreeHandler::getDomainRoot($domain_context);
@@ -300,13 +300,25 @@ class CLIWebpageHelper
 	private static function setupServerContext(int $node_id): void
 	{
 		$path = ResourceTreeHandler::getPathFromId($node_id);
-		$domain = Config::APP_DOMAIN_CONTEXT->value();
+		$site_context = ResourceTreeHandler::getActiveDomainContext();
+		$host = CmsSiteContext::getPrimaryHostForSite($site_context) ?? 'localhost';
 
-		$_SERVER['SERVER_PROTOCOL'] = 'HTTP/1.1';
-		$_SERVER['SERVER_PORT'] = '80';
-		$_SERVER['HTTP_HOST'] = $domain;
-		$_SERVER['REQUEST_URI'] = $path;
-		$_SERVER['HTTPS'] = '';
+		$server = [
+			'SERVER_PROTOCOL' => 'HTTP/1.1',
+			'SERVER_PORT' => '80',
+			'HTTP_HOST' => $host,
+			'REQUEST_URI' => $path !== '' ? $path : '/',
+			'HTTPS' => '',
+		];
+
+		$_SERVER = array_replace($_SERVER, $server);
+
+		try {
+			$ctx = RequestContextHolder::current();
+			$ctx->SERVER = array_replace($ctx->SERVER, $server);
+		} catch (Throwable) {
+			// CLI render helpers can also run in early bootstrap contexts.
+		}
 	}
 
 	/**

@@ -431,8 +431,11 @@ lft>=? AND rgt<=?
 	 */
 	public static function deleteNode(string $table, int $node_id): bool
 	{
+		$pdo = Db::instance();
+		$started_transaction = !$pdo->inTransaction();
+
 		try {
-			$stmt = Db::instance()->prepare("SELECT lft, rgt, parent_id FROM {$table} WHERE node_id = ? LIMIT 1");
+			$stmt = $pdo->prepare("SELECT lft, rgt, parent_id FROM {$table} WHERE node_id = ? LIMIT 1");
 			$stmt->execute([$node_id]);
 
 			$rs = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -445,45 +448,50 @@ lft>=? AND rgt<=?
 			$rgt = $rs['rgt'];
 			$parent_id = $rs['parent_id'];
 
-			Db::instance()->beginTransaction();
+			if ($started_transaction) {
+				$pdo->beginTransaction();
+			}
 
-			$stmt = Db::instance()->prepare("DELETE FROM {$table} WHERE node_id = ? LIMIT 1");
+			$stmt = $pdo->prepare("DELETE FROM {$table} WHERE node_id = ? LIMIT 1");
 			$stmt->execute([$node_id]);
 
 			if ($rgt - $lft == 1) {
 				// deleting a leaf
 				// decrease the following ones by two
-				$stmt = Db::instance()->prepare("UPDATE {$table} SET rgt = rgt-2 WHERE rgt > ?");
+				$stmt = $pdo->prepare("UPDATE {$table} SET rgt = rgt-2 WHERE rgt > ?");
 				$stmt->execute([$rgt]);
-				$stmt = Db::instance()->prepare("UPDATE {$table} SET lft = lft-2 WHERE lft > ?");
+				$stmt = $pdo->prepare("UPDATE {$table} SET lft = lft-2 WHERE lft > ?");
 				$stmt->execute([$lft]);
 			} else {
 				// deleting a node
 				// decrease the ones below it by one
-				$stmt = Db::instance()
-						  ->prepare("UPDATE {$table} SET lft = lft-1, rgt = rgt-1 WHERE lft > ? AND lft < ?");
+				$stmt = $pdo->prepare("UPDATE {$table} SET lft = lft-1, rgt = rgt-1 WHERE lft > ? AND lft < ?");
 				$stmt->execute([
 					$lft,
 					$rgt,
 				]);
 
 				// and decrease the rest following it by two
-				$stmt = Db::instance()->prepare("UPDATE {$table} SET rgt = rgt-2 WHERE rgt > ?");
+				$stmt = $pdo->prepare("UPDATE {$table} SET rgt = rgt-2 WHERE rgt > ?");
 				$stmt->execute([$rgt]);
-				$stmt = Db::instance()->prepare("UPDATE {$table} SET lft = lft-2 WHERE lft > ?");
+				$stmt = $pdo->prepare("UPDATE {$table} SET lft = lft-2 WHERE lft > ?");
 				$stmt->execute([$rgt]);
 
 				// and update the parent_id on direct children (grandparent inherits the children)
-				$stmt = Db::instance()->prepare("UPDATE {$table} SET parent_id = ? WHERE parent_id = ?");
+				$stmt = $pdo->prepare("UPDATE {$table} SET parent_id = ? WHERE parent_id = ?");
 				$stmt->execute([
 					$parent_id,
 					$node_id,
 				]);
 			}
 
-			Db::instance()->commit();
+			if ($started_transaction) {
+				$pdo->commit();
+			}
 		} catch (Exception) {
-			Db::instance()->rollBack();
+			if ($started_transaction && $pdo->inTransaction()) {
+				$pdo->rollBack();
+			}
 
 			return false;
 		}

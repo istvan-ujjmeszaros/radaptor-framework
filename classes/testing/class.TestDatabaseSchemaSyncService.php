@@ -176,7 +176,10 @@ class TestDatabaseSchemaSyncService
 				WHERE node_type = 'root' AND resource_name = ?
 				LIMIT 1"
 			);
-			$domain_root_stmt->execute([Config::APP_DOMAIN_CONTEXT->value()]);
+			$site_context = class_exists('CmsSiteContext')
+				? CmsSiteContext::getConfiguredSiteKey()
+				: Config::APP_DOMAIN_CONTEXT->value();
+			$domain_root_stmt->execute([$site_context]);
 			$domain_root_id = $domain_root_stmt->fetchColumn();
 
 			if (!is_numeric($domain_root_id) || (int) $domain_root_id <= 0) {

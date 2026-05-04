@@ -27,6 +27,23 @@ class Roles extends RoleList
 	}
 
 	/**
+	 * Retrieve the complete role tree ordered by nested-set position.
+	 *
+	 * @return array<int, array{
+	 *     node_id: int,
+	 *     parent_id: int,
+	 *     title: string,
+	 *     role: string,
+	 *     lft: int,
+	 *     rgt: int
+	 * }>
+	 */
+	public static function getFullRoleTree(): array
+	{
+		return array_values(NestedSet::getTree('roles_tree'));
+	}
+
+	/**
 	 * Retrieves the values of a role from the roles_tree table.
 	 *
 	 * @param int $role_id The ID of the role to retrieve.
