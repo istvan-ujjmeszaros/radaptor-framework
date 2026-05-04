@@ -268,10 +268,13 @@ class MigrationRunner
 			MigrationContentGuard::assertMigrationSourceAllowed($migration['filepath']);
 			$resource_tree_snapshot = MigrationContentGuard::snapshotResourceTreeNodeIds();
 
-			$captured_output = self::captureBufferedOutput(static function () use ($migration_instance): void {
-				$migration_instance->run();
-			});
-			MigrationContentGuard::assertNoResourceTreeRowsDeleted($resource_tree_snapshot, $migration['filename']);
+			try {
+				$captured_output = self::captureBufferedOutput(static function () use ($migration_instance): void {
+					$migration_instance->run();
+				});
+			} finally {
+				MigrationContentGuard::assertNoResourceTreeRowsDeleted($resource_tree_snapshot, $migration['filename']);
+			}
 
 			if (trim($captured_output) !== '') {
 				CLIOutput::write($captured_output);

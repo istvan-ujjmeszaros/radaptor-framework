@@ -40,7 +40,11 @@ class CLICommandResourceSpecExport extends AbstractCLICommand
 					throw new RuntimeException("Unable to create directory: {$dir}");
 				}
 
-				file_put_contents($target, self::renderPhpSpec($spec), LOCK_EX);
+				$bytes_written = file_put_contents($target, self::renderPhpSpec($spec), LOCK_EX);
+
+				if ($bytes_written === false) {
+					throw new RuntimeException("Unable to write resource spec: {$target}");
+				}
 			}
 
 			if ($json) {
