@@ -45,7 +45,7 @@ final class RuntimeDiagnosticsReadModel
 			'environment' => Kernel::getEnvironment(),
 			'application_identifier' => Config::APP_APPLICATION_IDENTIFIER->value(),
 			'domain_context' => Config::APP_DOMAIN_CONTEXT->value(),
-			'site_context' => class_exists('CmsSiteContext') ? CmsSiteContext::resolve() : Config::APP_DOMAIN_CONTEXT->value(),
+			'site_context' => class_exists('CmsSiteContext') && method_exists('CmsSiteContext', 'resolve') ? CmsSiteContext::resolve() : Config::APP_DOMAIN_CONTEXT->value(),
 			'runtime' => getenv('RADAPTOR_RUNTIME') ?: PHP_SAPI,
 		];
 	}

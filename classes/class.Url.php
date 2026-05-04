@@ -213,7 +213,7 @@ class Url
 
 	public static function getSeoUrl(int $resource_id, bool $full = true, bool $skip_index = true, bool $skip_resource_name = false): ?string
 	{
-		$current_context = class_exists('CmsSiteContext')
+		$current_context = class_exists('CmsSiteContext') && method_exists('CmsSiteContext', 'resolve')
 			? CmsSiteContext::resolve()
 			: Config::APP_DOMAIN_CONTEXT->value();
 		$cache_key = Cache::key([$resource_id, $full, $skip_index, $skip_resource_name, $current_context]);
