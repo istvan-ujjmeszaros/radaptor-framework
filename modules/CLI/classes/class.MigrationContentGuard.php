@@ -9,10 +9,30 @@ final class MigrationContentGuard
 	 * the runtime guard; this scan fails early when executable migration code appears
 	 * to call a destructive resource_tree API, even before that code can run.
 	 */
-	private const array FORBIDDEN_SOURCE_PATTERNS = [
+	private const array FORBIDDEN_EXECUTABLE_SOURCE_PATTERNS = [
 		'/ResourceTreeHandler::deleteResourceEntr(?:y|ies)Recursive\s*\(/' => 'recursive resource deletion',
 		'/ResourceTreeHandler::deleteResourceEntry\s*\(/' => 'resource deletion',
 		'/NestedSet::deleteNode\s*\(/' => 'raw nested-set deletion',
+	];
+
+	private const array FORBIDDEN_SQL_SOURCE_PATTERNS = [
+		'/\bDELETE\s+FROM\s+`?resource_tree`?\b/i' => 'raw resource_tree deletion SQL',
+		'/\bTRUNCATE\s+(?:TABLE\s+)?`?resource_tree`?\b/i' => 'raw resource_tree truncation SQL',
+		'/\bDROP\s+TABLE\s+(?:IF\s+EXISTS\s+)?`?resource_tree`?\b/i' => 'raw resource_tree drop SQL',
+	];
+
+	private const array IMPLICIT_COMMIT_SQL_PATTERNS = [
+		'/\bALTER\s+TABLE\b/i',
+		'/\bCREATE\s+TABLE\b/i',
+		'/\bDROP\s+TABLE\b/i',
+		'/\bRENAME\s+TABLE\b/i',
+		'/\bTRUNCATE\s+(?:TABLE\s+)?\b/i',
+	];
+
+	private const array DYNAMIC_DELETE_SQL_PATTERNS = [
+		'/\bDELETE\s+FROM\s+\{\$/i',
+		'/\bDELETE\s+FROM\s+\$/i',
+		'/\bDELETE\s+FROM\s*[\'"]\s*\.\s*\$/i',
 	];
 
 	public static function assertMigrationSourceAllowed(string $filepath): void
@@ -29,11 +49,53 @@ final class MigrationContentGuard
 
 		$executable_source = self::stripCommentsAndStrings($source);
 
-		foreach (self::FORBIDDEN_SOURCE_PATTERNS as $pattern => $reason) {
+		foreach (self::FORBIDDEN_EXECUTABLE_SOURCE_PATTERNS as $pattern => $reason) {
 			if (preg_match($pattern, $executable_source) === 1) {
 				throw new RuntimeException("Migration is not allowed to delete CMS resources ({$reason}): " . basename($filepath));
 			}
 		}
+
+		$source_without_comments = self::stripComments($source);
+
+		foreach (self::FORBIDDEN_SQL_SOURCE_PATTERNS as $pattern => $reason) {
+			if (preg_match($pattern, $source_without_comments) === 1) {
+				throw new RuntimeException("Migration is not allowed to delete CMS resources ({$reason}): " . basename($filepath));
+			}
+		}
+
+		if (self::containsImplicitCommitSql($source_without_comments)) {
+			foreach (self::DYNAMIC_DELETE_SQL_PATTERNS as $pattern) {
+				if (preg_match($pattern, $source_without_comments) === 1) {
+					throw new RuntimeException(
+						'Migration combines implicit-commit DDL with dynamic raw DELETE SQL, which cannot be verified against CMS resources: '
+						. basename($filepath)
+					);
+				}
+			}
+		}
+	}
+
+	private static function stripComments(string $source): string
+	{
+		$result = '';
+
+		foreach (token_get_all($source) as $token) {
+			if (!is_array($token)) {
+				$result .= $token;
+
+				continue;
+			}
+
+			if (in_array($token[0], [T_COMMENT, T_DOC_COMMENT], true)) {
+				$result .= str_repeat("\n", substr_count($token[1], "\n"));
+
+				continue;
+			}
+
+			$result .= $token[1];
+		}
+
+		return $result;
 	}
 
 	private static function stripCommentsAndStrings(string $source): string
@@ -57,6 +119,17 @@ final class MigrationContentGuard
 		}
 
 		return $result;
+	}
+
+	private static function containsImplicitCommitSql(string $source_without_comments): bool
+	{
+		foreach (self::IMPLICIT_COMMIT_SQL_PATTERNS as $pattern) {
+			if (preg_match($pattern, $source_without_comments) === 1) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**

@@ -305,7 +305,7 @@ class MigrationRunner
 			]);
 
 			self::commitMigrationTransaction($pdo, $started_transaction, $savepoint_name);
-		} catch (Exception $e) {
+		} catch (Throwable $e) {
 			self::rollbackMigrationTransaction($pdo, $started_transaction, $savepoint_name);
 
 			return [
