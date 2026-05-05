@@ -21,6 +21,24 @@ class CLICommandI18nExportAi extends AbstractCLICommand
 		return true;
 	}
 
+	public function getRiskLevel(): string
+	{
+		return 'build';
+	}
+
+	public function getWebParams(): array
+	{
+		return [
+			['name' => 'locale', 'label' => 'Locale', 'type' => 'option', 'required' => true],
+			['name' => 'domain', 'label' => 'Domain', 'type' => 'option'],
+			['name' => 'key-prefix', 'label' => 'Key prefix', 'type' => 'option'],
+			['name' => 'output', 'label' => 'Output file', 'type' => 'option'],
+			['name' => 'missing-only', 'label' => 'Missing only', 'type' => 'flag'],
+			['name' => 'unreviewed-only', 'label' => 'Unreviewed only', 'type' => 'flag'],
+			['name' => 'json', 'label' => 'JSON output', 'type' => 'flag'],
+		];
+	}
+
 	public function run(): void
 	{
 		$locale = CLIOptionHelper::getOption('locale');

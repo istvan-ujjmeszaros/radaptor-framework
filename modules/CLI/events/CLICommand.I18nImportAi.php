@@ -31,6 +31,16 @@ class CLICommandI18nImportAi extends AbstractCLICommand
 		return 60;
 	}
 
+	public function getWebParams(): array
+	{
+		return [
+			['name' => 'main_arg', 'label' => 'CSV file', 'type' => 'main_arg', 'required' => true],
+			['name' => 'expect-locale', 'label' => 'Expected locale', 'type' => 'option'],
+			['name' => 'dry-run', 'label' => 'Dry run', 'type' => 'flag'],
+			['name' => 'json', 'label' => 'JSON output', 'type' => 'flag'],
+		];
+	}
+
 	public function run(): void
 	{
 		$file = CLIOptionHelper::getMainArgOrAbort('Usage: radaptor i18n:import-ai <file.csv> [--expect-locale hu_HU] [--dry-run]');
