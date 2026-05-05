@@ -100,6 +100,31 @@ class Request
 		return strtoupper((string) $method);
 	}
 
+	public static function wantsNonHtmlResponse(): bool
+	{
+		$ctx = RequestContextHolder::current();
+		$server = !empty($ctx->SERVER) ? $ctx->SERVER : $_SERVER;
+		$accept = strtolower(trim((string) ($server['HTTP_ACCEPT'] ?? $server['http_accept'] ?? '')));
+
+		if (str_contains($accept, 'application/json')) {
+			return true;
+		}
+
+		$requested_with = strtolower(trim((string) ($server['HTTP_X_REQUESTED_WITH'] ?? $server['http_x_requested_with'] ?? '')));
+
+		if ($requested_with === 'xmlhttprequest') {
+			return true;
+		}
+
+		$hx_request = strtolower(trim((string) ($server['HTTP_HX_REQUEST'] ?? $server['http_hx_request'] ?? '')));
+
+		if ($hx_request === 'true') {
+			return true;
+		}
+
+		return false;
+	}
+
 	/**
 	 * Get the _POST data.
 	 *
