@@ -62,6 +62,48 @@ class CLIOptionHelper
 		return $value;
 	}
 
+	/**
+	 * Reads comma-separated values from argv and Request args, then returns unique values.
+	 *
+	 * @return list<string>
+	 */
+	public static function getCsvListOption(string $name): array
+	{
+		global $argv;
+
+		$values = [];
+
+		foreach ($argv ?? [] as $index => $arg) {
+			if ($arg !== "--{$name}") {
+				continue;
+			}
+
+			$value = $argv[$index + 1] ?? null;
+
+			if (is_string($value) && !str_starts_with($value, '--')) {
+				$values = [...$values, ...explode(',', $value)];
+			}
+		}
+
+		$request_value = Request::getArg($name);
+
+		if (is_string($request_value) && trim($request_value) !== '') {
+			$values = [...$values, ...explode(',', $request_value)];
+		}
+
+		$normalized = [];
+
+		foreach ($values as $value) {
+			$value = trim((string) $value);
+
+			if ($value !== '') {
+				$normalized[$value] = true;
+			}
+		}
+
+		return array_keys($normalized);
+	}
+
 	public static function getNullableIntOption(string $name): ?int
 	{
 		$value = self::getOption($name);
