@@ -43,7 +43,11 @@ class CLICommandI18nDoctor extends AbstractCLICommand
 			static fn (array $locale): int => (int) ($locale['missing'] ?? 0),
 			$coverage['locales']
 		));
-		$failed = $lint['errors'] > 0 || $literals['issues'] > 0 || $missing_total > 0;
+		$stale_total = array_sum(array_map(
+			static fn (array $locale): int => (int) ($locale['stale'] ?? 0),
+			$coverage['locales']
+		));
+		$failed = $lint['errors'] > 0 || $literals['issues'] > 0 || $missing_total > 0 || $stale_total > 0;
 		$result = [
 			'status' => $failed ? 'error' : 'success',
 			'scope' => $all_packages ? 'all_packages' : 'active',
@@ -66,6 +70,7 @@ class CLICommandI18nDoctor extends AbstractCLICommand
 		echo 'Scope: ' . ($all_packages ? 'all packages audit' : 'active sync scope') . "\n";
 		echo "Fallback literals: {$literals['issues']} issues, {$literals['allowed_literals']} allowed literals\n";
 		echo "Coverage missing translations: {$missing_total}\n";
+		echo "Coverage stale translations: {$stale_total}\n";
 
 		foreach ($coverage['locales'] as $locale) {
 			echo "{$locale['locale']}: {$locale['translated']}/{$locale['total']} translated ({$locale['translated_percent']}%), missing {$locale['missing']}, stale {$locale['stale']}\n";
