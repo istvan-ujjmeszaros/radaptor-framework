@@ -188,14 +188,8 @@ final class MigrationContentGuard
 
 	private static function tableExists(string $table): bool
 	{
-		$stmt = Db::instance()->prepare(
-			'SELECT COUNT(*)
-			FROM information_schema.tables
-			WHERE table_schema = DATABASE()
-				AND table_name = ?'
-		);
-		$stmt->execute([$table]);
+		$quoted_table_name = Db::instance()->quote($table);
 
-		return (int) $stmt->fetchColumn() > 0;
+		return Db::instance()->query("SHOW TABLES LIKE {$quoted_table_name}")?->rowCount() > 0;
 	}
 }
