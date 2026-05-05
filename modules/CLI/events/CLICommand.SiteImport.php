@@ -13,7 +13,8 @@ class CLICommandSiteImport extends AbstractCLICommand
 	{
 		return <<<'DOC'
 			Validate or restore a JSON site snapshot. Defaults to dry-run; pass --apply --replace to mutate the database.
-			A successful apply runs build:all after the data has been restored.
+			A successful apply runs post-import maintenance after the data has been restored:
+			tag i18n sync, shipped i18n sync, translation-memory rebuild, build:all, and cache flush.
 
 			Usage: radaptor site:import <file> [--dry-run|--apply] [--replace] [--json]
 
@@ -81,7 +82,18 @@ class CLICommandSiteImport extends AbstractCLICommand
 		echo 'Tables: ' . count($payload['summary']) . "\n";
 		echo 'Uploads: ' . ($payload['uploads']['ok'] ? 'OK' : 'ERROR') . " ({$payload['uploads']['present']}/{$payload['uploads']['total']} present)\n";
 
-		if (($payload['post_import_build']['ran'] ?? false) === true) {
+		if (($payload['post_import_maintenance']['ran'] ?? false) === true) {
+			echo 'Post-import maintenance: ' . (($payload['post_import_maintenance']['success'] ?? false) ? 'OK' : 'ERROR') . "\n";
+
+			foreach (($payload['post_import_maintenance']['steps'] ?? []) as $step) {
+				if (!is_array($step) || ($step['ran'] ?? false) !== true) {
+					continue;
+				}
+
+				echo '  - ' . (string) ($step['command'] ?? 'post-import step') . ': '
+					. (($step['success'] ?? false) ? 'OK' : 'ERROR') . "\n";
+			}
+		} elseif (($payload['post_import_build']['ran'] ?? false) === true) {
 			echo 'Post-import build: ' . (($payload['post_import_build']['success'] ?? false) ? 'OK' : 'ERROR') . "\n";
 		}
 
