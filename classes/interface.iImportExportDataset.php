@@ -23,7 +23,7 @@ interface iImportExportDataset
 	 *   required?: bool,
 	 *   default?: string,
 	 *   help?: string,
-	 *   options?: array<string, string>,
+	 *   options?: array<array-key, string>,
 	 *   accept?: string
 	 * }>
 	 */
@@ -36,7 +36,7 @@ interface iImportExportDataset
 	 *   required?: bool,
 	 *   default?: string,
 	 *   help?: string,
-	 *   options?: array<string, string>,
+	 *   options?: array<array-key, string>,
 	 *   accept?: string
 	 * }>
 	 */
@@ -51,6 +51,14 @@ interface iImportExportDataset
 	 * @param array<string, string> $options
 	 */
 	public function buildExportFilename(array $options): string;
+
+	public function getExportContentType(): string;
+
+	public function getExportTitle(): string;
+
+	public function getImportTitle(): string;
+
+	public function getExportActionLabel(): string;
 
 	/**
 	 * @param array<string, string> $options

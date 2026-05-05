@@ -45,4 +45,24 @@ abstract class AbstractImportExportDataset implements iImportExportDataset
 	{
 		return $this->getKey() . '.csv';
 	}
+
+	public function getExportContentType(): string
+	{
+		return 'text/csv; charset=UTF-8';
+	}
+
+	public function getExportTitle(): string
+	{
+		return t('import_export.export.title');
+	}
+
+	public function getImportTitle(): string
+	{
+		return t('import_export.import.title');
+	}
+
+	public function getExportActionLabel(): string
+	{
+		return t('import_export.action.export_csv');
+	}
 }
