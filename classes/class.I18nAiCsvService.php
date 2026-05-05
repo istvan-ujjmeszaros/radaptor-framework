@@ -66,7 +66,7 @@ class I18nAiCsvService
 				:export_locale AS locale,
 				m.source_text,
 				COALESCE(t.text, '') AS expected_text,
-				CASE WHEN t.human_reviewed = 1 THEN '1' ELSE '0' END AS human_reviewed,
+				'0' AS human_reviewed,
 				COALESCE(t.text, '') AS text
 			FROM i18n_messages m
 			LEFT JOIN i18n_translations t
@@ -129,7 +129,7 @@ class I18nAiCsvService
 		}
 
 		$dataset = new ImportExportDatasetI18nTranslations();
-		$result = $dataset->import($csv_content, [
+		$result = $dataset->import(self::normalizeAiImportCsv($csv_content), [
 			'format' => 'normalized',
 			'mode' => CsvImportMode::Upsert->value,
 			'expect_locale' => $expected_locale,
@@ -147,16 +147,29 @@ class I18nAiCsvService
 			];
 		}
 
+		$review_reset = 0;
+
+		if (!$dry_run && empty($result['errors']) && $validation['review_reset_rows'] !== []) {
+			$review_reset = self::resetChangedRowsForReview($validation['review_reset_rows']);
+		}
+
 		return [
 			'status' => empty($result['errors']) ? 'success' : 'error',
 			...$result,
 			'dry_run' => $dry_run,
 			'warnings' => $validation['warnings'],
+			'ai_review_reset' => $dry_run ? count($validation['review_reset_rows']) : $review_reset,
 		];
 	}
 
 	/**
-	 * @return array{errors: list<string>, warnings: list<string>, rows: int, locales: list<string>}
+	 * @return array{
+	 *     errors: list<string>,
+	 *     warnings: list<string>,
+	 *     rows: int,
+	 *     locales: list<string>,
+	 *     review_reset_rows: list<array{domain: string, key: string, context: string, locale: string, text: string}>
+	 * }
 	 */
 	private static function validateCsv(string $csv_content, string $expected_locale): array
 	{
@@ -164,7 +177,13 @@ class I18nAiCsvService
 		$handle = fopen('php://temp', 'r+');
 
 		if ($handle === false) {
-			return ['errors' => ['Unable to open temporary CSV stream.'], 'warnings' => [], 'rows' => 0, 'locales' => []];
+			return [
+				'errors' => ['Unable to open temporary CSV stream.'],
+				'warnings' => [],
+				'rows' => 0,
+				'locales' => [],
+				'review_reset_rows' => [],
+			];
 		}
 
 		fwrite($handle, $csv_content);
@@ -174,7 +193,13 @@ class I18nAiCsvService
 		if ($header === false) {
 			fclose($handle);
 
-			return ['errors' => ['CSV is empty.'], 'warnings' => [], 'rows' => 0, 'locales' => []];
+			return [
+				'errors' => ['CSV is empty.'],
+				'warnings' => [],
+				'rows' => 0,
+				'locales' => [],
+				'review_reset_rows' => [],
+			];
 		}
 
 		$header = array_map(
@@ -193,6 +218,7 @@ class I18nAiCsvService
 				'warnings' => $warnings,
 				'rows' => 0,
 				'locales' => [],
+				'review_reset_rows' => [],
 			];
 		}
 
@@ -200,6 +226,7 @@ class I18nAiCsvService
 		$line = 1;
 		$row_count = 0;
 		$locales = [];
+		$review_reset_rows = [];
 
 		while (($row = fgetcsv($handle, 0, ',', '"', '')) !== false) {
 			$line++;
@@ -269,6 +296,16 @@ class I18nAiCsvService
 				if ($is_human_reviewed && $expected_text === '' && $incoming_text !== $current_text) {
 					$errors[] = "Line {$line}: human-reviewed translation updates require expected_text.";
 				}
+
+				if ($incoming_text !== '' && $incoming_text !== $current_text) {
+					$review_reset_rows[] = [
+						'domain' => trim($data['domain'] ?? ''),
+						'key' => trim($data['key'] ?? ''),
+						'context' => trim($data['context'] ?? ''),
+						'locale' => $locale,
+						'text' => $incoming_text,
+					];
+				}
 			}
 
 			if (trim((string) ($data['text'] ?? '')) === '') {
@@ -289,7 +326,87 @@ class I18nAiCsvService
 			'warnings' => array_values(array_unique($warnings)),
 			'rows' => $row_count,
 			'locales' => $locales,
+			'review_reset_rows' => $review_reset_rows,
 		];
+	}
+
+	private static function normalizeAiImportCsv(string $csv_content): string
+	{
+		$csv_content = ltrim($csv_content, "\xEF\xBB\xBF");
+		$input = fopen('php://temp', 'r+');
+		$output = fopen('php://temp', 'r+');
+
+		if ($input === false || $output === false) {
+			throw new RuntimeException('Unable to open temporary CSV stream.');
+		}
+
+		fwrite($input, $csv_content);
+		rewind($input);
+		fwrite($output, "\xEF\xBB\xBF");
+
+		$header = fgetcsv($input, 0, ',', '"', '');
+
+		if ($header === false) {
+			fclose($input);
+			fclose($output);
+
+			throw new RuntimeException('CSV is empty.');
+		}
+
+		$review_index = array_search('human_reviewed', $header, true);
+
+		fputcsv($output, $header, ',', '"', '');
+
+		while (($row = fgetcsv($input, 0, ',', '"', '')) !== false) {
+			if ($review_index !== false && !self::isIgnorableRow($row)) {
+				$row[$review_index] = '0';
+			}
+
+			fputcsv($output, $row, ',', '"', '');
+		}
+
+		fclose($input);
+		rewind($output);
+		$csv = stream_get_contents($output);
+		fclose($output);
+
+		if ($csv === false) {
+			throw new RuntimeException('Unable to read generated CSV stream.');
+		}
+
+		return $csv;
+	}
+
+	/**
+	 * @param list<array{domain: string, key: string, context: string, locale: string, text: string}> $rows
+	 */
+	private static function resetChangedRowsForReview(array $rows): int
+	{
+		$pdo = Db::instance();
+		$stmt = $pdo->prepare(
+			'UPDATE i18n_translations
+			SET human_reviewed = 0
+			WHERE domain = :domain
+				AND `key` = :key
+				AND context = :context
+				AND locale = :locale
+				AND text = :text
+				AND human_reviewed <> 0'
+		);
+		$count = 0;
+
+		foreach ($rows as $row) {
+			$stmt->execute([
+				':domain' => $row['domain'],
+				':key' => $row['key'],
+				':context' => $row['context'],
+				':locale' => $row['locale'],
+				':text' => $row['text'],
+			]);
+			$count += $stmt->rowCount();
+		}
+
+		return $count;
 	}
 
 	/**
