@@ -229,13 +229,7 @@ abstract class EventResolver implements iEvent
 	 */
 	public static function _denyResponse(PolicyDecision $decision): void
 	{
-		$accept = (string) ($_SERVER['HTTP_ACCEPT'] ?? '');
-		$isJsonAccept = str_contains($accept, 'application/json');
-		$isAjax = strtolower((string) ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '')) === 'xmlhttprequest';
-		$isHtmx = strtolower((string) ($_SERVER['HTTP_HX_REQUEST'] ?? '')) === 'true';
-		$isApiReq = $isJsonAccept || $isAjax || $isHtmx;
-
-		if ($isApiReq) {
+		if (Request::wantsNonHtmlResponse()) {
 			http_response_code(403);
 			ApiResponse::renderError('ACCESS_DENIED', t('response_error.access_denied'), 403);
 		} else {

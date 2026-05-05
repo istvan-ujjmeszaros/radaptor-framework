@@ -172,12 +172,7 @@ class Kernel
 			exit(1);
 		}
 
-		// Determine if the request is an API call
-		$server = !empty(RequestContextHolder::current()->SERVER) ? RequestContextHolder::current()->SERVER : $_SERVER;
-		$accept = $server['HTTP_ACCEPT'] ?? $server['http_accept'] ?? '';
-		$isApiRequest = is_string($accept) && strpos($accept, 'application/json') !== false;
-
-		if ($isApiRequest) {
+		if (Request::wantsNonHtmlResponse()) {
 			// Respond with JSON for API requests
 			header('Content-Type: application/json');
 			echo json_encode(

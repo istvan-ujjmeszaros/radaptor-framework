@@ -238,6 +238,7 @@ class MigrationRunner
 		}
 
 		try {
+			MigrationContentGuard::assertMigrationSourceAllowed($migration['filepath']);
 			$runtime_class_name = self::loadMigrationClass($migration);
 		} catch (RuntimeException $e) {
 			return [
@@ -276,7 +277,6 @@ class MigrationRunner
 				$started_transaction = true;
 			}
 
-			MigrationContentGuard::assertMigrationSourceAllowed($migration['filepath']);
 			$resource_tree_snapshot = MigrationContentGuard::snapshotResourceTreeNodeIds();
 
 			try {
