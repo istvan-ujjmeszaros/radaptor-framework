@@ -36,6 +36,8 @@ final class I18nSeedTargetDiscoveryTest extends TestCase
 		self::createPackage($root . '/packages/registry/core/active-core', 'core', 'active-core');
 		self::createPackage($root . '/packages/registry/core/inactive-core', 'core', 'inactive-core');
 		self::createPackage($root . '/packages/registry/themes/inactive-theme', 'theme', 'inactive-theme');
+		self::createPackage($root . '/packages/dev/core/dev-core', 'core', 'dev-core');
+		self::createPackage($root . '/packages/dev/themes/dev-theme', 'theme', 'dev-theme');
 		self::mkdir($root . '/plugins/dev/locked-plugin/i18n/seeds');
 		self::mkdir($root . '/plugins/dev/inactive-plugin/i18n/seeds');
 		self::mkdir($root . '/plugins/registry/registry-only-plugin/i18n/seeds');
@@ -98,6 +100,8 @@ final class I18nSeedTargetDiscoveryTest extends TestCase
 		$this->assertContains('locked-plugin', $groupIds);
 		$this->assertNotContains('inactive-core', $groupIds);
 		$this->assertNotContains('inactive-theme', $groupIds);
+		$this->assertNotContains('dev-core', $groupIds);
+		$this->assertNotContains('dev-theme', $groupIds);
 		$this->assertNotContains('inactive-plugin', $groupIds);
 		$this->assertNotContains('registry-only-plugin', $groupIds);
 	}
@@ -117,6 +121,8 @@ final class I18nSeedTargetDiscoveryTest extends TestCase
 		$this->assertContains('locked-plugin', $groupIds);
 		$this->assertContains('inactive-core', $groupIds);
 		$this->assertContains('inactive-theme', $groupIds);
+		$this->assertContains('dev-core', $groupIds);
+		$this->assertContains('dev-theme', $groupIds);
 		$this->assertContains('inactive-plugin', $groupIds);
 		$this->assertContains('registry-only-plugin', $groupIds);
 		$this->assertNotContains('ignored', $groupIds);

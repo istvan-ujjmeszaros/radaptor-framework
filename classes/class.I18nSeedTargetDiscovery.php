@@ -268,15 +268,36 @@ class I18nSeedTargetDiscovery
 	/**
 	 * @return list<string>
 	 */
+	private static function listNestedPackageDirectories(string $collection_parent_dir): array
+	{
+		$roots = [];
+
+		foreach (self::listImmediateDirectories($collection_parent_dir) as $collection_dir) {
+			$roots = [...$roots, ...self::listImmediateDirectories($collection_dir)];
+		}
+
+		$roots = array_values(array_unique(array_map([self::class, 'normalizePath'], $roots)));
+		sort($roots);
+
+		return $roots;
+	}
+
+	/**
+	 * @return list<string>
+	 */
 	private static function discoverAllPackageRoots(): array
 	{
 		$roots = [];
 		$workspace_root = WorkspaceConsumerDiscovery::resolveWorkspaceRoot();
 
 		foreach ([
-			DEPLOY_ROOT . 'packages/registry/core',
-			DEPLOY_ROOT . 'packages/registry/themes',
-			DEPLOY_ROOT . 'packages/registry/plugins',
+			DEPLOY_ROOT . 'packages/registry',
+			DEPLOY_ROOT . 'packages/dev',
+		] as $collection_parent_dir) {
+			$roots = [...$roots, ...self::listNestedPackageDirectories($collection_parent_dir)];
+		}
+
+		foreach ([
 			DEPLOY_ROOT . 'plugins/dev',
 			DEPLOY_ROOT . 'plugins/registry',
 		] as $collection_dir) {
@@ -284,13 +305,7 @@ class I18nSeedTargetDiscovery
 		}
 
 		if (is_string($workspace_root) && $workspace_root !== '') {
-			foreach ([
-				$workspace_root . '/packages-dev/core',
-				$workspace_root . '/packages-dev/themes',
-				$workspace_root . '/packages-dev/plugins',
-			] as $collection_dir) {
-				$roots = [...$roots, ...self::listImmediateDirectories($collection_dir)];
-			}
+			$roots = [...$roots, ...self::listNestedPackageDirectories($workspace_root . '/packages-dev')];
 		}
 
 		$roots = array_values(array_unique(array_map([self::class, 'normalizePath'], $roots)));
