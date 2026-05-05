@@ -179,10 +179,10 @@ class I18nSeedExportService
 
 		fwrite($handle, $csv);
 		rewind($handle);
-		fgetcsv($handle, 0, ',', '"', '\\');
+		fgetcsv($handle, 0, ',', '"', '');
 		$count = 0;
 
-		while (($row = fgetcsv($handle, 0, ',', '"', '\\')) !== false) {
+		while (($row = fgetcsv($handle, 0, ',', '"', '')) !== false) {
 			if (CsvHelper::isIgnorableRawRow($row)) {
 				continue;
 			}

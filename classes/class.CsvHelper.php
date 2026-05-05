@@ -44,7 +44,7 @@ class CsvHelper
 		$buf = fopen('php://temp', 'r+');
 
 		fwrite($buf, self::_BOM);
-		fputcsv($buf, $columns, ',', '"', '\\');
+		fputcsv($buf, $columns, ',', '"', '');
 
 		foreach ($map->exportRows($filters) as $row) {
 			$line = [];
@@ -53,7 +53,7 @@ class CsvHelper
 				$line[] = (string) ($row[$col] ?? '');
 			}
 
-			fputcsv($buf, $line, ',', '"', '\\');
+			fputcsv($buf, $line, ',', '"', '');
 		}
 
 		rewind($buf);
@@ -199,7 +199,7 @@ class CsvHelper
 		rewind($handle);
 
 		// Parse header row
-		$headers = fgetcsv($handle, 0, ',', '"', '\\');
+		$headers = fgetcsv($handle, 0, ',', '"', '');
 
 		if ($headers === false) {
 			fclose($handle);
@@ -247,7 +247,7 @@ class CsvHelper
 		$row_results      = [];
 		$lineNumber       = 1;
 
-		while (($rawRow = fgetcsv($handle, 0, ',', '"', '\\')) !== false) {
+		while (($rawRow = fgetcsv($handle, 0, ',', '"', '')) !== false) {
 			$lineNumber++;
 
 			if (self::isIgnorableRawRow($rawRow)) {

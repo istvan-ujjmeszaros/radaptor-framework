@@ -20,7 +20,6 @@ class I18nShippedSeedRegistry
 		}
 
 		$cms_root = rtrim($cms_root, '/');
-		$blog_root = rtrim(PackagePathHelper::getPackageRoot('plugin', 'blog') ?? (DEPLOY_ROOT . 'plugins/dev/blog'), '/');
 
 		return [
 			[
@@ -33,10 +32,12 @@ class I18nShippedSeedRegistry
 					'common',
 					'datatable',
 					'layout',
+					'mcp',
 					'record_action',
 					'record_meta',
 					'resource',
 					'response_error',
+					'runtime_diagnostics',
 					'selection',
 					'social',
 					'system_message',
@@ -62,6 +63,13 @@ class I18nShippedSeedRegistry
 			],
 			[
 				'group_type' => 'core',
+				'group_id' => 'cms_cli_runner',
+				'seed_dir' => $cms_root . '/modules-common/CLIRunner/i18n/seeds',
+				'domains' => ['cli_runner'],
+				'key_prefixes' => [],
+			],
+			[
+				'group_type' => 'core',
 				'group_id' => 'cms_tags',
 				'seed_dir' => $cms_root . '/modules-common/Tags/i18n/seeds',
 				'domains' => ['tags'],
@@ -74,13 +82,6 @@ class I18nShippedSeedRegistry
 				'domains' => ['user'],
 				'key_prefixes' => [],
 			],
-			[
-				'group_type' => 'plugin',
-				'group_id' => 'blog',
-				'seed_dir' => $blog_root . '/modules/Blog/i18n/seeds',
-				'domains' => ['blog'],
-				'key_prefixes' => [],
-			],
 		];
 	}
 
@@ -91,11 +92,13 @@ class I18nShippedSeedRegistry
 	{
 		$targets = [];
 
-		foreach (self::getStaticTargets() as $target) {
+		foreach (I18nSeedTargetDiscovery::discoverTargets() as $target) {
 			$targets[] = [
 				'group_type' => $target['group_type'],
 				'group_id' => $target['group_id'],
-				'input_dir' => $target['seed_dir'],
+				'input_dir' => $target['input_dir'],
+				'source' => (string) ($target['source'] ?? 'static'),
+				'relative_path' => (string) ($target['relative_path'] ?? ''),
 			];
 		}
 

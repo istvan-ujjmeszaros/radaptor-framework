@@ -32,7 +32,6 @@ class I18nShippedSyncService
 	{
 		return self::syncPaths(
 			I18nShippedSeedRegistry::getSyncTargets(),
-			PluginLockfile::getPath(),
 			$options
 		);
 	}
@@ -64,16 +63,13 @@ class I18nShippedSyncService
 	 *     groups: list<array<string, mixed>>
 	 * }
 	 */
-	public static function syncPaths(array $core_seed_targets, string $lock_path, array $options = []): array
+	public static function syncPaths(array $core_seed_targets, array $options = []): array
 	{
 		$dry_run = (bool) ($options['dry_run'] ?? false);
 		$build_requested = (bool) ($options['build'] ?? true);
 		$mode = trim((string) ($options['mode'] ?? CsvImportMode::Upsert->value));
 		$locales_filter = self::normalizeLocales($options['locales'] ?? []);
-		$targets = [
-			...$core_seed_targets,
-			...self::discoverPluginSeedTargets($lock_path),
-		];
+		$targets = self::uniqueTargets($core_seed_targets);
 
 		usort($targets, static function (array $left, array $right): int {
 			return [$left['group_type'], $left['group_id']] <=> [$right['group_type'], $right['group_id']];
@@ -136,57 +132,29 @@ class I18nShippedSyncService
 	}
 
 	/**
+	 * @param list<array{group_type:string,group_id:string,input_dir:string}> $targets
 	 * @return list<array{group_type:string,group_id:string,input_dir:string}>
 	 */
-	private static function discoverPluginSeedTargets(string $lock_path): array
+	private static function uniqueTargets(array $targets): array
 	{
-		if (!file_exists($lock_path)) {
-			return [];
-		}
+		$unique = [];
+		$seen = [];
 
-		$lock = PluginLockfile::loadFromPath($lock_path);
-		$targets = [];
-		$base_dir = dirname($lock_path);
+		foreach ($targets as $target) {
+			$input_dir = rtrim(str_replace('\\', '/', (string) $target['input_dir']), '/');
+			$real = realpath($input_dir);
+			$key = $real !== false ? rtrim(str_replace('\\', '/', $real), '/') : $input_dir;
 
-		foreach ($lock['plugins'] as $plugin_id => $plugin) {
-			$plugin_path = self::resolveLockedPluginPath($plugin, $base_dir);
-
-			if ($plugin_path === null) {
+			if (isset($seen[$key])) {
 				continue;
 			}
 
-			$targets[] = [
-				'group_type' => 'plugin',
-				'group_id' => (string) $plugin_id,
-				'input_dir' => rtrim($plugin_path, '/') . '/i18n/seeds',
-			];
+			$seen[$key] = true;
+			$target['input_dir'] = $key;
+			$unique[] = $target;
 		}
 
-		return $targets;
-	}
-
-	/**
-	 * @param array<string, mixed> $plugin
-	 */
-	private static function resolveLockedPluginPath(array $plugin, string $base_dir): ?string
-	{
-		$resolved = $plugin['resolved'] ?? null;
-
-		if (!is_array($resolved)) {
-			return null;
-		}
-
-		$path = $resolved['path'] ?? null;
-
-		if (!is_string($path) || trim($path) === '') {
-			return null;
-		}
-
-		if (str_starts_with($path, '/')) {
-			return rtrim($path, '/');
-		}
-
-		return rtrim($base_dir . '/' . ltrim($path, '/'), '/');
+		return $unique;
 	}
 
 	/**
