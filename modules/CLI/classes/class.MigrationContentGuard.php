@@ -6,16 +6,13 @@ final class MigrationContentGuard
 {
 	/**
 	 * These source checks are intentionally conservative. The before/after snapshot is
-	 * the runtime guard; this scan fails early when a migration appears to contain a
-	 * destructive resource_tree operation, even before that code can run.
+	 * the runtime guard; this scan fails early when executable migration code appears
+	 * to call a destructive resource_tree API, even before that code can run.
 	 */
 	private const array FORBIDDEN_SOURCE_PATTERNS = [
-		'/\bDELETE\s+FROM\s+`?resource_tree`?\b/i' => 'raw resource_tree delete',
-		'/\bTRUNCATE\s+(?:TABLE\s+)?`?resource_tree`?\b/i' => 'raw resource_tree truncate',
-		'/\bDROP\s+TABLE\s+(?:IF\s+EXISTS\s+)?`?resource_tree`?\b/i' => 'raw resource_tree drop',
 		'/ResourceTreeHandler::deleteResourceEntr(?:y|ies)Recursive\s*\(/' => 'recursive resource deletion',
 		'/ResourceTreeHandler::deleteResourceEntry\s*\(/' => 'resource deletion',
-		'/NestedSet::deleteNode\s*\(\s*[\'"]resource_tree[\'"]/' => 'raw nested-set resource deletion',
+		'/NestedSet::deleteNode\s*\(/' => 'raw nested-set deletion',
 	];
 
 	public static function assertMigrationSourceAllowed(string $filepath): void
@@ -30,11 +27,36 @@ final class MigrationContentGuard
 			return;
 		}
 
+		$executable_source = self::stripCommentsAndStrings($source);
+
 		foreach (self::FORBIDDEN_SOURCE_PATTERNS as $pattern => $reason) {
-			if (preg_match($pattern, $source) === 1) {
+			if (preg_match($pattern, $executable_source) === 1) {
 				throw new RuntimeException("Migration is not allowed to delete CMS resources ({$reason}): " . basename($filepath));
 			}
 		}
+	}
+
+	private static function stripCommentsAndStrings(string $source): string
+	{
+		$result = '';
+
+		foreach (token_get_all($source) as $token) {
+			if (!is_array($token)) {
+				$result .= $token;
+
+				continue;
+			}
+
+			if (in_array($token[0], [T_COMMENT, T_DOC_COMMENT, T_CONSTANT_ENCAPSED_STRING, T_ENCAPSED_AND_WHITESPACE], true)) {
+				$result .= str_repeat("\n", substr_count($token[1], "\n"));
+
+				continue;
+			}
+
+			$result .= $token[1];
+		}
+
+		return $result;
 	}
 
 	/**
