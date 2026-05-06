@@ -22,6 +22,10 @@ define('PERSISTENT_CACHE_KEY_RESOURCETYPE_WEBPAGE', "user:{$tmp_user_id}:REQUEST
 $is_fragment_request = (($_GET['context'] ?? '') === 'fragment')
 	|| strtolower((string)($_SERVER['HTTP_HX_REQUEST'] ?? '')) === 'true';
 
+if ($is_fragment_request) {
+	RequestContextHolder::disablePersistentCacheWrite();
+}
+
 //$persistentCache = new PersistentCacheMysql($sessionHandler->getConnection());
 //$persistentCache = new PersistentCacheMysql();
 $persistentCache = new PersistentCacheRedis();
