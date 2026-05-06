@@ -48,6 +48,10 @@ class AttributeHandler
 
 		Cache::flush();
 
+		if (class_exists(CmsRenderVersion::class)) {
+			CmsRenderVersion::touchForAttributeResource($resource);
+		}
+
 		return $modified;
 	}
 
@@ -83,5 +87,9 @@ class AttributeHandler
 			$resource->name,
 			$resource->id,
 		]);
+
+		if (class_exists(CmsRenderVersion::class)) {
+			CmsRenderVersion::touchForAttributeResource($resource);
+		}
 	}
 }
