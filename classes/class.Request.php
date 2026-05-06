@@ -119,6 +119,12 @@ class Request
 		$hx_request = strtolower(trim((string) ($server['HTTP_HX_REQUEST'] ?? $server['http_hx_request'] ?? '')));
 
 		if ($hx_request === 'true') {
+			$hx_boosted = strtolower(trim((string) ($server['HTTP_HX_BOOSTED'] ?? $server['http_hx_boosted'] ?? '')));
+
+			if ($hx_boosted === 'true') {
+				return false;
+			}
+
 			return true;
 		}
 

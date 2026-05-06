@@ -19,6 +19,9 @@ require_once rtrim($framework_root, '/') . "/modules/PersistentCache/classes/cla
 
 define('PERSISTENT_CACHE_KEY_RESOURCETYPE_WEBPAGE', "user:{$tmp_user_id}:REQUEST_URI:{$_SERVER['REQUEST_URI']}");
 
+$is_fragment_request = (($_GET['context'] ?? '') === 'fragment')
+	|| strtolower((string)($_SERVER['HTTP_HX_REQUEST'] ?? '')) === 'true';
+
 //$persistentCache = new PersistentCacheMysql($sessionHandler->getConnection());
 //$persistentCache = new PersistentCacheMysql();
 $persistentCache = new PersistentCacheRedis();
@@ -26,7 +29,7 @@ $persistentCache->initConnection();
 //$persistentCache->initSocketConnection();
 
 try {
-	if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+	if (!$is_fragment_request && $_SERVER['REQUEST_METHOD'] === 'GET') {
 		$cachedPage = $persistentCache->get(PERSISTENT_CACHE_KEY_RESOURCETYPE_WEBPAGE);
 
 		if (!is_null($cachedPage)) {
