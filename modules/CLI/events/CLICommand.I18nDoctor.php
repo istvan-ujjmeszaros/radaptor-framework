@@ -10,9 +10,9 @@ class CLICommandI18nDoctor extends AbstractCLICommand
 	public function getDocs(): string
 	{
 		return <<<'DOC'
-			Run the i18n seed linter, fallback literal scanner and coverage summary.
+			Run the i18n seed linter, fallback literal scanner, hardcoded UI scanner and coverage summary.
 
-			Usage: radaptor i18n:doctor [--all-packages] [--json]
+			Usage: radaptor i18n:doctor [--all-packages] [--json] [--strict-hardcoded]
 			DOC;
 	}
 
@@ -30,12 +30,16 @@ class CLICommandI18nDoctor extends AbstractCLICommand
 	{
 		$json = Request::hasArg('json');
 		$all_packages = Request::hasArg('all-packages');
+		$strict_hardcoded = Request::hasArg('strict-hardcoded');
 		$lint = I18nSeedLintService::lint(I18nSeedTargetDiscovery::discoverTargets([
 			'all_packages' => $all_packages,
 		]), [
 			'check_global_duplicates' => !$all_packages,
 		]);
 		$literals = I18nFallbackLiteralScanner::scan([
+			'all_packages' => $all_packages,
+		]);
+		$hardcoded = I18nHardcodedUiScanner::scan([
 			'all_packages' => $all_packages,
 		]);
 		$coverage = I18nCoverageService::summarize();
@@ -47,12 +51,17 @@ class CLICommandI18nDoctor extends AbstractCLICommand
 			static fn (array $locale): int => (int) ($locale['stale'] ?? 0),
 			$coverage['locales']
 		));
-		$failed = $lint['errors'] > 0 || $literals['issues'] > 0 || $missing_total > 0 || $stale_total > 0;
+		$failed = $lint['errors'] > 0
+			|| $literals['issues'] > 0
+			|| $missing_total > 0
+			|| $stale_total > 0
+			|| ($strict_hardcoded && $hardcoded['issues'] > 0);
 		$result = [
 			'status' => $failed ? 'error' : 'success',
 			'scope' => $all_packages ? 'all_packages' : 'active',
 			'lint' => $lint,
 			'literals' => $literals,
+			'hardcoded_ui' => $hardcoded,
 			'coverage' => $coverage,
 		];
 
@@ -69,6 +78,17 @@ class CLICommandI18nDoctor extends AbstractCLICommand
 		echo "Seed lint: {$lint['errors']} errors, {$lint['warnings']} warnings\n";
 		echo 'Scope: ' . ($all_packages ? 'all packages audit' : 'active sync scope') . "\n";
 		echo "Fallback literals: {$literals['issues']} issues, {$literals['allowed_literals']} allowed literals\n";
+		echo "Hardcoded UI literals: {$hardcoded['issues']} warnings\n";
+
+		foreach (array_slice($hardcoded['results'], 0, 10) as $row) {
+			echo "WARNING {$row['file']}:{$row['line']} literal=\"{$row['literal']}\" {$row['code']}\n";
+		}
+
+		if ($hardcoded['issues'] > 10) {
+			$remaining = $hardcoded['issues'] - 10;
+			echo "... and {$remaining} more hardcoded UI warning(s)\n";
+		}
+
 		echo "Coverage missing translations: {$missing_total}\n";
 		echo "Coverage stale translations: {$stale_total}\n";
 
