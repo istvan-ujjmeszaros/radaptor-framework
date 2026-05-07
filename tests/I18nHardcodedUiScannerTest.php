@@ -36,8 +36,11 @@ final class I18nHardcodedUiScannerTest extends TestCase
 			<button title="Delete message">Delete</button>
 			<input placeholder="Search">
 			<input placeholder="Save > Continue">
+			<input value="Default title">
+			<input type="text" value="Display name">
 			<input type="submit" value="Apply filter">
 			<input type="hidden" value="technical_format">
+			<input type="checkbox" value="internal_toggle">
 			<option value="technical_value">Visible option</option>
 			PHP);
 
@@ -50,11 +53,14 @@ final class I18nHardcodedUiScannerTest extends TestCase
 		self::assertContains('Delete', $literals);
 		self::assertContains('Search', $literals);
 		self::assertContains('Save > Continue', $literals);
+		self::assertContains('Default title', $literals);
+		self::assertContains('Display name', $literals);
 		self::assertContains('Apply filter', $literals);
 		self::assertContains('Visible option', $literals);
 		self::assertNotContains('Ignored', $literals);
 		self::assertNotContains('mailpit.subject', $literals);
 		self::assertNotContains('technical_format', $literals);
+		self::assertNotContains('internal_toggle', $literals);
 		self::assertNotContains('technical_value', $literals);
 		self::assertFalse(self::containsLiteralFragment($result, '<a href'));
 		self::assertFalse(self::containsLiteralFragment($result, 'Continue">'));

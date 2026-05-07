@@ -33,10 +33,20 @@ class I18nHardcodedUiScanner
 		'title',
 	];
 
-	private const array VISIBLE_INPUT_VALUE_TYPES = [
-		'button',
-		'reset',
-		'submit',
+	private const array NON_TRANSLATABLE_INPUT_VALUE_TYPES = [
+		'checkbox',
+		'color',
+		'date',
+		'datetime-local',
+		'file',
+		'hidden',
+		'image',
+		'month',
+		'password',
+		'radio',
+		'range',
+		'time',
+		'week',
 	];
 
 	private const array STANDALONE_LITERAL_ALLOWLIST = [
@@ -323,12 +333,12 @@ class I18nHardcodedUiScanner
 				$type_match
 			) !== 1
 		) {
-			return false;
+			return true;
 		}
 
 		$type = strtolower(trim((string) ($type_match[1] ?: ($type_match[2] ?: ($type_match[3] ?? '')))));
 
-		return in_array($type, self::VISIBLE_INPUT_VALUE_TYPES, true);
+		return !in_array($type, self::NON_TRANSLATABLE_INPUT_VALUE_TYPES, true);
 	}
 
 	private static function findNextHtmlTagStart(string $content, int $offset): ?int
