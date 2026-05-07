@@ -13,15 +13,30 @@ class I18nShippedSeedRegistry
 	 */
 	public static function getStaticTargets(): array
 	{
+		$framework_root = PackagePathHelper::getFrameworkRoot();
 		$cms_root = PackagePathHelper::getCmsRoot();
+
+		if (!is_string($framework_root) || !is_dir($framework_root)) {
+			throw new RuntimeException('Framework package root is unavailable.');
+		}
 
 		if (!is_string($cms_root) || !is_dir($cms_root)) {
 			throw new RuntimeException('CMS package root is unavailable.');
 		}
 
+		$framework_root = rtrim($framework_root, '/');
 		$cms_root = rtrim($cms_root, '/');
 
 		return [
+			[
+				'group_type' => 'core',
+				'group_id' => 'framework',
+				'seed_dir' => $framework_root . '/i18n/seeds',
+				'domains' => [
+					'browser_event_docs',
+				],
+				'key_prefixes' => [],
+			],
 			[
 				'group_type' => 'core',
 				'group_id' => 'cms_root',

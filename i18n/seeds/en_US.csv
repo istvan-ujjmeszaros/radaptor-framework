@@ -1,0 +1,41 @@
+domain,key,context,locale,source_text,expected_text,human_reviewed,text
+browser_event_docs,title,,en_US,"Browser Event API Docs","Browser Event API Docs",0,"Browser Event API Docs"
+browser_event_docs,fallback_title,,en_US,"Browser Event Docs","Browser Event Docs",0,"Browser Event Docs"
+browser_event_docs,unknown_event,,en_US,"Unknown event","Unknown event",0,"Unknown event"
+browser_event_docs,lead,,en_US,"Curated manual for important browser events. Total documented events: {total}","Curated manual for important browser events. Total documented events: {total}",0,"Curated manual for important browser events. Total documented events: {total}"
+browser_event_docs,empty_prefix,,en_US,"No browser event docs were generated yet. Run","No browser event docs were generated yet. Run",0,"No browser event docs were generated yet. Run"
+browser_event_docs,back_to_index,,en_US,"Back to Browser Event API Docs","Back to Browser Event API Docs",0,"Back to Browser Event API Docs"
+browser_event_docs,col.name,,en_US,Name,Name,0,Name
+browser_event_docs,col.route,,en_US,Route,Route,0,Route
+browser_event_docs,col.slug,,en_US,Slug,Slug,0,Slug
+browser_event_docs,col.summary,,en_US,Summary,Summary,0,Summary
+browser_event_docs,section.description,,en_US,Description,Description,0,Description
+browser_event_docs,section.identity,,en_US,Identity,Identity,0,Identity
+browser_event_docs,identity.slug,,en_US,Slug,Slug,0,Slug
+browser_event_docs,identity.event_name,,en_US,"Event Name","Event Name",0,"Event Name"
+browser_event_docs,identity.browser_route,,en_US,"Browser Route","Browser Route",0,"Browser Route"
+browser_event_docs,identity.class,,en_US,Class,Class,0,Class
+browser_event_docs,section.authorization,,en_US,Authorization,Authorization,0,Authorization
+browser_event_docs,authorization.visibility,,en_US,Visibility,Visibility,0,Visibility
+browser_event_docs,authorization.description,,en_US,Description,Description,0,Description
+browser_event_docs,section.request_response,,en_US,"Request / Response","Request / Response",0,"Request / Response"
+browser_event_docs,request.method,,en_US,Method,Method,0,Method
+browser_event_docs,response.kind,,en_US,"Response Kind","Response Kind",0,"Response Kind"
+browser_event_docs,response.content_type,,en_US,"Content Type","Content Type",0,"Content Type"
+browser_event_docs,response.description,,en_US,"Response Description","Response Description",0,"Response Description"
+browser_event_docs,section.invocation,,en_US,"How to Call This","How to Call This",0,"How to Call This"
+browser_event_docs,invocation.url_php,,en_US,"PHP URL Helper","PHP URL Helper",0,"PHP URL Helper"
+browser_event_docs,invocation.template_helper,,en_US,"Template Helper","Template Helper",0,"Template Helper"
+browser_event_docs,invocation.ajax_helper,,en_US,"AJAX Helper","AJAX Helper",0,"AJAX Helper"
+browser_event_docs,invocation.ajax_helper_raw,,en_US,"AJAX Helper Raw","AJAX Helper Raw",0,"AJAX Helper Raw"
+browser_event_docs,section.parameters,,en_US,Parameters,Parameters,0,Parameters
+browser_event_docs,parameters.empty,,en_US,"No parameters documented.","No parameters documented.",0,"No parameters documented."
+browser_event_docs,parameter.name,,en_US,Name,Name,0,Name
+browser_event_docs,parameter.source,,en_US,Source,Source,0,Source
+browser_event_docs,parameter.type,,en_US,Type,Type,0,Type
+browser_event_docs,parameter.required,,en_US,Required,Required,0,Required
+browser_event_docs,parameter.description,,en_US,Description,Description,0,Description
+browser_event_docs,required_yes,,en_US,yes,yes,0,yes
+browser_event_docs,required_no,,en_US,no,no,0,no
+browser_event_docs,section.notes,,en_US,Notes,Notes,0,Notes
+browser_event_docs,section.side_effects,,en_US,"Side Effects","Side Effects",0,"Side Effects"
