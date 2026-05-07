@@ -14,6 +14,10 @@ class I18nHardcodedUiScanner
 		'vendor',
 	];
 
+	private const array EXCLUDED_PATH_PARTS = [
+		'/generators/templates/',
+	];
+
 	private const array IGNORED_TEXT_TAGS = [
 		'script',
 		'style',
@@ -29,10 +33,10 @@ class I18nHardcodedUiScanner
 		'title',
 	];
 
-	private const array VALUE_TAGS = [
+	private const array VISIBLE_INPUT_VALUE_TYPES = [
 		'button',
-		'input',
-		'option',
+		'reset',
+		'submit',
 	];
 
 	private const array STANDALONE_LITERAL_ALLOWLIST = [
@@ -261,7 +265,7 @@ class I18nHardcodedUiScanner
 		foreach ($matches as $match) {
 			$attribute = strtolower((string) $match[1][0]);
 			$allowed = in_array($attribute, self::TRANSLATABLE_ATTRIBUTES, true)
-				|| ($attribute === 'value' && in_array($tag_name, self::VALUE_TAGS, true));
+				|| ($attribute === 'value' && self::isVisibleValueAttribute($tag_source, $tag_name));
 
 			if (!$allowed) {
 				continue;
@@ -304,6 +308,27 @@ class I18nHardcodedUiScanner
 		}
 
 		return $results;
+	}
+
+	private static function isVisibleValueAttribute(string $tag_source, string $tag_name): bool
+	{
+		if ($tag_name !== 'input') {
+			return false;
+		}
+
+		if (
+			preg_match(
+				'/\stype\s*=\s*(?:"([^"]*)"|\'([^\']*)\'|([^\s"\'=<>`]+))/i',
+				$tag_source,
+				$type_match
+			) !== 1
+		) {
+			return false;
+		}
+
+		$type = strtolower(trim((string) ($type_match[1] ?: ($type_match[2] ?: ($type_match[3] ?? '')))));
+
+		return in_array($type, self::VISIBLE_INPUT_VALUE_TYPES, true);
 	}
 
 	private static function findNextHtmlTagStart(string $content, int $offset): ?int
@@ -403,6 +428,7 @@ class I18nHardcodedUiScanner
 		$patterns = [
 			'/<\?(?:php|=)?[\s\S]*?\?>/i',
 			'/\{\{--[\s\S]*?--\}\}/',
+			'/(?<![A-Za-z0-9_])@php\b[\s\S]*?(?<![A-Za-z0-9_])@endphp\b/',
 			'/\{!![\s\S]*?!!\}/',
 			'/\{\{[\s\S]*?\}\}/',
 			'/\{%[\s\S]*?%\}/',
@@ -571,6 +597,10 @@ class I18nHardcodedUiScanner
 
 			$file = self::normalizePath($file_info->getPathname());
 
+			if (self::isExcludedPath($file)) {
+				continue;
+			}
+
 			if (self::templateFormat($file) !== null) {
 				$files[] = $file;
 			}
@@ -598,6 +628,17 @@ class I18nHardcodedUiScanner
 		}
 
 		return null;
+	}
+
+	private static function isExcludedPath(string $file): bool
+	{
+		foreach (self::EXCLUDED_PATH_PARTS as $excluded_path_part) {
+			if (str_contains($file, $excluded_path_part)) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	private static function normalizePath(string $path): string

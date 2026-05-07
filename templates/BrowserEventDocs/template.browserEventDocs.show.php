@@ -10,7 +10,7 @@ $sideEffects = $meta['side_effects'] ?? [];
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title><?= e((string) ($meta['name'] ?? 'Browser Event Docs')) ?></title>
+	<title><?= e((string) ($meta['name'] ?? t('browser_event_docs.fallback_title'))) ?></title>
 	<style>
 		* { box-sizing: border-box; }
 		body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0d1321; color: #eef4ff; line-height: 1.55; }
@@ -36,108 +36,108 @@ $sideEffects = $meta['side_effects'] ?? [];
 </head>
 <body>
 	<div class="wrapper">
-		<a class="back" href="?context=events&amp;event=index&amp;format=html">Back to Browser Event API Docs</a>
-		<h1><?= e((string) ($meta['name'] ?? 'Unknown event')) ?></h1>
+		<a class="back" href="?context=events&amp;event=index&amp;format=html"><?= e(t('browser_event_docs.back_to_index')) ?></a>
+		<h1><?= e((string) ($meta['name'] ?? t('browser_event_docs.unknown_event'))) ?></h1>
 		<p class="subtitle"><?= e((string) ($meta['summary'] ?? '')) ?></p>
 
 		<div class="panel">
-			<h2>Description</h2>
+			<h2><?= e(t('browser_event_docs.section.description')) ?></h2>
 			<p><?= e((string) ($meta['description'] ?? '')) ?></p>
 		</div>
 
 		<div class="panel">
-			<h2>Identity</h2>
+			<h2><?= e(t('browser_event_docs.section.identity')) ?></h2>
 			<div class="grid">
 				<div>
-					<div class="label">Slug</div>
+					<div class="label"><?= e(t('browser_event_docs.identity.slug')) ?></div>
 					<div class="value"><code><?= e((string) ($meta['slug'] ?? '')) ?></code></div>
 				</div>
 				<div>
-					<div class="label">Event Name</div>
+					<div class="label"><?= e(t('browser_event_docs.identity.event_name')) ?></div>
 					<div class="value"><code><?= e((string) ($meta['route']['event_name'] ?? '')) ?></code></div>
 				</div>
 				<div>
-					<div class="label">Browser Route</div>
+					<div class="label"><?= e(t('browser_event_docs.identity.browser_route')) ?></div>
 					<div class="value"><code><?= e((string) ($meta['route']['query'] ?? '')) ?></code></div>
 				</div>
 				<div>
-					<div class="label">Class</div>
+					<div class="label"><?= e(t('browser_event_docs.identity.class')) ?></div>
 					<div class="value"><code><?= e((string) ($meta['class'] ?? '')) ?></code></div>
 				</div>
 			</div>
 		</div>
 
 		<div class="panel">
-			<h2>Authorization</h2>
+			<h2><?= e(t('browser_event_docs.section.authorization')) ?></h2>
 			<div class="grid">
 				<div>
-					<div class="label">Visibility</div>
+					<div class="label"><?= e(t('browser_event_docs.authorization.visibility')) ?></div>
 					<div class="value"><?= e((string) ($meta['authorization']['visibility'] ?? '')) ?></div>
 				</div>
 				<div>
-					<div class="label">Description</div>
+					<div class="label"><?= e(t('browser_event_docs.authorization.description')) ?></div>
 					<div class="value"><?= e((string) ($meta['authorization']['description'] ?? '')) ?></div>
 				</div>
 			</div>
 		</div>
 
 		<div class="panel">
-			<h2>Request / Response</h2>
+			<h2><?= e(t('browser_event_docs.section.request_response')) ?></h2>
 			<div class="grid">
 				<div>
-					<div class="label">Method</div>
+					<div class="label"><?= e(t('browser_event_docs.request.method')) ?></div>
 					<div class="value"><?= e((string) ($meta['request']['method'] ?? '')) ?></div>
 				</div>
 				<div>
-					<div class="label">Response Kind</div>
+					<div class="label"><?= e(t('browser_event_docs.response.kind')) ?></div>
 					<div class="value"><?= e((string) ($meta['response']['kind'] ?? '')) ?></div>
 				</div>
 				<div>
-					<div class="label">Content Type</div>
+					<div class="label"><?= e(t('browser_event_docs.response.content_type')) ?></div>
 					<div class="value"><?= e((string) ($meta['response']['content_type'] ?? '')) ?></div>
 				</div>
 				<div>
-					<div class="label">Response Description</div>
+					<div class="label"><?= e(t('browser_event_docs.response.description')) ?></div>
 					<div class="value"><?= e((string) ($meta['response']['description'] ?? '')) ?></div>
 				</div>
 			</div>
 		</div>
 
 		<div class="panel">
-			<h2>How to Call This</h2>
+			<h2><?= e(t('browser_event_docs.section.invocation')) ?></h2>
 			<div class="grid">
 				<div>
-					<div class="label">PHP URL Helper</div>
+					<div class="label"><?= e(t('browser_event_docs.invocation.url_php')) ?></div>
 					<div class="value helper-code"><code><?= e((string) ($meta['invocation']['url_php'] ?? '')) ?></code></div>
 				</div>
 				<div>
-					<div class="label">Template Helper</div>
+					<div class="label"><?= e(t('browser_event_docs.invocation.template_helper')) ?></div>
 					<div class="value helper-code"><code><?= e((string) ($meta['invocation']['template_helper'] ?? '')) ?></code></div>
 				</div>
 				<div>
-					<div class="label">AJAX Helper</div>
+					<div class="label"><?= e(t('browser_event_docs.invocation.ajax_helper')) ?></div>
 					<div class="value helper-code"><code><?= e((string) ($meta['invocation']['ajax_helper'] ?? '')) ?></code></div>
 				</div>
 				<div>
-					<div class="label">AJAX Helper Raw</div>
+					<div class="label"><?= e(t('browser_event_docs.invocation.ajax_helper_raw')) ?></div>
 					<div class="value helper-code"><code><?= e((string) ($meta['invocation']['ajax_helper_raw'] ?? '')) ?></code></div>
 				</div>
 			</div>
 		</div>
 
 		<div class="panel">
-			<h2>Parameters</h2>
+			<h2><?= e(t('browser_event_docs.section.parameters')) ?></h2>
 			<?php if (empty($params)): ?>
-				<p>No parameters documented.</p>
+				<p><?= e(t('browser_event_docs.parameters.empty')) ?></p>
 			<?php else: ?>
 				<table class="param-table">
 					<thead>
 					<tr>
-						<th>Name</th>
-						<th>Source</th>
-						<th>Type</th>
-						<th>Required</th>
-						<th>Description</th>
+						<th><?= e(t('browser_event_docs.parameter.name')) ?></th>
+						<th><?= e(t('browser_event_docs.parameter.source')) ?></th>
+						<th><?= e(t('browser_event_docs.parameter.type')) ?></th>
+						<th><?= e(t('browser_event_docs.parameter.required')) ?></th>
+						<th><?= e(t('browser_event_docs.parameter.description')) ?></th>
 					</tr>
 					</thead>
 					<tbody>
@@ -146,7 +146,7 @@ $sideEffects = $meta['side_effects'] ?? [];
 							<td><code><?= e((string) ($param['name'] ?? '')) ?></code></td>
 							<td><?= e((string) ($param['source'] ?? '')) ?></td>
 							<td><?= e((string) ($param['type'] ?? '')) ?></td>
-							<td><?= !empty($param['required']) ? 'yes' : 'no' ?></td>
+							<td><?= e(!empty($param['required']) ? t('browser_event_docs.required_yes') : t('browser_event_docs.required_no')) ?></td>
 							<td><?= e((string) ($param['description'] ?? '')) ?></td>
 						</tr>
 					<?php endforeach; ?>
@@ -157,7 +157,7 @@ $sideEffects = $meta['side_effects'] ?? [];
 
 		<?php if (!empty($notes)): ?>
 			<div class="panel">
-				<h2>Notes</h2>
+				<h2><?= e(t('browser_event_docs.section.notes')) ?></h2>
 				<ul class="note-list">
 					<?php foreach ($notes as $note): ?>
 						<li><?= e((string) $note) ?></li>
@@ -168,7 +168,7 @@ $sideEffects = $meta['side_effects'] ?? [];
 
 		<?php if (!empty($sideEffects)): ?>
 			<div class="panel">
-				<h2>Side Effects</h2>
+				<h2><?= e(t('browser_event_docs.section.side_effects')) ?></h2>
 				<ul class="note-list">
 					<?php foreach ($sideEffects as $effect): ?>
 						<li><?= e((string) $effect) ?></li>

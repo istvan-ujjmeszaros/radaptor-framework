@@ -8,7 +8,7 @@ $total = (int) ($this->props['total'] ?? 0);
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Browser Event API Docs</title>
+	<title><?= e(t('browser_event_docs.title')) ?></title>
 	<style>
 		* { box-sizing: border-box; }
 		body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0d1321; color: #eef4ff; line-height: 1.5; }
@@ -31,11 +31,11 @@ $total = (int) ($this->props['total'] ?? 0);
 </head>
 <body>
 	<div class="wrapper">
-		<h1>Browser Event API Docs</h1>
-		<p class="lead">Curated manual for important browser events. Total documented events: <?= $total ?></p>
+		<h1><?= e(t('browser_event_docs.title')) ?></h1>
+		<p class="lead"><?= e(t('browser_event_docs.lead', ['total' => (string) $total])) ?></p>
 
 		<?php if (empty($grouped)): ?>
-			<div class="empty">No browser event docs were generated yet. Run <code>php radaptor.php build:event-docs</code>.</div>
+			<div class="empty"><?= e(t('browser_event_docs.empty_prefix')) ?> <code>php radaptor.php build:event-docs</code>.</div>
 		<?php endif; ?>
 
 		<?php foreach ($grouped as $group => $events): ?>
@@ -44,10 +44,10 @@ $total = (int) ($this->props['total'] ?? 0);
 				<table>
 					<thead>
 					<tr>
-						<th>Name</th>
-						<th>Route</th>
-						<th>Slug</th>
-						<th>Summary</th>
+						<th><?= e(t('browser_event_docs.col.name')) ?></th>
+						<th><?= e(t('browser_event_docs.col.route')) ?></th>
+						<th><?= e(t('browser_event_docs.col.slug')) ?></th>
+						<th><?= e(t('browser_event_docs.col.summary')) ?></th>
 					</tr>
 					</thead>
 					<tbody>

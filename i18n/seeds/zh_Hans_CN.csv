@@ -1,0 +1,41 @@
+domain,key,context,locale,source_text,expected_text,human_reviewed,text
+browser_event_docs,title,,zh_Hans_CN,"Browser Event API Docs","浏览器事件 API 文档",0,"浏览器事件 API 文档"
+browser_event_docs,fallback_title,,zh_Hans_CN,"Browser Event Docs",浏览器事件文档,0,浏览器事件文档
+browser_event_docs,unknown_event,,zh_Hans_CN,"Unknown event",未知事件,0,未知事件
+browser_event_docs,lead,,zh_Hans_CN,"Curated manual for important browser events. Total documented events: {total}",重要浏览器事件的精选手册。已记录事件总数：{total},0,重要浏览器事件的精选手册。已记录事件总数：{total}
+browser_event_docs,empty_prefix,,zh_Hans_CN,"No browser event docs were generated yet. Run",尚未生成浏览器事件文档。运行,0,尚未生成浏览器事件文档。运行
+browser_event_docs,back_to_index,,zh_Hans_CN,"Back to Browser Event API Docs","返回浏览器事件 API 文档",0,"返回浏览器事件 API 文档"
+browser_event_docs,col.name,,zh_Hans_CN,Name,名称,0,名称
+browser_event_docs,col.route,,zh_Hans_CN,Route,路由,0,路由
+browser_event_docs,col.slug,,zh_Hans_CN,Slug,Slug,0,Slug
+browser_event_docs,col.summary,,zh_Hans_CN,Summary,摘要,0,摘要
+browser_event_docs,section.description,,zh_Hans_CN,Description,描述,0,描述
+browser_event_docs,section.identity,,zh_Hans_CN,Identity,身份,0,身份
+browser_event_docs,identity.slug,,zh_Hans_CN,Slug,Slug,0,Slug
+browser_event_docs,identity.event_name,,zh_Hans_CN,"Event Name",事件名称,0,事件名称
+browser_event_docs,identity.browser_route,,zh_Hans_CN,"Browser Route",浏览器路由,0,浏览器路由
+browser_event_docs,identity.class,,zh_Hans_CN,Class,类,0,类
+browser_event_docs,section.authorization,,zh_Hans_CN,Authorization,授权,0,授权
+browser_event_docs,authorization.visibility,,zh_Hans_CN,Visibility,可见性,0,可见性
+browser_event_docs,authorization.description,,zh_Hans_CN,Description,描述,0,描述
+browser_event_docs,section.request_response,,zh_Hans_CN,"Request / Response","请求 / 响应",0,"请求 / 响应"
+browser_event_docs,request.method,,zh_Hans_CN,Method,方法,0,方法
+browser_event_docs,response.kind,,zh_Hans_CN,"Response Kind",响应类型,0,响应类型
+browser_event_docs,response.content_type,,zh_Hans_CN,"Content Type",内容类型,0,内容类型
+browser_event_docs,response.description,,zh_Hans_CN,"Response Description",响应描述,0,响应描述
+browser_event_docs,section.invocation,,zh_Hans_CN,"How to Call This",如何调用,0,如何调用
+browser_event_docs,invocation.url_php,,zh_Hans_CN,"PHP URL Helper","PHP URL 辅助函数",0,"PHP URL 辅助函数"
+browser_event_docs,invocation.template_helper,,zh_Hans_CN,"Template Helper",模板辅助函数,0,模板辅助函数
+browser_event_docs,invocation.ajax_helper,,zh_Hans_CN,"AJAX Helper","AJAX Helper",0,"AJAX Helper"
+browser_event_docs,invocation.ajax_helper_raw,,zh_Hans_CN,"AJAX Helper Raw","AJAX 辅助函数原始",0,"AJAX 辅助函数原始"
+browser_event_docs,section.parameters,,zh_Hans_CN,Parameters,参数,0,参数
+browser_event_docs,parameters.empty,,zh_Hans_CN,"No parameters documented.",没有记录参数。,0,没有记录参数。
+browser_event_docs,parameter.name,,zh_Hans_CN,Name,名称,0,名称
+browser_event_docs,parameter.source,,zh_Hans_CN,Source,来源,0,来源
+browser_event_docs,parameter.type,,zh_Hans_CN,Type,类型,0,类型
+browser_event_docs,parameter.required,,zh_Hans_CN,Required,必填,0,必填
+browser_event_docs,parameter.description,,zh_Hans_CN,Description,描述,0,描述
+browser_event_docs,required_yes,,zh_Hans_CN,yes,是,0,是
+browser_event_docs,required_no,,zh_Hans_CN,no,否,0,否
+browser_event_docs,section.notes,,zh_Hans_CN,Notes,备注,0,备注
+browser_event_docs,section.side_effects,,zh_Hans_CN,"Side Effects",副作用,0,副作用
