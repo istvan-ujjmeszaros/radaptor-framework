@@ -35,6 +35,7 @@ final class I18nHardcodedUiScannerTest extends TestCase
 			<a href="<?= e($url) ?>" class="btn">Open</a>
 			<button title="Delete message">Delete</button>
 			<input placeholder="Search">
+			<input placeholder="Save > Continue">
 			PHP);
 
 		$result = $this->scan();
@@ -45,9 +46,11 @@ final class I18nHardcodedUiScannerTest extends TestCase
 		self::assertContains('Delete message', $literals);
 		self::assertContains('Delete', $literals);
 		self::assertContains('Search', $literals);
+		self::assertContains('Save > Continue', $literals);
 		self::assertNotContains('Ignored', $literals);
 		self::assertNotContains('mailpit.subject', $literals);
 		self::assertFalse(self::containsLiteralFragment($result, '<a href'));
+		self::assertFalse(self::containsLiteralFragment($result, 'Continue">'));
 		self::assertSame('php', self::findByLiteral($result, 'Subject')['format']);
 	}
 
@@ -55,6 +58,7 @@ final class I18nHardcodedUiScannerTest extends TestCase
 	{
 		$this->writeFile('templates/template.panel.blade.php', <<<'BLADE'
 			@if($enabled)
+				<?php echo '<span>Ignored raw PHP HTML</span>'; ?>
 				<span>Save</span>
 				<span>{{ $title }}</span>
 				<span>{!! $html !!}</span>
@@ -67,6 +71,7 @@ final class I18nHardcodedUiScannerTest extends TestCase
 
 		self::assertContains('Save', $literals);
 		self::assertContains('Close panel', $literals);
+		self::assertNotContains('Ignored raw PHP HTML', $literals);
 		self::assertNotContains('$title', $literals);
 		self::assertNotContains('@if', $literals);
 		self::assertSame('blade', self::findByLiteral($result, 'Save')['format']);

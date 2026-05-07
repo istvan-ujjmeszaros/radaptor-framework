@@ -109,7 +109,7 @@ class I18nHardcodedUiScanner
 	private static function scanTemplateFile(string $content, string $file, string $format): array
 	{
 		if ($format !== 'php') {
-			return self::scanTemplateChunk($content, $file, $format, 1);
+			return self::scanTemplateChunk(self::maskTemplateSyntax($content), $file, $format, 1);
 		}
 
 		$masked_content = '';
@@ -167,7 +167,7 @@ class I18nHardcodedUiScanner
 				continue;
 			}
 
-			$tag_end = strpos($content, '>', $tag_start);
+			$tag_end = self::findTagEnd($content, $tag_start);
 
 			if ($tag_end === false) {
 				if ($ignored_tag_stack === []) {
@@ -327,6 +327,36 @@ class I18nHardcodedUiScanner
 			$end = strpos($content, '-->', $tag_start + 3);
 
 			return $end === false ? null : $end + 3;
+		}
+
+		return null;
+	}
+
+	private static function findTagEnd(string $content, int $tag_start): ?int
+	{
+		$quote = null;
+		$length = strlen($content);
+
+		for ($offset = $tag_start + 1; $offset < $length; $offset++) {
+			$char = $content[$offset];
+
+			if ($quote !== null) {
+				if ($char === $quote) {
+					$quote = null;
+				}
+
+				continue;
+			}
+
+			if ($char === '"' || $char === "'") {
+				$quote = $char;
+
+				continue;
+			}
+
+			if ($char === '>') {
+				return $offset;
+			}
 		}
 
 		return null;
