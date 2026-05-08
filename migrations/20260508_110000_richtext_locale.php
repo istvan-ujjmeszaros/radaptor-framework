@@ -81,13 +81,7 @@ class Migration_20260508_110000_richtext_locale
 			return;
 		}
 
-		$enabled = $this->getEnabledLocales($pdo);
-
-		if (count($enabled) !== 1) {
-			throw new RuntimeException('RichText locale migration cannot infer locale while multiple locales are enabled. Assign richtext.locale explicitly before rerunning migrations.');
-		}
-
-		$locale = $enabled[0];
+		$locale = LocaleService::getDefaultLocale();
 		$this->ensureLocaleRow($pdo, $locale);
 
 		$stmt = $pdo->prepare("UPDATE `richtext` SET `locale` = ? WHERE `locale` IS NULL OR `locale` = ''");
@@ -110,44 +104,24 @@ class Migration_20260508_110000_richtext_locale
 		}
 	}
 
-	/**
-	 * @return list<string>
-	 */
-	private function getEnabledLocales(PDO $pdo): array
-	{
-		if (!$this->tableExists($pdo, 'locales')) {
-			return [LocaleService::getDefaultLocale()];
-		}
-
-		$rows = $pdo->query("SELECT `locale` FROM `locales` WHERE `is_enabled` = 1 ORDER BY `sort_order`, `locale`")->fetchAll(PDO::FETCH_ASSOC);
-		$locales = [];
-
-		foreach ($rows as $row) {
-			$locale = LocaleService::tryCanonicalize((string) ($row['locale'] ?? ''));
-
-			if ($locale !== null) {
-				$locales[$locale] = true;
-			}
-		}
-
-		return array_keys($locales);
-	}
-
 	private function ensureLocaleRow(PDO $pdo, string $locale): void
 	{
 		if (!$this->tableExists($pdo, 'locales')) {
 			return;
 		}
 
+		$is_enabled = $locale === LocaleService::getDefaultLocale() ? 1 : 0;
 		$stmt = $pdo->prepare(
 			"INSERT INTO `locales` (`locale`, `label`, `native_label`, `is_enabled`, `sort_order`)
-			VALUES (?, ?, ?, 0, 1000)
-			ON DUPLICATE KEY UPDATE `locale` = VALUES(`locale`)"
+			VALUES (?, ?, ?, ?, 1000)
+			ON DUPLICATE KEY UPDATE `is_enabled` = IF(`locale` = ?, 1, `is_enabled`)"
 		);
 		$stmt->execute([
 			$locale,
 			$this->getDisplayLabel($locale),
 			$this->getNativeName($locale),
+			$is_enabled,
+			LocaleService::getDefaultLocale(),
 		]);
 	}
 
