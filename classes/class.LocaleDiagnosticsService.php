@@ -103,10 +103,6 @@ final class LocaleDiagnosticsService
 			$issues[] = $issue;
 		}
 
-		foreach (self::getRichTextWidgetStrategyIssues() as $issue) {
-			$issues[] = $issue;
-		}
-
 		return [
 			'status' => $issues === [] ? 'success' : 'error',
 			'default_locale' => $default_locale,
@@ -409,53 +405,6 @@ final class LocaleDiagnosticsService
 		}
 
 		return null;
-	}
-
-	/**
-	 * @return list<array<string, mixed>>
-	 */
-	private static function getRichTextWidgetStrategyIssues(): array
-	{
-		if (!self::tableExists('widget_connections')) {
-			return [];
-		}
-
-		$count = (int) Db::instance()->query(
-			"SELECT COUNT(*)
-			FROM `widget_connections`
-			WHERE LOWER(REPLACE(`widget_name`, '_', '')) = 'richtext'"
-		)->fetchColumn();
-
-		if ($count === 0) {
-			return [];
-		}
-
-		$widget_class = 'Widget';
-
-		if (!class_exists($widget_class) || !is_callable([$widget_class, 'getContentLocaleStrategy'])) {
-			return [[
-				'code' => 'richtext_widget_locale_strategy_missing',
-				'widget_name' => 'RichText',
-				'connections' => $count,
-			]];
-		}
-
-		try {
-			$strategy = $widget_class::getContentLocaleStrategy('RichText');
-		} catch (Throwable $exception) {
-			return [[
-				'code' => 'richtext_widget_locale_strategy_error',
-				'widget_name' => 'RichText',
-				'connections' => $count,
-				'message' => $exception->getMessage(),
-			]];
-		}
-
-		return is_object($strategy) ? [] : [[
-			'code' => 'richtext_widget_locale_strategy_missing',
-			'widget_name' => 'RichText',
-			'connections' => $count,
-		]];
 	}
 
 	/**
