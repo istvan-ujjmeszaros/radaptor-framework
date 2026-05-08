@@ -1,0 +1,41 @@
+domain,key,context,locale,source_text,expected_text,human_reviewed,text
+browser_event_docs,title,,pl-PL,"Browser Event API Docs","Dokumentacja API zdarzeń przeglądarki",0,"Dokumentacja API zdarzeń przeglądarki"
+browser_event_docs,fallback_title,,pl-PL,"Browser Event Docs","Dokumentacja zdarzeń przeglądarki",0,"Dokumentacja zdarzeń przeglądarki"
+browser_event_docs,unknown_event,,pl-PL,"Unknown event","Nieznane zdarzenie",0,"Nieznane zdarzenie"
+browser_event_docs,lead,,pl-PL,"Curated manual for important browser events. Total documented events: {total}","Wybrany podręcznik ważnych zdarzeń przeglądarki. Łączna liczba udokumentowanych zdarzeń: {total}",0,"Wybrany podręcznik ważnych zdarzeń przeglądarki. Łączna liczba udokumentowanych zdarzeń: {total}"
+browser_event_docs,empty_prefix,,pl-PL,"No browser event docs were generated yet. Run","Nie wygenerowano jeszcze dokumentacji zdarzeń przeglądarki. Uruchom",0,"Nie wygenerowano jeszcze dokumentacji zdarzeń przeglądarki. Uruchom"
+browser_event_docs,back_to_index,,pl-PL,"Back to Browser Event API Docs","Wróć do dokumentacji API zdarzeń przeglądarki",0,"Wróć do dokumentacji API zdarzeń przeglądarki"
+browser_event_docs,col.name,,pl-PL,Name,Nazwa,0,Nazwa
+browser_event_docs,col.route,,pl-PL,Route,Trasa,0,Trasa
+browser_event_docs,col.slug,,pl-PL,Slug,Slug,0,Slug
+browser_event_docs,col.summary,,pl-PL,Summary,Podsumowanie,0,Podsumowanie
+browser_event_docs,section.description,,pl-PL,Description,Opis,0,Opis
+browser_event_docs,section.identity,,pl-PL,Identity,Tożsamość,0,Tożsamość
+browser_event_docs,identity.slug,,pl-PL,Slug,Slug,0,Slug
+browser_event_docs,identity.event_name,,pl-PL,"Event Name","Nazwa zdarzenia",0,"Nazwa zdarzenia"
+browser_event_docs,identity.browser_route,,pl-PL,"Browser Route","Trasa przeglądarki",0,"Trasa przeglądarki"
+browser_event_docs,identity.class,,pl-PL,Class,Klasa,0,Klasa
+browser_event_docs,section.authorization,,pl-PL,Authorization,Autoryzacja,0,Autoryzacja
+browser_event_docs,authorization.visibility,,pl-PL,Visibility,Widoczność,0,Widoczność
+browser_event_docs,authorization.description,,pl-PL,Description,Opis,0,Opis
+browser_event_docs,section.request_response,,pl-PL,"Request / Response","Żądanie / odpowiedź",0,"Żądanie / odpowiedź"
+browser_event_docs,request.method,,pl-PL,Method,Metoda,0,Metoda
+browser_event_docs,response.kind,,pl-PL,"Response Kind","Typ odpowiedzi",0,"Typ odpowiedzi"
+browser_event_docs,response.content_type,,pl-PL,"Content Type","Typ treści",0,"Typ treści"
+browser_event_docs,response.description,,pl-PL,"Response Description","Opis odpowiedzi",0,"Opis odpowiedzi"
+browser_event_docs,section.invocation,,pl-PL,"How to Call This","Jak to wywołać",0,"Jak to wywołać"
+browser_event_docs,invocation.url_php,,pl-PL,"PHP URL Helper","Helper URL PHP",0,"Helper URL PHP"
+browser_event_docs,invocation.template_helper,,pl-PL,"Template Helper","Helper szablonu",0,"Helper szablonu"
+browser_event_docs,invocation.ajax_helper,,pl-PL,"AJAX Helper","AJAX Helper",0,"AJAX Helper"
+browser_event_docs,invocation.ajax_helper_raw,,pl-PL,"AJAX Helper Raw","Surowy helper AJAX",0,"Surowy helper AJAX"
+browser_event_docs,section.parameters,,pl-PL,Parameters,Parametry,0,Parametry
+browser_event_docs,parameters.empty,,pl-PL,"No parameters documented.","Brak udokumentowanych parametrów.",0,"Brak udokumentowanych parametrów."
+browser_event_docs,parameter.name,,pl-PL,Name,Nazwa,0,Nazwa
+browser_event_docs,parameter.source,,pl-PL,Source,Źródło,0,Źródło
+browser_event_docs,parameter.type,,pl-PL,Type,Typ,0,Typ
+browser_event_docs,parameter.required,,pl-PL,Required,Wymagane,0,Wymagane
+browser_event_docs,parameter.description,,pl-PL,Description,Opis,0,Opis
+browser_event_docs,required_yes,,pl-PL,yes,tak,0,tak
+browser_event_docs,required_no,,pl-PL,no,nie,0,nie
+browser_event_docs,section.notes,,pl-PL,Notes,Notatki,0,Notatki
+browser_event_docs,section.side_effects,,pl-PL,"Side Effects","Efekty uboczne",0,"Efekty uboczne"

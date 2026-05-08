@@ -9,7 +9,7 @@ declare(strict_types=1);
  * The catalog array is shared across requests (static), keyed by locale,
  * and invalidated per-locale when the file mtime changes (hot reload after i18n:build).
  *
- * Fallback chain: current locale → en_US → key slug
+ * Fallback chain: current locale → APP_DEFAULT_LOCALE → key slug
  */
 class I18nRuntime
 {
@@ -21,15 +21,16 @@ class I18nRuntime
 
 	public static function t(string $key, array $params = []): string
 	{
-		$locale = Kernel::getLocale();
+		$locale = LocaleService::canonicalize(Kernel::getLocale());
+		$default_locale = LocaleService::getDefaultLocale();
 		self::_ensureCatalogLoaded($locale);
 
-		if ($locale !== 'en_US') {
-			self::_ensureCatalogLoaded('en_US');
+		if ($locale !== $default_locale) {
+			self::_ensureCatalogLoaded($default_locale);
 		}
 
 		$text = self::$_catalog[$locale][$key]
-			?? self::$_catalog['en_US'][$key]
+			?? self::$_catalog[$default_locale][$key]
 			?? $key;
 
 		return empty($params) ? $text : self::_format($text, $params, $locale);
@@ -37,6 +38,7 @@ class I18nRuntime
 
 	private static function _ensureCatalogLoaded(string $locale): void
 	{
+		$locale = LocaleService::canonicalize($locale);
 		$path = DEPLOY_ROOT . 'generated/i18n/' . $locale . '.php';
 
 		if (!file_exists($path)) {
@@ -63,14 +65,28 @@ class I18nRuntime
 	 */
 	public static function getAvailableLocaleCodes(): array
 	{
-		$stmt = Db::instance()->prepare('SELECT DISTINCT `locale` FROM `i18n_translations` ORDER BY `locale`');
-		$stmt->execute();
-		$rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+		try {
+			$pdo = Db::instance();
 
-		return array_map(
-			static fn (array $row): string => (string) $row['locale'],
-			$rows
-		);
+			if ($pdo->query("SHOW TABLES LIKE 'locales'")->rowCount() > 0) {
+				$stmt = $pdo->prepare('SELECT `locale` FROM `locales` WHERE `is_enabled` = 1 ORDER BY `sort_order`, `locale`');
+				$stmt->execute();
+
+				return self::_normalizeLocaleRows($stmt->fetchAll(\PDO::FETCH_ASSOC));
+			}
+
+			$stmt = $pdo->prepare('SELECT DISTINCT `locale` FROM `i18n_translations` ORDER BY `locale`');
+			$stmt->execute();
+			$locales = self::_normalizeLocaleRows($stmt->fetchAll(\PDO::FETCH_ASSOC));
+
+			if ($locales !== []) {
+				return $locales;
+			}
+		} catch (Throwable) {
+			// Installation and doctor-safe flows may run before i18n tables exist.
+		}
+
+		return [LocaleService::getDefaultLocale()];
 	}
 
 	/**
@@ -95,10 +111,32 @@ class I18nRuntime
 		return LocaleRegistry::buildOptionMap(self::getAvailableLocaleCodes());
 	}
 
+	/**
+	 * @param list<array<string, mixed>> $rows
+	 * @return list<string>
+	 */
+	private static function _normalizeLocaleRows(array $rows): array
+	{
+		$locales = [];
+
+		foreach ($rows as $row) {
+			$locale = LocaleService::tryCanonicalize((string) ($row['locale'] ?? ''));
+
+			if ($locale !== null) {
+				$locales[$locale] = true;
+			}
+		}
+
+		$locales = array_keys($locales);
+		sort($locales);
+
+		return $locales;
+	}
+
 	private static function _format(string $text, array $params, string $locale): string
 	{
 		if (extension_loaded('intl')) {
-			$fmt = new MessageFormatter($locale, $text);
+			$fmt = new MessageFormatter(LocaleService::toIntlLocale($locale), $text);
 			$result = $fmt->format($params);
 
 			return $result !== false ? $result : $text;

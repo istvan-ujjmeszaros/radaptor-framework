@@ -48,6 +48,7 @@ class I18nSeedSyncService
 		}
 
 		foreach ($locales as $locale) {
+			$locale = LocaleService::canonicalize($locale);
 			$file_path = $input_dir . '/' . $locale . '.csv';
 
 			if (!file_exists($file_path)) {
@@ -169,7 +170,7 @@ class I18nSeedSyncService
 		$normalized = [];
 
 		foreach ($locales as $locale) {
-			$locale = trim((string) $locale);
+			$locale = LocaleService::tryCanonicalize((string) $locale) ?? '';
 
 			if ($locale === '') {
 				continue;
@@ -195,7 +196,7 @@ class I18nSeedSyncService
 		$locales = [];
 
 		foreach ($files as $file) {
-			$locale = basename($file, '.csv');
+			$locale = LocaleService::tryCanonicalize(basename($file, '.csv')) ?? '';
 
 			if (!LocaleRegistry::isKnownLocale($locale)) {
 				throw new RuntimeException("Seed filename does not map to a supported locale: {$file}");

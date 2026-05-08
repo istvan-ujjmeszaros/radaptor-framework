@@ -11,8 +11,8 @@ final class I18nAiCsvServiceTest extends TestCase
 	public function testNormalizeAiImportCsvClearsReviewFlags(): void
 	{
 		$csv = "\xEF\xBB\xBFdomain,key,context,locale,source_text,expected_text,human_reviewed,text\n"
-			. "admin,menu.runtime_diagnostics,,de_DE,Runtime diagnostics,Laufzeitdiagnose,1,Neue Laufzeitdiagnose\n"
-			. "admin,menu.mcp_tokens,,de_DE,MCP tokens,MCP Tokens,,MCP Token\n";
+			. "admin,menu.runtime_diagnostics,,de-DE,Runtime diagnostics,Laufzeitdiagnose,1,Neue Laufzeitdiagnose\n"
+			. "admin,menu.mcp_tokens,,de-DE,MCP tokens,MCP Tokens,,MCP Token\n";
 
 		$normalize = Closure::bind(
 			static fn (string $csv): string => I18nAiCsvService::normalizeAiImportCsv($csv),

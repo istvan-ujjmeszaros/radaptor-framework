@@ -124,7 +124,7 @@ class I18nSeedLintService
 		$locale_files = [];
 
 		foreach ($files as $file) {
-			$locale = basename($file, '.csv');
+			$locale = LocaleService::tryCanonicalize(basename($file, '.csv')) ?? basename($file, '.csv');
 			$locale_files[$locale] = true;
 			$file_result = self::lintFile($file, $locale, $global_keys, $allowed_domains, $check_global_duplicates);
 			$issues = [...$issues, ...$file_result['issues']];
@@ -132,13 +132,13 @@ class I18nSeedLintService
 			$rows_checked += $file_result['rows_checked'];
 		}
 
-		if ($files !== [] && !isset($locale_files['en_US'])) {
-			$issues[] = self::issue('error', 'missing_en_us_seed', $input_dir, 0, 'Seed target must contain en_US.csv as its source-locale baseline.');
+		if ($files !== [] && !isset($locale_files['en-US'])) {
+			$issues[] = self::issue('error', 'missing_en_us_seed', $input_dir, 0, 'Seed target must contain en-US.csv as its source-locale baseline.');
 		}
 
 		if ($files !== []) {
 			foreach ($expected_locales as $expected_locale) {
-				if ($expected_locale === 'en_US' || isset($locale_files[$expected_locale])) {
+				if ($expected_locale === 'en-US' || isset($locale_files[$expected_locale])) {
 					continue;
 				}
 
@@ -166,6 +166,7 @@ class I18nSeedLintService
 	private static function lintFile(string $file, string $expected_locale, array &$global_keys, array $allowed_domains, bool $check_global_duplicates): array
 	{
 		$issues = [];
+		$expected_locale = LocaleService::tryCanonicalize($expected_locale) ?? $expected_locale;
 
 		if (!LocaleRegistry::isKnownLocale($expected_locale)) {
 			$issues[] = self::issue('error', 'unknown_filename_locale', $file, 0, "Seed filename locale is not supported: {$expected_locale}");
@@ -233,6 +234,10 @@ class I18nSeedLintService
 				$data[$name] = trim((string) ($row[$index] ?? ''));
 			}
 
+			if (($data['locale'] ?? '') !== '') {
+				$data['locale'] = LocaleService::tryCanonicalize((string) $data['locale']) ?? (string) $data['locale'];
+			}
+
 			foreach (['domain', 'key', 'locale', 'source_text', 'text'] as $required) {
 				if (($data[$required] ?? '') === '') {
 					$issues[] = self::issue('error', 'required_value_missing', $file, $line, "Required column '{$required}' is empty.");
@@ -250,7 +255,7 @@ class I18nSeedLintService
 			}
 
 			if (
-				($data['locale'] ?? '') !== 'en_US'
+				($data['locale'] ?? '') !== 'en-US'
 				&& self::looksLikeUntranslatedSource((string) ($data['source_text'] ?? ''), (string) ($data['text'] ?? ''))
 			) {
 				$issues[] = self::issue('warning', 'text_matches_source', $file, $line, 'Non-source locale text matches source_text and may be an English placeholder.');
@@ -347,7 +352,7 @@ class I18nSeedLintService
 			$locales = [];
 
 			foreach ($configured as $locale) {
-				$locale = trim((string) $locale);
+				$locale = LocaleService::tryCanonicalize((string) $locale) ?? '';
 
 				if ($locale !== '' && LocaleRegistry::isKnownLocale($locale)) {
 					$locales[$locale] = true;
@@ -369,7 +374,7 @@ class I18nSeedLintService
 			}
 
 			foreach (glob(rtrim($input_dir, '/') . '/*.csv') ?: [] as $file) {
-				$locale = basename($file, '.csv');
+				$locale = LocaleService::tryCanonicalize(basename($file, '.csv')) ?? '';
 
 				if (LocaleRegistry::isKnownLocale($locale)) {
 					$locales[$locale] = true;

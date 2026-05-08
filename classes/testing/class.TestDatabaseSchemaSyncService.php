@@ -170,6 +170,15 @@ class TestDatabaseSchemaSyncService
 				return false;
 			}
 
+			$locale_stmt = $pdo->prepare(
+				'SELECT COUNT(*) FROM locales WHERE locale = ?'
+			);
+			$locale_stmt->execute([LocaleService::getDefaultLocale()]);
+
+			if ((int) $locale_stmt->fetchColumn() !== 1) {
+				return false;
+			}
+
 			$domain_root_stmt = $pdo->prepare(
 				"SELECT node_id
 				FROM resource_tree

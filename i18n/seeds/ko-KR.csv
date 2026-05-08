@@ -1,0 +1,41 @@
+domain,key,context,locale,source_text,expected_text,human_reviewed,text
+browser_event_docs,title,,ko-KR,"Browser Event API Docs","브라우저 이벤트 API 문서",0,"브라우저 이벤트 API 문서"
+browser_event_docs,fallback_title,,ko-KR,"Browser Event Docs","브라우저 이벤트 문서",0,"브라우저 이벤트 문서"
+browser_event_docs,unknown_event,,ko-KR,"Unknown event","알 수 없는 이벤트",0,"알 수 없는 이벤트"
+browser_event_docs,lead,,ko-KR,"Curated manual for important browser events. Total documented events: {total}","중요한 브라우저 이벤트를 위한 선별 매뉴얼. 문서화된 이벤트 수: {total}",0,"중요한 브라우저 이벤트를 위한 선별 매뉴얼. 문서화된 이벤트 수: {total}"
+browser_event_docs,empty_prefix,,ko-KR,"No browser event docs were generated yet. Run","브라우저 이벤트 문서가 아직 생성되지 않았습니다. 실행하세요",0,"브라우저 이벤트 문서가 아직 생성되지 않았습니다. 실행하세요"
+browser_event_docs,back_to_index,,ko-KR,"Back to Browser Event API Docs","브라우저 이벤트 API 문서로 돌아가기",0,"브라우저 이벤트 API 문서로 돌아가기"
+browser_event_docs,col.name,,ko-KR,Name,이름,0,이름
+browser_event_docs,col.route,,ko-KR,Route,경로,0,경로
+browser_event_docs,col.slug,,ko-KR,Slug,Slug,0,Slug
+browser_event_docs,col.summary,,ko-KR,Summary,요약,0,요약
+browser_event_docs,section.description,,ko-KR,Description,설명,0,설명
+browser_event_docs,section.identity,,ko-KR,Identity,식별,0,식별
+browser_event_docs,identity.slug,,ko-KR,Slug,Slug,0,Slug
+browser_event_docs,identity.event_name,,ko-KR,"Event Name","이벤트 이름",0,"이벤트 이름"
+browser_event_docs,identity.browser_route,,ko-KR,"Browser Route","브라우저 경로",0,"브라우저 경로"
+browser_event_docs,identity.class,,ko-KR,Class,클래스,0,클래스
+browser_event_docs,section.authorization,,ko-KR,Authorization,"권한 부여",0,"권한 부여"
+browser_event_docs,authorization.visibility,,ko-KR,Visibility,가시성,0,가시성
+browser_event_docs,authorization.description,,ko-KR,Description,설명,0,설명
+browser_event_docs,section.request_response,,ko-KR,"Request / Response","요청 / 응답",0,"요청 / 응답"
+browser_event_docs,request.method,,ko-KR,Method,메서드,0,메서드
+browser_event_docs,response.kind,,ko-KR,"Response Kind","응답 종류",0,"응답 종류"
+browser_event_docs,response.content_type,,ko-KR,"Content Type","콘텐츠 유형",0,"콘텐츠 유형"
+browser_event_docs,response.description,,ko-KR,"Response Description","응답 설명",0,"응답 설명"
+browser_event_docs,section.invocation,,ko-KR,"How to Call This","호출 방법",0,"호출 방법"
+browser_event_docs,invocation.url_php,,ko-KR,"PHP URL Helper","PHP URL 헬퍼",0,"PHP URL 헬퍼"
+browser_event_docs,invocation.template_helper,,ko-KR,"Template Helper","템플릿 헬퍼",0,"템플릿 헬퍼"
+browser_event_docs,invocation.ajax_helper,,ko-KR,"AJAX Helper","AJAX Helper",0,"AJAX Helper"
+browser_event_docs,invocation.ajax_helper_raw,,ko-KR,"AJAX Helper Raw","AJAX 헬퍼 Raw",0,"AJAX 헬퍼 Raw"
+browser_event_docs,section.parameters,,ko-KR,Parameters,매개변수,0,매개변수
+browser_event_docs,parameters.empty,,ko-KR,"No parameters documented.","문서화된 매개변수가 없습니다.",0,"문서화된 매개변수가 없습니다."
+browser_event_docs,parameter.name,,ko-KR,Name,이름,0,이름
+browser_event_docs,parameter.source,,ko-KR,Source,소스,0,소스
+browser_event_docs,parameter.type,,ko-KR,Type,유형,0,유형
+browser_event_docs,parameter.required,,ko-KR,Required,필수,0,필수
+browser_event_docs,parameter.description,,ko-KR,Description,설명,0,설명
+browser_event_docs,required_yes,,ko-KR,yes,예,0,예
+browser_event_docs,required_no,,ko-KR,no,아니요,0,아니요
+browser_event_docs,section.notes,,ko-KR,Notes,메모,0,메모
+browser_event_docs,section.side_effects,,ko-KR,"Side Effects",부작용,0,부작용

@@ -4,7 +4,7 @@
  * Export DB-backed translations into versionable seed CSV files.
  *
  * Usage:
- *   radaptor i18n:seed-export <output-dir> [--locale en_US,hu_HU] [--domain cms,common] [--key-prefix widget.,form.] [--clean] [--dry-run] [--json]
+ *   radaptor i18n:seed-export <output-dir> [--locale en-US,hu-HU] [--domain cms,common] [--key-prefix widget.,form.] [--clean] [--dry-run] [--json]
  */
 class CLICommandI18nSeedExport extends AbstractCLICommand
 {
@@ -18,11 +18,11 @@ class CLICommandI18nSeedExport extends AbstractCLICommand
 		return <<<'DOC'
 			Export DB-backed translations into versionable seed CSV files.
 
-			Usage: radaptor i18n:seed-export <output-dir> [--locale en_US,hu_HU] [--domain cms,common] [--key-prefix widget.,form.] [--clean] [--dry-run] [--json]
+			Usage: radaptor i18n:seed-export <output-dir> [--locale en-US,hu-HU] [--domain cms,common] [--key-prefix widget.,form.] [--clean] [--dry-run] [--json]
 
 			Examples:
 			  radaptor i18n:seed-export /app/tmp/seeds
-			  radaptor i18n:seed-export /app/tmp/seeds --locale hu_HU --clean
+			  radaptor i18n:seed-export /app/tmp/seeds --locale hu-HU --clean
 			DOC;
 	}
 
@@ -41,7 +41,7 @@ class CLICommandI18nSeedExport extends AbstractCLICommand
 		$output_dir = Request::getMainArg();
 
 		if ($output_dir === null || trim($output_dir) === '') {
-			Kernel::abort('Usage: radaptor i18n:seed-export <output-dir> [--locale en_US,hu_HU] [--domain cms,common] [--key-prefix widget.,form.] [--clean] [--dry-run] [--json]');
+			Kernel::abort('Usage: radaptor i18n:seed-export <output-dir> [--locale en-US,hu-HU] [--domain cms,common] [--key-prefix widget.,form.] [--clean] [--dry-run] [--json]');
 		}
 
 		$dry_run = Request::hasArg('dry-run');

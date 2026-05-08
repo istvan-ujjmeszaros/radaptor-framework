@@ -4,7 +4,7 @@
  * Sync all shipped translation seed directories for the current installation.
  *
  * Usage:
- *   radaptor i18n:sync-shipped [--locale en_US,hu_HU] [--mode upsert|insert_new|sync] [--dry-run] [--no-build] [--json]
+ *   radaptor i18n:sync-shipped [--locale en-US,hu-HU] [--mode upsert|insert_new|sync] [--dry-run] [--no-build] [--json]
  */
 class CLICommandI18nSyncShipped extends AbstractCLICommand
 {
@@ -18,11 +18,11 @@ class CLICommandI18nSyncShipped extends AbstractCLICommand
 		return <<<'DOC'
 			Sync all shipped translation seed directories for the current installation.
 
-			Usage: radaptor i18n:sync-shipped [--locale en_US,hu_HU] [--mode upsert|insert_new|sync] [--dry-run] [--no-build] [--json]
+			Usage: radaptor i18n:sync-shipped [--locale en-US,hu-HU] [--mode upsert|insert_new|sync] [--dry-run] [--no-build] [--json]
 
 			Examples:
 			  radaptor i18n:sync-shipped
-			  radaptor i18n:sync-shipped --locale hu_HU
+			  radaptor i18n:sync-shipped --locale hu-HU
 			DOC;
 	}
 

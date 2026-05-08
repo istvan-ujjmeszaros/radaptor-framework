@@ -95,8 +95,8 @@ class CLICommandResolver
 	 *   "i18n:tm-reindex" → "CLICommandI18nTmReindex"
 	 *
 	 * Named args injected into $_GET via:
-	 *   --flag value       (e.g. --locale hu_HU)
-	 *   key=value          (e.g. locale=hu_HU)  ← handled by Request::initValues()
+	 *   --flag value       (e.g. --locale hu-HU)
+	 *   key=value          (e.g. locale=hu-HU)  ← handled by Request::initValues()
 	 */
 	public static function getCommandNameFromArgv(): string
 	{

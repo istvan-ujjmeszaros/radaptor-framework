@@ -11,7 +11,7 @@ class Migration_20260310_000003_de_de_translations
 		if ($hasStatus) {
 			$insert = $pdo->prepare(
 				"INSERT INTO i18n_translations (domain, `key`, context, locale, `text`, status, source_hash_snapshot)
-				 SELECT ?, ?, ?, 'de_DE', ?, 'ai_generated', m.source_hash
+				 SELECT ?, ?, ?, 'de-DE', ?, 'ai_generated', m.source_hash
 				 FROM i18n_messages m
 				 WHERE m.domain = ? AND m.`key` = ? AND m.context = ?
 				 ON DUPLICATE KEY UPDATE
@@ -22,7 +22,7 @@ class Migration_20260310_000003_de_de_translations
 		} elseif ($hasHumanReviewed) {
 			$insert = $pdo->prepare(
 				"INSERT INTO i18n_translations (domain, `key`, context, locale, `text`, human_reviewed, source_hash_snapshot)
-				 SELECT ?, ?, ?, 'de_DE', ?, 0, m.source_hash
+				 SELECT ?, ?, ?, 'de-DE', ?, 0, m.source_hash
 				 FROM i18n_messages m
 				 WHERE m.domain = ? AND m.`key` = ? AND m.context = ?
 				 ON DUPLICATE KEY UPDATE
@@ -943,6 +943,6 @@ class Migration_20260310_000003_de_de_translations
 			$insert->execute([$domain, $key, $context, $text, $domain, $key, $context]);
 		}
 
-		echo "Inserted " . count($translations) . " German (de_DE) translations.\n";
+		echo "Inserted " . count($translations) . " German (de-DE) translations.\n";
 	}
 }

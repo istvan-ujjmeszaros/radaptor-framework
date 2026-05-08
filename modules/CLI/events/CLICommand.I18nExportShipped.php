@@ -4,7 +4,7 @@
  * Export all shipped core/app translation seed directories into their versioned locations.
  *
  * Usage:
- *   radaptor i18n:export-shipped [--locale en_US,hu_HU] [--clean] [--dry-run] [--json]
+ *   radaptor i18n:export-shipped [--locale en-US,hu-HU] [--clean] [--dry-run] [--json]
  */
 class CLICommandI18nExportShipped extends AbstractCLICommand
 {
@@ -18,11 +18,11 @@ class CLICommandI18nExportShipped extends AbstractCLICommand
 		return <<<'DOC'
 			Export all shipped core/app translation seed directories into their versioned locations.
 
-			Usage: radaptor i18n:export-shipped [--locale en_US,hu_HU] [--clean] [--dry-run] [--json]
+			Usage: radaptor i18n:export-shipped [--locale en-US,hu-HU] [--clean] [--dry-run] [--json]
 
 			Examples:
 			  radaptor i18n:export-shipped
-			  radaptor i18n:export-shipped --locale hu_HU
+			  radaptor i18n:export-shipped --locale hu-HU
 			DOC;
 	}
 

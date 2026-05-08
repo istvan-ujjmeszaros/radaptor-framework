@@ -179,7 +179,7 @@ class PluginI18nSeedService
 			sort($seed_files);
 
 			foreach ($seed_files as $seed_file) {
-				$locale = basename($seed_file, '.csv');
+				$locale = LocaleService::tryCanonicalize(basename($seed_file, '.csv')) ?? basename($seed_file, '.csv');
 				$file_result = self::importSeedFile($seed_file, $locale, $dry_run);
 				$file_result['seed_dir'] = $seed_dir;
 				$files[] = $file_result;

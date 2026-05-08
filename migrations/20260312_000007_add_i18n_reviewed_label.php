@@ -8,12 +8,12 @@ class Migration_20260312_000007_add_i18n_reviewed_label
 	public function run(): void
 	{
 		$translations = [
-			'en_US' => 'Reviewed',
-			'hu_HU' => 'Ellenőrizve',
-			'de_DE' => 'Geprüft',
+			'en-US' => 'Reviewed',
+			'hu-HU' => 'Ellenőrizve',
+			'de-DE' => 'Geprüft',
 		];
 
-		$sourceText = $translations['en_US'];
+		$sourceText = $translations['en-US'];
 		$sourceHash = md5($sourceText);
 		$pdo = Db::instance();
 

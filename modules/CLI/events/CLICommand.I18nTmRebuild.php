@@ -5,11 +5,11 @@
  *
  * Usage:
  *   radaptor i18n:tm-rebuild
- *   radaptor i18n:tm-rebuild locale=hu_HU
+ *   radaptor i18n:tm-rebuild locale=hu-HU
  *
  * Rebuild removes existing TM rows for the affected target locale(s), then
  * repopulates them from current translations where:
- *   - source locale is en_US
+ *   - source locale is en-US
  *   - source_text is not empty
  *   - translation text is not empty
  */
@@ -25,11 +25,11 @@ class CLICommandI18nTmRebuild extends AbstractCLICommand
 		return <<<'DOC'
 			Rebuild translation memory entries from existing i18n_translations rows.
 
-			Usage: radaptor i18n:tm-rebuild [locale=hu_HU]
+			Usage: radaptor i18n:tm-rebuild [locale=hu-HU]
 
 			Examples:
 			  radaptor i18n:tm-rebuild
-			  radaptor i18n:tm-rebuild locale=hu_HU
+			  radaptor i18n:tm-rebuild locale=hu-HU
 			DOC;
 	}
 
@@ -51,7 +51,7 @@ class CLICommandI18nTmRebuild extends AbstractCLICommand
 	public function run(): void
 	{
 		$locale = Request::getArg('locale');
-		$locale = is_string($locale) ? trim($locale) : '';
+		$locale = is_string($locale) ? (LocaleService::tryCanonicalize($locale) ?? trim($locale)) : '';
 
 		$count = I18nTm::rebuildFromTranslations($locale !== '' ? $locale : null);
 

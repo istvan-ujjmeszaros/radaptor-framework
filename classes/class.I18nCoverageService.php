@@ -160,7 +160,7 @@ class I18nCoverageService
 		$normalized = [];
 
 		foreach ($locales as $locale) {
-			$locale = trim((string) $locale);
+			$locale = LocaleService::tryCanonicalize((string) $locale) ?? '';
 
 			if ($locale === '') {
 				continue;

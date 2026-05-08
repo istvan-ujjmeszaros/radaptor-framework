@@ -3,12 +3,12 @@
 /**
  * Report missing translations.
  *
- * Usage: radaptor i18n:missing [--locale hu_HU | locale=hu_HU] [--json]
+ * Usage: radaptor i18n:missing [--locale hu-HU | locale=hu-HU] [--json]
  *
  * Examples:
  *   radaptor i18n:missing
- *   radaptor i18n:missing --locale hu_HU
- *   radaptor i18n:missing --locale hu_HU --json
+ *   radaptor i18n:missing --locale hu-HU
+ *   radaptor i18n:missing --locale hu-HU --json
  */
 class CLICommandI18nMissing extends AbstractCLICommand
 {
@@ -22,12 +22,12 @@ class CLICommandI18nMissing extends AbstractCLICommand
 		return <<<'DOC'
 			Report missing translations for one or all locales.
 
-			Usage: radaptor i18n:missing [--locale hu_HU] [--json]
+			Usage: radaptor i18n:missing [--locale hu-HU] [--json]
 
 			Examples:
 			  radaptor i18n:missing
-			  radaptor i18n:missing --locale hu_HU
-			  radaptor i18n:missing --locale hu_HU --json
+			  radaptor i18n:missing --locale hu-HU
+			  radaptor i18n:missing --locale hu-HU --json
 			DOC;
 	}
 
@@ -46,7 +46,7 @@ class CLICommandI18nMissing extends AbstractCLICommand
 
 	public function run(): void
 	{
-		$localeFilter = $this->_getCliOption('locale', '');
+		$localeFilter = LocaleService::tryCanonicalize($this->_getCliOption('locale', '')) ?? $this->_getCliOption('locale', '');
 		$jsonMode = Request::hasArg('json');
 
 		$pdo = Db::instance();

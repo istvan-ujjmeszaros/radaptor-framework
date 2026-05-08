@@ -22,13 +22,16 @@ final class LocaleRegistry
 
 		$knownLocales = [];
 
-		foreach (ResourceBundle::getLocales('') as $locale) {
-			if (!self::_isSupportedLocaleCode($locale)) {
+		foreach (ResourceBundle::getLocales('') as $raw_locale) {
+			$locale = LocaleService::tryCanonicalize((string) $raw_locale);
+
+			if ($locale === null || !self::_isSupportedLocaleCode($locale)) {
 				continue;
 			}
 
-			$english = self::_normalizeDisplayName(Locale::getDisplayLanguage($locale, 'en'));
-			$native = self::_normalizeDisplayName(Locale::getDisplayLanguage($locale, $locale));
+			$intl_locale = LocaleService::toIntlLocale($locale);
+			$english = self::_normalizeDisplayName(Locale::getDisplayName($intl_locale, 'en'));
+			$native = self::_normalizeDisplayName(Locale::getDisplayName($intl_locale, $intl_locale));
 
 			$knownLocales[$locale] = [
 				'english' => $english !== '' ? $english : $locale,
@@ -52,7 +55,7 @@ final class LocaleRegistry
 
 	public static function isKnownLocale(string $locale): bool
 	{
-		$locale = trim($locale);
+		$locale = LocaleService::tryCanonicalize($locale) ?? '';
 
 		if ($locale === '') {
 			return false;
@@ -63,6 +66,8 @@ final class LocaleRegistry
 
 	public static function getNativeName(string $locale): string
 	{
+		$locale = LocaleService::tryCanonicalize($locale) ?? $locale;
+
 		return self::getKnownLocales()[$locale]['native'] ?? $locale;
 	}
 
@@ -113,7 +118,7 @@ final class LocaleRegistry
 		$unique = [];
 
 		foreach ($localeCodes as $locale) {
-			$locale = trim((string) $locale);
+			$locale = LocaleService::tryCanonicalize((string) $locale) ?? '';
 
 			if ($locale === '') {
 				continue;
@@ -130,13 +135,7 @@ final class LocaleRegistry
 
 	private static function _isSupportedLocaleCode(string $locale): bool
 	{
-		$locale = trim($locale);
-
-		if ($locale === '' || !str_contains($locale, '_') || strlen($locale) > 10) {
-			return false;
-		}
-
-		return preg_match('/^[a-z]{2,3}(?:_[A-Za-z0-9]{2,4}){1,2}$/', $locale) === 1;
+		return LocaleService::isSupportedStorageLocale($locale);
 	}
 
 	private static function _normalizeDisplayName(string|false $displayName): string

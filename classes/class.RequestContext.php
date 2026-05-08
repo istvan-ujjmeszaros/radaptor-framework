@@ -14,7 +14,7 @@ class RequestContext
 	public ?array $currentUser = null;
 	public bool $userSessionInitialized = false;
 	public ?iEvent $currentEvent = null;
-	public string $locale = 'en_US';
+	public string $locale = 'en-US';
 	public ?string $referer = null;
 	public bool $apiResponseCaptureEnabled = false;
 	public ?array $capturedApiResponse = null;

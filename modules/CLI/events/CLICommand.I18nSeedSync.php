@@ -4,7 +4,7 @@
  * Sync per-locale seed CSV files from a directory back into the DB.
  *
  * Usage:
- *   radaptor i18n:seed-sync <input-dir> [--locale en_US,hu_HU] [--mode upsert|insert_new|sync] [--dry-run] [--json]
+ *   radaptor i18n:seed-sync <input-dir> [--locale en-US,hu-HU] [--mode upsert|insert_new|sync] [--dry-run] [--json]
  */
 class CLICommandI18nSeedSync extends AbstractCLICommand
 {
@@ -18,11 +18,11 @@ class CLICommandI18nSeedSync extends AbstractCLICommand
 		return <<<'DOC'
 			Sync per-locale seed CSV files from a directory back into the DB.
 
-			Usage: radaptor i18n:seed-sync <input-dir> [--locale en_US,hu_HU] [--mode upsert|insert_new|sync] [--dry-run] [--json]
+			Usage: radaptor i18n:seed-sync <input-dir> [--locale en-US,hu-HU] [--mode upsert|insert_new|sync] [--dry-run] [--json]
 
 			Examples:
 			  radaptor i18n:seed-sync /app/tmp/seeds
-			  radaptor i18n:seed-sync /app/tmp/seeds --locale hu_HU --mode sync
+			  radaptor i18n:seed-sync /app/tmp/seeds --locale hu-HU --mode sync
 			DOC;
 	}
 
@@ -41,7 +41,7 @@ class CLICommandI18nSeedSync extends AbstractCLICommand
 		$input_dir = Request::getMainArg();
 
 		if ($input_dir === null || trim($input_dir) === '') {
-			Kernel::abort('Usage: radaptor i18n:seed-sync <input-dir> [--locale en_US,hu_HU] [--mode upsert|insert_new|sync] [--dry-run] [--json]');
+			Kernel::abort('Usage: radaptor i18n:seed-sync <input-dir> [--locale en-US,hu-HU] [--mode upsert|insert_new|sync] [--dry-run] [--json]');
 		}
 
 		$dry_run = Request::hasArg('dry-run');

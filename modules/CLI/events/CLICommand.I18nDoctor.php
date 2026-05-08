@@ -10,7 +10,7 @@ class CLICommandI18nDoctor extends AbstractCLICommand
 	public function getDocs(): string
 	{
 		return <<<'DOC'
-			Run the i18n seed linter, fallback literal scanner, hardcoded UI scanner and coverage summary.
+			Run the i18n seed linter, fallback literal scanner, hardcoded UI scanner, locale diagnostics and coverage summary.
 
 			Usage: radaptor i18n:doctor [--all-packages] [--json] [--strict-hardcoded]
 			DOC;
@@ -42,6 +42,7 @@ class CLICommandI18nDoctor extends AbstractCLICommand
 		$hardcoded = I18nHardcodedUiScanner::scan([
 			'all_packages' => $all_packages,
 		]);
+		$locale_diagnostics = LocaleDiagnosticsService::diagnose();
 		$coverage = I18nCoverageService::summarize();
 		$missing_total = array_sum(array_map(
 			static fn (array $locale): int => (int) ($locale['missing'] ?? 0),
@@ -53,6 +54,7 @@ class CLICommandI18nDoctor extends AbstractCLICommand
 		));
 		$failed = $lint['errors'] > 0
 			|| $literals['issues'] > 0
+			|| $locale_diagnostics['status'] !== 'success'
 			|| $missing_total > 0
 			|| $stale_total > 0
 			|| ($strict_hardcoded && $hardcoded['issues'] > 0);
@@ -62,6 +64,7 @@ class CLICommandI18nDoctor extends AbstractCLICommand
 			'lint' => $lint,
 			'literals' => $literals,
 			'hardcoded_ui' => $hardcoded,
+			'locales' => $locale_diagnostics,
 			'coverage' => $coverage,
 		];
 
@@ -79,9 +82,22 @@ class CLICommandI18nDoctor extends AbstractCLICommand
 		echo 'Scope: ' . ($all_packages ? 'all packages audit' : 'active sync scope') . "\n";
 		echo "Fallback literals: {$literals['issues']} issues, {$literals['allowed_literals']} allowed literals\n";
 		echo "Hardcoded UI literals: {$hardcoded['issues']} warnings\n";
+		echo 'Locale diagnostics: ' . count($locale_diagnostics['issues']) . ' errors, ' . count($locale_diagnostics['warnings']) . ' warnings, ' . count($locale_diagnostics['info']) . " info\n";
 
 		foreach (array_slice($hardcoded['results'], 0, 10) as $row) {
 			echo "WARNING {$row['file']}:{$row['line']} literal=\"{$row['literal']}\" {$row['code']}\n";
+		}
+
+		foreach (array_slice($locale_diagnostics['issues'], 0, 10) as $row) {
+			echo 'ERROR locale ' . json_encode($row, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . "\n";
+		}
+
+		foreach (array_slice($locale_diagnostics['warnings'], 0, 10) as $row) {
+			echo 'WARNING locale ' . json_encode($row, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . "\n";
+		}
+
+		foreach (array_slice($locale_diagnostics['info'], 0, 10) as $row) {
+			echo 'INFO locale ' . json_encode($row, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . "\n";
 		}
 
 		if ($hardcoded['issues'] > 10) {

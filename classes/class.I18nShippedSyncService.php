@@ -220,7 +220,7 @@ class I18nShippedSyncService
 		$normalized = [];
 
 		foreach ($locales as $locale) {
-			$locale = trim((string) $locale);
+			$locale = LocaleService::tryCanonicalize((string) $locale) ?? '';
 
 			if ($locale === '') {
 				continue;

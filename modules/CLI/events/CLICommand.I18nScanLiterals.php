@@ -12,7 +12,7 @@ class CLICommandI18nScanLiterals extends AbstractCLICommand
 		return <<<'DOC'
 			Scan PHP/templates for keyed fallback literals whose i18n rows are missing.
 
-			Usage: radaptor i18n:scan-literals [--locale en_US,hu_HU] [--all-packages] [--json]
+			Usage: radaptor i18n:scan-literals [--locale en-US,hu-HU] [--all-packages] [--json]
 			DOC;
 	}
 

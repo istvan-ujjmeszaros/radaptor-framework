@@ -12,7 +12,7 @@ class CLICommandI18nImportAi extends AbstractCLICommand
 		return <<<'DOC'
 			Import a normalized AI translation CSV using upsert mode and source_text validation.
 
-			Usage: radaptor i18n:import-ai <file.csv> [--expect-locale hu_HU] [--dry-run] [--json]
+			Usage: radaptor i18n:import-ai <file.csv> [--expect-locale hu-HU] [--dry-run] [--json]
 			DOC;
 	}
 
@@ -43,7 +43,7 @@ class CLICommandI18nImportAi extends AbstractCLICommand
 
 	public function run(): void
 	{
-		$file = CLIOptionHelper::getMainArgOrAbort('Usage: radaptor i18n:import-ai <file.csv> [--expect-locale hu_HU] [--dry-run]');
+		$file = CLIOptionHelper::getMainArgOrAbort('Usage: radaptor i18n:import-ai <file.csv> [--expect-locale hu-HU] [--dry-run]');
 		$json = Request::hasArg('json');
 		$dry_run = Request::hasArg('dry-run');
 
