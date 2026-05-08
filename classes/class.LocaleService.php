@@ -225,11 +225,21 @@ final class LocaleService
 			}
 
 			$rows = $pdo->query("SELECT `locale` FROM `locales` {$suffix}")->fetchAll(PDO::FETCH_ASSOC);
+			$locales = [];
+			$seen = [];
 
-			return array_keys(self::normalizeLocaleList(array_map(
-				static fn (array $row): string => (string) ($row['locale'] ?? ''),
-				$rows
-			)));
+			foreach ($rows as $row) {
+				$locale = self::tryCanonicalize((string) ($row['locale'] ?? ''));
+
+				if ($locale === null || isset($seen[$locale])) {
+					continue;
+				}
+
+				$seen[$locale] = true;
+				$locales[] = $locale;
+			}
+
+			return $locales;
 		} catch (Throwable) {
 			return [self::getDefaultLocale()];
 		}
