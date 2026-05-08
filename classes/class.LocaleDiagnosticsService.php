@@ -107,10 +107,6 @@ final class LocaleDiagnosticsService
 			$issues[] = $issue;
 		}
 
-		foreach (self::getRichTextWidgetLocaleIssues() as $issue) {
-			$issues[] = $issue;
-		}
-
 		return [
 			'status' => $issues === [] ? 'success' : 'error',
 			'default_locale' => $default_locale,
@@ -413,75 +409,6 @@ final class LocaleDiagnosticsService
 		}
 
 		return null;
-	}
-
-	/**
-	 * @return list<array<string, mixed>>
-	 */
-	private static function getRichTextWidgetLocaleIssues(): array
-	{
-		foreach (['widget_connections', 'attributes', 'richtext', 'resource_tree'] as $table) {
-			if (!self::tableExists($table)) {
-				return [];
-			}
-		}
-
-		$rows = Db::instance()->query(
-			"SELECT wc.`connection_id`, wc.`widget_name`, wc.`page_id`,
-				a.`param_value` AS `content_id`,
-				rt.`locale` AS `richtext_locale`, rt.`name` AS `richtext_name`,
-				p.`node_id`, p.`node_type`, p.`path`, p.`resource_name`, p.`locale`, p.`lft`, p.`rgt`
-			FROM `widget_connections` wc
-			INNER JOIN `attributes` a
-				ON a.`resource_name` = 'widget_connection'
-				AND a.`resource_id` = wc.`connection_id`
-				AND a.`param_name` = 'content_id'
-			LEFT JOIN `richtext` rt ON rt.`id` = CAST(a.`param_value` AS UNSIGNED)
-			LEFT JOIN `resource_tree` p ON p.`node_id` = wc.`page_id`
-			WHERE LOWER(REPLACE(wc.`widget_name`, '_', '')) = 'richtext'
-			ORDER BY wc.`connection_id`"
-		)->fetchAll(PDO::FETCH_ASSOC) ?: [];
-		$issues = [];
-
-		foreach ($rows as $row) {
-			$connection_id = (int) ($row['connection_id'] ?? 0);
-			$content_id = (int) ($row['content_id'] ?? 0);
-
-			if ($content_id <= 0) {
-				continue;
-			}
-
-			if (($row['richtext_locale'] ?? null) === null) {
-				continue;
-			}
-
-			if (($row['node_id'] ?? null) === null) {
-				continue;
-			}
-
-			$page_locale = self::getEffectiveResourceLocale($row);
-
-			if ($page_locale === null) {
-				continue;
-			}
-
-			$richtext_locale = LocaleService::tryCanonicalize((string) ($row['richtext_locale'] ?? ''));
-
-			if ($richtext_locale !== $page_locale) {
-				$issues[] = [
-					'code' => 'richtext_widget_locale_mismatch',
-					'connection_id' => $connection_id,
-					'page_id' => (int) ($row['page_id'] ?? 0),
-					'page_path' => self::resourcePath($row),
-					'page_locale' => $page_locale,
-					'content_id' => $content_id,
-					'content_name' => (string) ($row['richtext_name'] ?? ''),
-					'content_locale' => $richtext_locale,
-				];
-			}
-		}
-
-		return $issues;
 	}
 
 	/**
