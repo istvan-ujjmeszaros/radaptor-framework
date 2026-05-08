@@ -146,10 +146,9 @@ class Migration_20260508_090000_bcp47_locale_registry
 		$sort_order = 10;
 
 		foreach (array_keys($locales) as $locale) {
-			$is_enabled = $locale === $default_locale ? 1 : 0;
 			$stmt = $pdo->prepare(
 				"INSERT INTO `locales` (`locale`, `label`, `native_label`, `is_enabled`, `sort_order`)
-				VALUES (?, ?, ?, ?, ?)
+				VALUES (?, ?, ?, 1, ?)
 				ON DUPLICATE KEY UPDATE
 					`label` = IF(`label` = '', VALUES(`label`), `label`),
 					`native_label` = IF(`native_label` = '', VALUES(`native_label`), `native_label`),
@@ -159,7 +158,6 @@ class Migration_20260508_090000_bcp47_locale_registry
 				$locale,
 				$this->getDisplayLabel($locale),
 				$this->getNativeName($locale),
-				$is_enabled,
 				$sort_order,
 				$default_locale,
 			]);
