@@ -112,6 +112,8 @@ class Migration_20260508_100000_resource_locale_home
 
 	private function canonicalizeResourceLocales(PDO $pdo): void
 	{
+		$pdo->exec("UPDATE `resource_tree` SET `locale` = NULL WHERE `locale` = ''");
+
 		$rows = $pdo->query("SELECT DISTINCT `locale` FROM `resource_tree` WHERE `locale` IS NOT NULL AND `locale` <> ''")->fetchAll(PDO::FETCH_ASSOC);
 
 		foreach ($rows as $row) {
