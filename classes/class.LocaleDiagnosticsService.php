@@ -4,6 +4,20 @@ declare(strict_types=1);
 
 final class LocaleDiagnosticsService
 {
+	private const array SOURCE_KEY_EXCLUDED_DIRECTORIES = [
+		'.git',
+		'cache',
+		'dist',
+		'generated',
+		'node_modules',
+		'storage',
+		'tests',
+		'tmp',
+		'uploaded_files',
+		'vendor',
+		'_UPLOADS',
+	];
+
 	/**
 	 * @return array<string, mixed>
 	 */
@@ -79,6 +93,10 @@ final class LocaleDiagnosticsService
 				'charset' => $row['charset'],
 				'collation' => $row['collation'],
 			];
+		}
+
+		foreach (self::getMissingSourceI18nKeyIssues() as $issue) {
+			$issues[] = $issue;
 		}
 
 		foreach (self::getLocaleHomeResourceIssues() as $issue) {
@@ -511,6 +529,362 @@ final class LocaleDiagnosticsService
 			'widget_name' => 'RichText',
 			'connections' => $count,
 		]];
+	}
+
+	/**
+	 * @return list<array<string, mixed>>
+	 */
+	private static function getMissingSourceI18nKeyIssues(): array
+	{
+		if (!self::tableExists('i18n_messages')) {
+			return [];
+		}
+
+		$existing_keys = self::getRegisteredI18nMessageKeys();
+		$source_keys = [];
+
+		foreach (self::getSourceKeyScanRoots() as $root) {
+			self::scanSourceKeyRoot($root, $source_keys);
+		}
+
+		ksort($source_keys);
+		$issues = [];
+
+		foreach ($source_keys as $key => $occurrences) {
+			if (isset($existing_keys[$key])) {
+				continue;
+			}
+
+			$issues[] = [
+				'code' => 'source_i18n_key_missing',
+				'key' => $key,
+				'occurrences' => $occurrences,
+			];
+		}
+
+		return $issues;
+	}
+
+	/**
+	 * @return array<string, true>
+	 */
+	private static function getRegisteredI18nMessageKeys(): array
+	{
+		$rows = Db::instance()->query(
+			"SELECT `domain`, `key`
+			FROM `i18n_messages`
+			WHERE `context` = ''"
+		)->fetchAll(PDO::FETCH_ASSOC) ?: [];
+		$keys = [];
+
+		foreach ($rows as $row) {
+			$domain = (string) ($row['domain'] ?? '');
+			$key = (string) ($row['key'] ?? '');
+
+			if ($domain !== '' && $key !== '') {
+				$keys[$domain . '.' . $key] = true;
+			}
+		}
+
+		return $keys;
+	}
+
+	/**
+	 * @return list<string>
+	 */
+	private static function getSourceKeyScanRoots(): array
+	{
+		$roots = [
+			DEPLOY_ROOT . 'app/',
+		];
+
+		foreach (PackagePathHelper::getActivePackageRoots(['core', 'theme', 'plugin']) as $package_root) {
+			$roots[] = rtrim((string) $package_root, '/') . '/';
+		}
+
+		$framework_root = PackagePathHelper::getFrameworkRoot();
+		$cms_root = PackagePathHelper::getCmsRoot();
+
+		if (is_string($cms_root)) {
+			$roots[] = rtrim($cms_root, '/') . '/';
+		}
+
+		if (is_string($framework_root)) {
+			$roots[] = rtrim($framework_root, '/') . '/';
+		}
+
+		$roots = array_values(array_unique(array_map(
+			static fn (string $root): string => rtrim(str_replace('\\', '/', $root), '/') . '/',
+			$roots
+		)));
+		sort($roots);
+
+		return $roots;
+	}
+
+	/**
+	 * @param array<string, list<array{file: string, line: int}>> $source_keys
+	 */
+	private static function scanSourceKeyRoot(string $root, array &$source_keys): void
+	{
+		if (!is_dir($root)) {
+			return;
+		}
+
+		try {
+			$iterator = new RecursiveIteratorIterator(
+				new RecursiveDirectoryIterator($root, RecursiveDirectoryIterator::SKIP_DOTS)
+			);
+		} catch (Throwable) {
+			return;
+		}
+
+		foreach ($iterator as $file) {
+			if (!$file instanceof SplFileInfo || !$file->isFile()) {
+				continue;
+			}
+
+			$path = str_replace('\\', '/', $file->getPathname());
+
+			if (self::isSourceKeyPathExcluded($path)) {
+				continue;
+			}
+
+			$content = file_get_contents($path);
+
+			if ($content === false) {
+				continue;
+			}
+
+			if (str_ends_with($path, '.blade.php') || str_ends_with($path, '.twig') || str_ends_with($path, '.js')) {
+				self::extractRegexSourceKeys($content, $path, $source_keys);
+
+				continue;
+			}
+
+			if (str_ends_with($path, '.php')) {
+				self::extractPhpSourceKeys($content, $path, $source_keys);
+				self::extractTemplateStringBagSourceKeys($content, $path, $source_keys);
+			}
+		}
+	}
+
+	private static function isSourceKeyPathExcluded(string $path): bool
+	{
+		$normalized = '/' . trim(str_replace('\\', '/', $path), '/') . '/';
+
+		foreach (self::SOURCE_KEY_EXCLUDED_DIRECTORIES as $directory) {
+			if (str_contains($normalized, '/' . $directory . '/')) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * @param array<string, list<array{file: string, line: int}>> $source_keys
+	 */
+	private static function extractPhpSourceKeys(string $content, string $file, array &$source_keys): void
+	{
+		$tokens = token_get_all($content);
+		$count = count($tokens);
+
+		for ($i = 0; $i < $count; $i++) {
+			$token = $tokens[$i];
+
+			if (!is_array($token) || $token[0] !== T_STRING) {
+				continue;
+			}
+
+			$name = $token[1];
+
+			if ($name !== 't' && $name !== 'registerI18n') {
+				continue;
+			}
+
+			if (self::previousSignificantTokenIsMemberAccess($tokens, $i)) {
+				continue;
+			}
+
+			$j = self::nextNonWhitespaceTokenIndex($tokens, $i + 1);
+
+			if ($j === null || ($tokens[$j] ?? null) !== '(') {
+				continue;
+			}
+
+			$j = self::nextNonWhitespaceTokenIndex($tokens, $j + 1);
+
+			if ($j === null || !isset($tokens[$j])) {
+				continue;
+			}
+
+			if (is_array($tokens[$j]) && $tokens[$j][0] === T_CONSTANT_ENCAPSED_STRING) {
+				self::registerSourceI18nKey(
+					self::unquotePhpStringToken((string) $tokens[$j][1]),
+					$file,
+					(int) ($tokens[$j][2] ?? 1),
+					$source_keys
+				);
+
+				continue;
+			}
+
+			if ($name !== 'registerI18n' || !self::isPhpArrayStartToken($tokens[$j])) {
+				continue;
+			}
+
+			$depth = 1;
+			$j++;
+
+			while ($j < $count && $depth > 0) {
+				$current = $tokens[$j];
+
+				if (self::isPhpArrayStartToken($current)) {
+					$depth++;
+				} elseif ($current === ']' || $current === ')') {
+					$depth--;
+				} elseif (is_array($current) && $current[0] === T_CONSTANT_ENCAPSED_STRING) {
+					self::registerSourceI18nKey(
+						self::unquotePhpStringToken((string) $current[1]),
+						$file,
+						(int) ($current[2] ?? 1),
+						$source_keys
+					);
+				}
+
+				$j++;
+			}
+		}
+	}
+
+	/**
+	 * @param list<array|string> $tokens
+	 */
+	private static function previousSignificantTokenIsMemberAccess(array $tokens, int $index): bool
+	{
+		for ($i = $index - 1; $i >= 0; $i--) {
+			$token = $tokens[$i];
+
+			if (is_array($token) && in_array($token[0], [T_WHITESPACE, T_COMMENT, T_DOC_COMMENT], true)) {
+				continue;
+			}
+
+			return $token === '->' || (is_array($token) && in_array($token[0], [T_OBJECT_OPERATOR, T_DOUBLE_COLON], true));
+		}
+
+		return false;
+	}
+
+	/**
+	 * @param list<array|string> $tokens
+	 */
+	private static function nextNonWhitespaceTokenIndex(array $tokens, int $start): ?int
+	{
+		$count = count($tokens);
+
+		for ($i = $start; $i < $count; $i++) {
+			$token = $tokens[$i];
+
+			if (is_array($token) && in_array($token[0], [T_WHITESPACE, T_COMMENT, T_DOC_COMMENT], true)) {
+				continue;
+			}
+
+			return $i;
+		}
+
+		return null;
+	}
+
+	private static function isPhpArrayStartToken(mixed $token): bool
+	{
+		return $token === '[' || (is_array($token) && strtolower((string) ($token[1] ?? '')) === 'array');
+	}
+
+	private static function unquotePhpStringToken(string $value): string
+	{
+		return stripcslashes(trim($value, "'\""));
+	}
+
+	/**
+	 * @param array<string, list<array{file: string, line: int}>> $source_keys
+	 */
+	private static function extractRegexSourceKeys(string $content, string $file, array &$source_keys): void
+	{
+		if (preg_match_all('/\bt\s*\(\s*[\'"]([^\'"]+)[\'"]/', $content, $matches, PREG_OFFSET_CAPTURE)) {
+			foreach ($matches[1] as [$key, $offset]) {
+				self::registerSourceI18nKey((string) $key, $file, self::lineNumberAtOffset($content, (int) $offset), $source_keys);
+			}
+		}
+
+		if (preg_match_all('/registerI18n\s*\(\s*[\'"]([^\'"]+)[\'"]/', $content, $matches, PREG_OFFSET_CAPTURE)) {
+			foreach ($matches[1] as [$key, $offset]) {
+				self::registerSourceI18nKey((string) $key, $file, self::lineNumberAtOffset($content, (int) $offset), $source_keys);
+			}
+		}
+
+		if (preg_match_all('/registerI18n\s*\(\s*\[([^\]]+)\]/s', $content, $matches, PREG_OFFSET_CAPTURE)) {
+			foreach ($matches[1] as [$inner, $inner_offset]) {
+				if (!preg_match_all('/[\'"]([^\'"]+)[\'"]/', (string) $inner, $key_matches, PREG_OFFSET_CAPTURE)) {
+					continue;
+				}
+
+				foreach ($key_matches[1] as [$key, $offset]) {
+					self::registerSourceI18nKey(
+						(string) $key,
+						$file,
+						self::lineNumberAtOffset($content, (int) $inner_offset + (int) $offset),
+						$source_keys
+					);
+				}
+			}
+		}
+
+		if (preg_match_all('/window\.__i18n\[[\'"]([^\'"]+)[\'"]\]/', $content, $matches, PREG_OFFSET_CAPTURE)) {
+			foreach ($matches[1] as [$key, $offset]) {
+				self::registerSourceI18nKey((string) $key, $file, self::lineNumberAtOffset($content, (int) $offset), $source_keys);
+			}
+		}
+	}
+
+	/**
+	 * @param array<string, list<array{file: string, line: int}>> $source_keys
+	 */
+	private static function extractTemplateStringBagSourceKeys(string $content, string $file, array &$source_keys): void
+	{
+		if (!preg_match_all('/\\$this->strings\\[[\'"]([^\'"]+)[\'"]\\]/', $content, $matches, PREG_OFFSET_CAPTURE)) {
+			return;
+		}
+
+		foreach ($matches[1] as [$key, $offset]) {
+			self::registerSourceI18nKey((string) $key, $file, self::lineNumberAtOffset($content, (int) $offset), $source_keys);
+		}
+	}
+
+	private static function lineNumberAtOffset(string $content, int $offset): int
+	{
+		return substr_count(substr($content, 0, max(0, $offset)), "\n") + 1;
+	}
+
+	/**
+	 * @param array<string, list<array{file: string, line: int}>> $source_keys
+	 */
+	private static function registerSourceI18nKey(string $key, string $file, int $line, array &$source_keys): void
+	{
+		if (!preg_match('/^[A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+$/', $key)) {
+			return;
+		}
+
+		$source_keys[$key] ??= [];
+
+		if (count($source_keys[$key]) >= 10) {
+			return;
+		}
+
+		$source_keys[$key][] = [
+			'file' => $file,
+			'line' => $line,
+		];
 	}
 
 	/**
