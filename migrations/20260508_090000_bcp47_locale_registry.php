@@ -10,6 +10,7 @@ class Migration_20260508_090000_bcp47_locale_registry
 		$default_locale = LocaleService::getDefaultLocale();
 
 		$this->createLocalesTable($pdo);
+		$this->mergeCanonicalizationCollisions($pdo, $default_locale);
 		$this->assertCanonicalizationIsSafe($pdo, $default_locale);
 		$this->widenLocaleColumns($pdo, $default_locale);
 		$this->canonicalizeExistingLocaleValues($pdo, $default_locale);
@@ -64,6 +65,187 @@ class Migration_20260508_090000_bcp47_locale_registry
 	{
 		$this->assertPrimaryLocaleCanonicalizationIsSafe($pdo, 'i18n_build_state', ['locale'], $default_locale);
 		$this->assertPrimaryLocaleCanonicalizationIsSafe($pdo, 'i18n_translations', ['domain', 'key', 'context', 'locale'], $default_locale);
+	}
+
+	private function mergeCanonicalizationCollisions(PDO $pdo, string $default_locale): void
+	{
+		$this->mergeBuildStateLocaleCollisions($pdo, $default_locale);
+		$this->mergeTranslationLocaleCollisions($pdo, $default_locale);
+	}
+
+	private function mergeBuildStateLocaleCollisions(PDO $pdo, string $default_locale): void
+	{
+		if (!$this->tableExists($pdo, 'i18n_build_state') || !$this->columnExists($pdo, 'i18n_build_state', 'locale')) {
+			return;
+		}
+
+		$columns = ['locale'];
+
+		foreach (['catalog_hash', 'built_at'] as $column) {
+			if ($this->columnExists($pdo, 'i18n_build_state', $column)) {
+				$columns[] = $column;
+			}
+		}
+
+		$rows = $pdo->query('SELECT `' . implode('`, `', $columns) . '` FROM `i18n_build_state`')->fetchAll(PDO::FETCH_ASSOC);
+		$groups = [];
+
+		foreach ($rows as $row) {
+			$canonical = $this->canonicalizeLegacyLocaleValue((string) ($row['locale'] ?? ''), $default_locale);
+			$groups[$canonical][] = $row;
+		}
+
+		foreach ($groups as $canonical => $group) {
+			if (count($group) <= 1) {
+				continue;
+			}
+
+			$winner = $this->chooseBuildStateWinner($group, $canonical);
+			$winner['locale'] = $canonical;
+			$this->replaceRows(
+				$pdo,
+				'i18n_build_state',
+				['locale'],
+				$columns,
+				$group,
+				$winner
+			);
+		}
+	}
+
+	private function mergeTranslationLocaleCollisions(PDO $pdo, string $default_locale): void
+	{
+		if (!$this->tableExists($pdo, 'i18n_translations')) {
+			return;
+		}
+
+		foreach (['domain', 'key', 'context', 'locale'] as $column) {
+			if (!$this->columnExists($pdo, 'i18n_translations', $column)) {
+				return;
+			}
+		}
+
+		$columns = ['domain', 'key', 'context', 'locale'];
+
+		foreach (['text', 'human_reviewed', 'source_hash_snapshot'] as $column) {
+			if ($this->columnExists($pdo, 'i18n_translations', $column)) {
+				$columns[] = $column;
+			}
+		}
+
+		$rows = $pdo->query('SELECT `' . implode('`, `', $columns) . '` FROM `i18n_translations`')->fetchAll(PDO::FETCH_ASSOC);
+		$groups = [];
+
+		foreach ($rows as $row) {
+			$canonical = $this->canonicalizeLegacyLocaleValue((string) ($row['locale'] ?? ''), $default_locale);
+			$key = implode("\0", [
+				(string) ($row['domain'] ?? ''),
+				(string) ($row['key'] ?? ''),
+				(string) ($row['context'] ?? ''),
+				$canonical,
+			]);
+			$groups[$key][] = $row;
+		}
+
+		foreach ($groups as $group) {
+			if (count($group) <= 1) {
+				continue;
+			}
+
+			$canonical = $this->canonicalizeLegacyLocaleValue((string) ($group[0]['locale'] ?? ''), $default_locale);
+			$winner = $this->chooseTranslationWinner($group, $canonical);
+			$winner['locale'] = $canonical;
+			$this->replaceRows(
+				$pdo,
+				'i18n_translations',
+				['domain', 'key', 'context', 'locale'],
+				$columns,
+				$group,
+				$winner
+			);
+		}
+	}
+
+	/**
+	 * @param list<array<string, mixed>> $group
+	 * @return array<string, mixed>
+	 */
+	private function chooseBuildStateWinner(array $group, string $canonical): array
+	{
+		usort($group, static function (array $left, array $right) use ($canonical): int {
+			$built_at_compare = strcmp((string) ($right['built_at'] ?? ''), (string) ($left['built_at'] ?? ''));
+
+			if ($built_at_compare !== 0) {
+				return $built_at_compare;
+			}
+
+			$left_canonical = (string) ($left['locale'] ?? '') === $canonical ? 1 : 0;
+			$right_canonical = (string) ($right['locale'] ?? '') === $canonical ? 1 : 0;
+
+			return $right_canonical <=> $left_canonical;
+		});
+
+		return $group[0];
+	}
+
+	/**
+	 * @param list<array<string, mixed>> $group
+	 * @return array<string, mixed>
+	 */
+	private function chooseTranslationWinner(array $group, string $canonical): array
+	{
+		usort($group, static function (array $left, array $right) use ($canonical): int {
+			$left_reviewed = (int) ($left['human_reviewed'] ?? 0);
+			$right_reviewed = (int) ($right['human_reviewed'] ?? 0);
+
+			if ($left_reviewed !== $right_reviewed) {
+				return $right_reviewed <=> $left_reviewed;
+			}
+
+			$left_has_text = trim((string) ($left['text'] ?? '')) !== '' ? 1 : 0;
+			$right_has_text = trim((string) ($right['text'] ?? '')) !== '' ? 1 : 0;
+
+			if ($left_has_text !== $right_has_text) {
+				return $right_has_text <=> $left_has_text;
+			}
+
+			$left_canonical = (string) ($left['locale'] ?? '') === $canonical ? 1 : 0;
+			$right_canonical = (string) ($right['locale'] ?? '') === $canonical ? 1 : 0;
+
+			return $right_canonical <=> $left_canonical;
+		});
+
+		return $group[0];
+	}
+
+	/**
+	 * @param list<string> $primary_columns
+	 * @param list<string> $columns
+	 * @param list<array<string, mixed>> $existing_rows
+	 * @param array<string, mixed> $replacement
+	 */
+	private function replaceRows(PDO $pdo, string $table, array $primary_columns, array $columns, array $existing_rows, array $replacement): void
+	{
+		$where = implode(' AND ', array_map(
+			static fn (string $column): string => "`{$column}` = ?",
+			$primary_columns
+		));
+		$delete = $pdo->prepare("DELETE FROM `{$table}` WHERE {$where}");
+
+		foreach ($existing_rows as $row) {
+			$delete->execute(array_map(
+				static fn (string $column): mixed => $row[$column] ?? '',
+				$primary_columns
+			));
+		}
+
+		$insert_columns = '`' . implode('`, `', $columns) . '`';
+		$placeholders = implode(', ', array_fill(0, count($columns), '?'));
+		$insert = $pdo->prepare("INSERT INTO `{$table}` ({$insert_columns}) VALUES ({$placeholders})");
+		$insert->execute(array_map(
+			static fn (string $column): mixed => $replacement[$column] ?? '',
+			$columns
+		));
 	}
 
 	/**

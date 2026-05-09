@@ -71,6 +71,13 @@ class I18nShippedSyncService
 		$locales_filter = self::normalizeLocales($options['locales'] ?? []);
 		$targets = self::uniqueTargets($core_seed_targets);
 
+		if ($mode === CsvImportMode::Sync->value && count($targets) > 1) {
+			throw new RuntimeException(
+				'Sync mode is not supported across multiple shipped i18n seed directories because deletion scope would be ambiguous. '
+				. 'Use the default upsert mode for i18n:sync-shipped, or run i18n:seed-sync against one explicit seed directory.'
+			);
+		}
+
 		usort($targets, static function (array $left, array $right): int {
 			return [$left['group_type'], $left['group_id']] <=> [$right['group_type'], $right['group_id']];
 		});

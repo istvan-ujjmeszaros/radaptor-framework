@@ -85,23 +85,58 @@ final class LocaleMigrationSmokeTest extends TestCase
 		}
 	}
 
-	public function testMigrationRejectsPrimaryKeyLocaleCanonicalizationCollisions(): void
+	public function testMigrationMergesLegacyAndCanonicalLocaleRowsBeforeCanonicalizing(): void
 	{
 		$pdo = new LocaleMigrationSmokePdo([
 			'i18n_translations' => [
-				'columns' => ['domain', 'key', 'context', 'locale'],
+				'columns' => ['domain', 'key', 'context', 'locale', 'text', 'human_reviewed', 'source_hash_snapshot'],
 				'rows' => [
-					['domain' => 'messages', 'key' => 'hello', 'context' => '', 'locale' => 'en_US'],
-					['domain' => 'messages', 'key' => 'hello', 'context' => '', 'locale' => 'en-US'],
+					[
+						'domain' => 'messages',
+						'key' => 'hello',
+						'context' => '',
+						'locale' => 'en_US',
+						'text' => 'Hello from legacy',
+						'human_reviewed' => 1,
+						'source_hash_snapshot' => 'abc',
+					],
+					[
+						'domain' => 'messages',
+						'key' => 'hello',
+						'context' => '',
+						'locale' => 'en-US',
+						'text' => 'Hello from canonical',
+						'human_reviewed' => 0,
+						'source_hash_snapshot' => 'abc',
+					],
+				],
+			],
+			'i18n_build_state' => [
+				'columns' => ['locale', 'catalog_hash', 'built_at'],
+				'rows' => [
+					['locale' => 'en_US', 'catalog_hash' => 'old', 'built_at' => '2026-05-01 00:00:00'],
+					['locale' => 'en-US', 'catalog_hash' => 'new', 'built_at' => '2026-05-02 00:00:00'],
 				],
 			],
 		]);
 		LocaleMigrationSmokeDb::$pdo = $pdo;
 
-		$this->expectException(RuntimeException::class);
-		$this->expectExceptionMessage('multiple rows would collapse into the same primary key');
-
 		(new Migration_20260508_090000_bcp47_locale_registry())->run();
+
+		$this->assertSame([
+			[
+				'domain' => 'messages',
+				'key' => 'hello',
+				'context' => '',
+				'locale' => 'en-US',
+				'text' => 'Hello from legacy',
+				'human_reviewed' => 1,
+				'source_hash_snapshot' => 'abc',
+			],
+		], $pdo->rows('i18n_translations'));
+		$this->assertSame([
+			['locale' => 'en-US', 'catalog_hash' => 'new', 'built_at' => '2026-05-02 00:00:00'],
+		], $pdo->rows('i18n_build_state'));
 	}
 }
 
@@ -158,6 +193,18 @@ final class LocaleMigrationSmokePdo extends PDO
 
 			if (preg_match('/UPDATE `([^`]+)` SET `([^`]+)` = \\? WHERE `([^`]+)` = \\?/', $query, $matches)) {
 				$this->updateLocaleRows($matches[1], $matches[2], (string) ($params[0] ?? ''), (string) ($params[1] ?? ''));
+
+				return [];
+			}
+
+			if (preg_match('/DELETE FROM `([^`]+)` WHERE (.+)$/', $query, $matches)) {
+				$this->deleteRows($matches[1], $matches[2], $params);
+
+				return [];
+			}
+
+			if (preg_match('/INSERT INTO `([^`]+)` \\((.+)\\) VALUES/s', $query, $matches)) {
+				$this->insertRow($matches[1], $matches[2], $params);
 
 				return [];
 			}
@@ -251,6 +298,52 @@ final class LocaleMigrationSmokePdo extends PDO
 			}
 		}
 		unset($row);
+	}
+
+	/**
+	 * @param array<int, mixed> $params
+	 */
+	private function deleteRows(string $table, string $whereSql, array $params): void
+	{
+		preg_match_all('/`([^`]+)` = \\?/', $whereSql, $matches);
+		$columns = $matches[1] ?? [];
+		$remaining = [];
+
+		foreach ($this->tables[$table]['rows'] ?? [] as $row) {
+			$matchesRow = true;
+
+			foreach ($columns as $index => $column) {
+				if ((string) ($row[$column] ?? '') !== (string) ($params[$index] ?? '')) {
+					$matchesRow = false;
+
+					break;
+				}
+			}
+
+			if (!$matchesRow) {
+				$remaining[] = $row;
+			}
+		}
+
+		$this->tables[$table]['rows'] = $remaining;
+	}
+
+	/**
+	 * @param array<int, mixed> $params
+	 */
+	private function insertRow(string $table, string $columnsSql, array $params): void
+	{
+		$columns = array_map(
+			static fn (string $column): string => trim($column, " `"),
+			explode(',', $columnsSql)
+		);
+		$row = [];
+
+		foreach ($columns as $index => $column) {
+			$row[$column] = $params[$index] ?? '';
+		}
+
+		$this->tables[$table]['rows'][] = $row;
 	}
 
 	private function upsertLocale(string $locale): void

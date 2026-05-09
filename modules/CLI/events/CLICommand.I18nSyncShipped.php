@@ -4,7 +4,7 @@
  * Sync all shipped translation seed directories for the current installation.
  *
  * Usage:
- *   radaptor i18n:sync-shipped [--locale en-US,hu-HU] [--mode upsert|insert_new|sync] [--dry-run] [--no-build] [--json]
+ *   radaptor i18n:sync-shipped [--locale en-US,hu-HU] [--mode upsert|insert_new] [--dry-run] [--no-build] [--json]
  */
 class CLICommandI18nSyncShipped extends AbstractCLICommand
 {
@@ -18,7 +18,10 @@ class CLICommandI18nSyncShipped extends AbstractCLICommand
 		return <<<'DOC'
 			Sync all shipped translation seed directories for the current installation.
 
-			Usage: radaptor i18n:sync-shipped [--locale en-US,hu-HU] [--mode upsert|insert_new|sync] [--dry-run] [--no-build] [--json]
+			Usage: radaptor i18n:sync-shipped [--locale en-US,hu-HU] [--mode upsert|insert_new] [--dry-run] [--no-build] [--json]
+
+			Destructive sync mode is intentionally not available across all shipped seed directories;
+			use i18n:seed-sync for one explicit seed directory when deletion scope must be exact.
 
 			Examples:
 			  radaptor i18n:sync-shipped
