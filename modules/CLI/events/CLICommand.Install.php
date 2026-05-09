@@ -95,6 +95,16 @@ class CLICommandInstall extends AbstractCLICommand
 			echo "{$prefix}Package migrations: " . count($package_migrations) . "\n";
 		}
 
+		if (is_array($result['shipped_i18n_audit'] ?? null)) {
+			$audit = $result['shipped_i18n_audit'];
+			echo "{$prefix}Shipped i18n DB: {$audit['status']}, missing {$audit['missing_rows']}, changed {$audit['changed_rows']}, customized {$audit['customized_rows']}\n";
+		}
+
+		if (($result['shipped_i18n_sync_ran'] ?? false) === true && is_array($result['shipped_i18n_sync'] ?? null)) {
+			$sync = $result['shipped_i18n_sync'];
+			echo "{$prefix}Shipped i18n sync: files {$sync['files_processed']}, conflicts {$sync['conflicts']}, imported {$sync['imported']}\n";
+		}
+
 		if (($result['seeds_ran'] ?? false) === true && is_array($result['seeds'] ?? null)) {
 			echo "{$prefix}Seeds: {$result['seeds']['status']}, executed {$result['seeds']['seeds_executed']}, skipped {$result['seeds']['seeds_skipped']}\n";
 
@@ -138,6 +148,10 @@ class CLICommandInstall extends AbstractCLICommand
 			return 'error';
 		}
 
+		if ($this->hasFailedShippedI18n($result['shipped_i18n_audit'] ?? null, $result['shipped_i18n_sync'] ?? null)) {
+			return 'error';
+		}
+
 		if ($this->hasFailedSeeds($result['seeds'] ?? null)) {
 			return 'error';
 		}
@@ -177,6 +191,19 @@ class CLICommandInstall extends AbstractCLICommand
 		}
 
 		return ($result['i18n_seed_sync']['has_errors'] ?? false) === true;
+	}
+
+	/**
+	 * @param array<string, mixed>|null $audit
+	 * @param array<string, mixed>|null $sync
+	 */
+	private function hasFailedShippedI18n(?array $audit, ?array $sync): bool
+	{
+		if (is_array($audit) && ($audit['status'] ?? 'ok') === 'error') {
+			return true;
+		}
+
+		return is_array($sync) && ($sync['has_errors'] ?? false) === true;
 	}
 
 	/**

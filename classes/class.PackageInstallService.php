@@ -134,6 +134,9 @@ class PackageInstallService
 	 *     plugin_sync: array<string, mixed>|null,
 	 *     package_migrations_ran: bool,
 	 *     package_migrations: array<int, array<string, mixed>>|null,
+	 *     shipped_i18n_audit: array<string, mixed>|null,
+	 *     shipped_i18n_sync_ran: bool,
+	 *     shipped_i18n_sync: array<string, mixed>|null,
 	 *     seeds_ran: bool,
 	 *     seeds: array<string, mixed>|null,
 	 *     assets_built: bool,
@@ -194,6 +197,9 @@ class PackageInstallService
 	 *     plugin_sync: array<string, mixed>|null,
 	 *     package_migrations_ran: bool,
 	 *     package_migrations: array<int, array<string, mixed>>|null,
+	 *     shipped_i18n_audit: array<string, mixed>|null,
+	 *     shipped_i18n_sync_ran: bool,
+	 *     shipped_i18n_sync: array<string, mixed>|null,
 	 *     seeds_ran: bool,
 	 *     seeds: array<string, mixed>|null,
 	 *     assets_built: bool,
@@ -239,6 +245,9 @@ class PackageInstallService
 		$plugin_sync = null;
 		$package_migrations_ran = false;
 		$package_migrations = null;
+		$shipped_i18n_audit = null;
+		$shipped_i18n_sync_ran = false;
+		$shipped_i18n_sync = null;
 		$seeds_ran = false;
 		$seeds = null;
 		$assets_built = false;
@@ -287,6 +296,11 @@ class PackageInstallService
 			$package_migrations_ran = true;
 
 			if (!self::hasFailedMigration($package_migrations)) {
+				$shipped_i18n = self::syncShippedI18nIfNeeded();
+				$shipped_i18n_audit = $shipped_i18n['audit'];
+				$shipped_i18n_sync_ran = $shipped_i18n['sync_ran'];
+				$shipped_i18n_sync = $shipped_i18n['sync'];
+
 				$seeds = SeedRunner::runPaths(
 					$write_lock_path,
 					DEPLOY_ROOT . 'app',
@@ -371,6 +385,9 @@ class PackageInstallService
 			'plugin_sync' => $plugin_sync,
 			'package_migrations_ran' => $package_migrations_ran,
 			'package_migrations' => $package_migrations,
+			'shipped_i18n_audit' => $shipped_i18n_audit,
+			'shipped_i18n_sync_ran' => $shipped_i18n_sync_ran,
+			'shipped_i18n_sync' => $shipped_i18n_sync,
 			'seeds_ran' => $seeds_ran,
 			'seeds' => $seeds,
 			'assets_built' => $assets_built,
@@ -713,6 +730,40 @@ class PackageInstallService
 		PackageConfig::reset();
 		PackagePathHelper::reset();
 		PackageThemeScanHelper::reset();
+	}
+
+	/**
+	 * @return array{
+	 *     audit: array<string, mixed>,
+	 *     sync_ran: bool,
+	 *     sync: array<string, mixed>|null
+	 * }
+	 */
+	private static function syncShippedI18nIfNeeded(bool $build = true): array
+	{
+		$audit = I18nShippedDatabaseAuditService::audit();
+		$sync_ran = false;
+		$sync = null;
+
+		if (($audit['status'] ?? '') === 'needs_sync') {
+			$sync = I18nShippedSyncService::sync([
+				'locales' => $audit['sync_locales'] ?? [],
+				'mode' => CsvImportMode::Upsert->value,
+				'dry_run' => false,
+				'build' => $build,
+			]);
+			$sync_ran = true;
+
+			if (($sync['has_errors'] ?? false) === false) {
+				$audit = I18nShippedDatabaseAuditService::audit();
+			}
+		}
+
+		return [
+			'audit' => $audit,
+			'sync_ran' => $sync_ran,
+			'sync' => $sync,
+		];
 	}
 
 	/**

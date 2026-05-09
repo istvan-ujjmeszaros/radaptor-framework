@@ -10,9 +10,17 @@ class CLICommandI18nDoctor extends AbstractCLICommand
 	public function getDocs(): string
 	{
 		return <<<'DOC'
-			Run the i18n seed linter, fallback literal scanner, hardcoded UI scanner, locale diagnostics and coverage summary.
+			Run the i18n seed linter, fallback literal scanner, hardcoded UI scanner, shipped database sync audit, locale diagnostics and coverage summary.
 
 			Usage: radaptor i18n:doctor [--all-packages] [--json] [--strict-hardcoded]
+
+			JSON shipped_database.status values:
+			  ok          database matches shipped seeds
+			  customized  only human-reviewed rows differ from shipped expected_text
+			  needs_sync  missing or changed rows can be repaired with suggested_command
+			  error       seed read/validation or audit failed
+
+			shipped_database.conflicts is a compatibility alias for customized_rows.
 			DOC;
 	}
 
@@ -42,6 +50,9 @@ class CLICommandI18nDoctor extends AbstractCLICommand
 		$hardcoded = I18nHardcodedUiScanner::scan([
 			'all_packages' => $all_packages,
 		]);
+		$shipped_database = I18nShippedDatabaseAuditService::audit([
+			'all_packages' => $all_packages,
+		]);
 		$locale_diagnostics = LocaleDiagnosticsService::diagnose();
 		$coverage = I18nCoverageService::summarize();
 		$missing_total = array_sum(array_map(
@@ -54,6 +65,7 @@ class CLICommandI18nDoctor extends AbstractCLICommand
 		));
 		$failed = $lint['errors'] > 0
 			|| $literals['issues'] > 0
+			|| !in_array($shipped_database['status'], ['ok', 'customized'], true)
 			|| $locale_diagnostics['status'] !== 'success'
 			|| $missing_total > 0
 			|| $stale_total > 0
@@ -64,6 +76,7 @@ class CLICommandI18nDoctor extends AbstractCLICommand
 			'lint' => $lint,
 			'literals' => $literals,
 			'hardcoded_ui' => $hardcoded,
+			'shipped_database' => $shipped_database,
 			'locales' => $locale_diagnostics,
 			'coverage' => $coverage,
 		];
@@ -82,10 +95,15 @@ class CLICommandI18nDoctor extends AbstractCLICommand
 		echo 'Scope: ' . ($all_packages ? 'all packages audit' : 'active sync scope') . "\n";
 		echo "Fallback literals: {$literals['issues']} issues, {$literals['allowed_literals']} allowed literals\n";
 		echo "Hardcoded UI literals: {$hardcoded['issues']} warnings\n";
+		echo "Shipped DB sync: {$shipped_database['status']}, missing {$shipped_database['missing_rows']}, changed {$shipped_database['changed_rows']}, customized {$shipped_database['customized_rows']}\n";
 		echo 'Locale diagnostics: ' . count($locale_diagnostics['issues']) . ' errors, ' . count($locale_diagnostics['warnings']) . ' warnings, ' . count($locale_diagnostics['info']) . " info\n";
 
 		foreach (array_slice($hardcoded['results'], 0, 10) as $row) {
 			echo "WARNING {$row['file']}:{$row['line']} literal=\"{$row['literal']}\" {$row['code']}\n";
+		}
+
+		foreach (array_slice($shipped_database['issues'], 0, 10) as $row) {
+			echo 'ERROR shipped-db ' . json_encode($row, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) . "\n";
 		}
 
 		foreach (array_slice($locale_diagnostics['issues'], 0, 10) as $row) {
