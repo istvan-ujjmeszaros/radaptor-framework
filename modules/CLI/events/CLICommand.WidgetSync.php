@@ -12,11 +12,11 @@ class CLICommandWidgetSync extends AbstractCLICommand
 		return <<<'DOC'
 			Reconcile one slot against a JSON widget spec list.
 
-			Usage: radaptor widget:sync <path> --slot <slot> --spec-json <json> [--dry-run] [--json]
+			Usage: radaptor widget:sync <path> --slot <slot> --spec-json <json> [--dry-run|--apply] [--json]
 
 			Examples:
 			  radaptor widget:sync /login.html --slot content --spec-json '[{"widget":"Form","attributes":{"form_id":"UserLogin"}}]'
-			  radaptor widget:sync /comparison/ --slot content --spec-json '[{"widget":"PlainHtml","settings":{"content":"<h1>Hello</h1>"}}]' --json
+			  radaptor widget:sync /comparison/ --slot content --spec-json '[{"widget":"PlainHtml","settings":{"content":"<h1>Hello</h1>"}}]' --apply --json
 			DOC;
 	}
 
@@ -27,20 +27,24 @@ class CLICommandWidgetSync extends AbstractCLICommand
 
 	public function run(): void
 	{
-		$usage = 'Usage: radaptor widget:sync <path> --slot <slot> --spec-json <json> [--dry-run] [--json]';
+		$usage = 'Usage: radaptor widget:sync <path> --slot <slot> --spec-json <json> [--dry-run|--apply] [--json]';
+		CLIOptionHelper::assertNoApplyDryRunConflict($usage);
 		$path = CLIOptionHelper::getMainArgOrAbort($usage);
 		$slot = CLIOptionHelper::getRequiredOption('slot', $usage);
 		$spec = CLIOptionHelper::getJsonOptionAsArray('spec-json', true, $usage);
-		$dry_run = Request::hasArg('dry-run');
+		$dry_run = !Request::hasArg('apply');
 		$json = CLIOptionHelper::isJson();
 
 		try {
-			$connections = $dry_run ? [] : CmsResourceSpecService::syncWidgetSlot($path, $slot, array_values($spec));
-			$result = [
-				'status' => 'success',
-				'dry_run' => $dry_run,
-				'connections' => $connections,
-			];
+			if ($dry_run) {
+				$result = CmsResourceSpecService::previewWidgetSlotSync($path, $slot, array_values($spec));
+			} else {
+				$result = CmsMutationAuditService::withContext(
+					'widget:sync',
+					$this->auditArgs($path, $slot, $spec),
+					static fn (): array => CmsResourceSpecService::syncWidgetSlotWithSummary($path, $slot, array_values($spec))
+				);
+			}
 		} catch (Throwable $exception) {
 			if ($json) {
 				CLIOptionHelper::writeJson(['status' => 'error', 'message' => $exception->getMessage()]);
@@ -59,6 +63,23 @@ class CLICommandWidgetSync extends AbstractCLICommand
 			return;
 		}
 
-		echo ($dry_run ? '[dry-run] ' : '') . "Slot {$slot} synced.\n";
+		echo ($dry_run ? '[dry-run] ' : '') . "Slot {$slot} sync " . ($dry_run ? 'previewed' : 'applied') . ".\n";
+
+		if (isset($result['summary'])) {
+			echo 'Summary: ' . json_encode($result['summary'], JSON_UNESCAPED_SLASHES) . "\n";
+		}
+	}
+
+	/**
+	 * @param array<string, mixed> $spec
+	 * @return array<string, mixed>
+	 */
+	private function auditArgs(string $path, string $slot, array $spec): array
+	{
+		return [
+			'path' => $path,
+			'slot' => $slot,
+			'spec' => $spec,
+		];
 	}
 }

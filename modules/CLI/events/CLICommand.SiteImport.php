@@ -52,6 +52,7 @@ class CLICommandSiteImport extends AbstractCLICommand
 	public function run(): void
 	{
 		$usage = 'Usage: radaptor site:import <file> [--dry-run|--apply] [--replace] [--json]';
+		CLIOptionHelper::assertNoApplyDryRunConflict($usage);
 		$file = CLIOptionHelper::getMainArgOrAbort($usage);
 		$apply = Request::hasArg('apply');
 		$replace = Request::hasArg('replace');
@@ -59,7 +60,13 @@ class CLICommandSiteImport extends AbstractCLICommand
 
 		try {
 			$snapshot = CmsSiteSnapshotService::loadSnapshotFile($file);
-			$payload = CmsSiteSnapshotService::importSnapshot($snapshot, !$apply, $replace);
+			$payload = !$apply
+				? CmsSiteSnapshotService::importSnapshot($snapshot, true, $replace)
+				: CmsMutationAuditService::withContext(
+					'site:import',
+					['file' => $file, 'replace' => $replace],
+					static fn (): array => CmsSiteSnapshotService::importSnapshot($snapshot, false, $replace)
+				);
 		} catch (Throwable $exception) {
 			if ($json) {
 				CLIOptionHelper::writeJson(['status' => 'error', 'message' => $exception->getMessage()]);

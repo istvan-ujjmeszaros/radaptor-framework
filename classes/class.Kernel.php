@@ -104,6 +104,8 @@ class Kernel
 		} else {
 			// We only want to show a plain message in CLI mode when calling Kernel::abort(), don't want to trigger any error
 			echo $message . "\n\0";
+
+			exit(1);
 		}
 
 		// Errors are converted to Exception in 'test' environment, so we are explicitly ending the script here

@@ -30,15 +30,20 @@ class CLICommandResourceSpecSync extends AbstractCLICommand
 	public function run(): void
 	{
 		$usage = 'Usage: radaptor resource-spec:sync <spec-file> [--dry-run|--apply] [--json]';
+		CLIOptionHelper::assertNoApplyDryRunConflict($usage);
 		$path = CLIOptionHelper::getMainArgOrAbort($usage);
 		$dry_run = !Request::hasArg('apply');
 		$json = CLIOptionHelper::isJson();
 
 		try {
-			$result = CmsResourceTreeSpecService::syncSpec(
-				CmsResourceTreeSpecService::loadSpecFile($path),
-				$dry_run
-			);
+			$spec = CmsResourceTreeSpecService::loadSpecFile($path);
+			$result = $dry_run
+				? CmsResourceTreeSpecService::syncSpec($spec, true)
+				: CmsMutationAuditService::withContext(
+					'resource-spec:sync',
+					['path' => $path],
+					static fn (): array => CmsResourceTreeSpecService::syncSpec($spec, false)
+				);
 		} catch (Throwable $exception) {
 			if ($json) {
 				CLIOptionHelper::writeJson(['status' => 'error', 'message' => $exception->getMessage()]);
@@ -64,6 +69,10 @@ class CLICommandResourceSpecSync extends AbstractCLICommand
 			echo 'Summary: ' . json_encode($result['summary'], JSON_UNESCAPED_SLASHES) . "\n";
 		} elseif (isset($result['after']['summary'])) {
 			echo 'Summary: ' . json_encode($result['after']['summary'], JSON_UNESCAPED_SLASHES) . "\n";
+		}
+
+		if (isset($result['destructive_summary'])) {
+			echo 'Destructive summary: ' . json_encode($result['destructive_summary'], JSON_UNESCAPED_SLASHES) . "\n";
 		}
 	}
 }

@@ -294,6 +294,11 @@ class Db
 		return $pdo;
 	}
 
+	public static function createIndependentPdoConnection(string $dsn = ''): PDO
+	{
+		return self::createPdoConnection(self::normalizeDsn($dsn));
+	}
+
 	private static function shouldUsePersistentConnections(): bool
 	{
 		if (getenv('RADAPTOR_RUNTIME') !== 'swoole') {

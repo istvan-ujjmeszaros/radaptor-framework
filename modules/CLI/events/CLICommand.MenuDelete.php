@@ -12,11 +12,11 @@ class CLICommandMenuDelete extends AbstractCLICommand
 		return <<<'DOC'
 			Delete a main/admin menu entry, optionally recursively.
 
-			Usage: radaptor menu:delete <id> --type main|admin [--recursive] [--dry-run] [--json]
+			Usage: radaptor menu:delete <id> --type main|admin [--recursive] [--dry-run|--apply] [--json]
 
 			Examples:
 			  radaptor menu:delete 7 --type admin
-			  radaptor menu:delete 3 --type main --recursive --json
+			  radaptor menu:delete 3 --type main --recursive --apply --json
 			DOC;
 	}
 
@@ -27,17 +27,28 @@ class CLICommandMenuDelete extends AbstractCLICommand
 
 	public function run(): void
 	{
-		$usage = 'Usage: radaptor menu:delete <id> --type main|admin [--recursive] [--dry-run] [--json]';
+		$usage = 'Usage: radaptor menu:delete <id> --type main|admin [--recursive] [--dry-run|--apply] [--json]';
+		CLIOptionHelper::assertNoApplyDryRunConflict($usage);
 		$id = (int) CLIOptionHelper::getMainArgOrAbort($usage);
+		$type = CLIOptionHelper::getRequiredOption('type', $usage);
 		$recursive = Request::hasArg('recursive');
-		$dry_run = Request::hasArg('dry-run');
+		$dry_run = !Request::hasArg('apply');
 		$json = CLIOptionHelper::isJson();
 
 		try {
 			$result = [
 				'status' => 'success',
 				'dry_run' => $dry_run,
-				'deleted' => $dry_run ? false : CmsMenuService::delete(CLIOptionHelper::getRequiredOption('type', $usage), $id, $recursive),
+				'deleted' => $dry_run
+					? false
+					: CmsMutationAuditService::withContext(
+						'menu:delete',
+						['type' => $type, 'id' => $id, 'recursive' => $recursive],
+						static fn (): bool => CmsMenuService::delete($type, $id, $recursive)
+					),
+				'summary' => [
+					'deleted_menu_entries' => $dry_run ? 0 : 1,
+				],
 			];
 		} catch (Throwable $exception) {
 			if ($json) {

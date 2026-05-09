@@ -4,11 +4,11 @@
  * Delete a webpage, file, or folder subtree from the resource tree.
  *
  * Usage:
- *   radaptor webpage:delete <path> [--dry-run] [--json]
- *   radaptor webpage:delete --widget <WidgetName> [--dry-run] [--json]
+ *   radaptor webpage:delete <path> [--dry-run|--apply] [--json]
+ *   radaptor webpage:delete --widget <WidgetName> [--dry-run|--apply] [--json]
  *
  * Examples:
- *   radaptor webpage:delete /learn/hello-world/
+ *   radaptor webpage:delete /learn/hello-world/ --apply
  *   radaptor webpage:delete --widget HelloWorldPluginDemo --dry-run
  *   radaptor webpage:delete /learn/ --dry-run --json
  */
@@ -25,11 +25,11 @@ class CLICommandWebpageDelete extends AbstractCLICommand
 			Delete a webpage, file, or folder subtree from the resource tree.
 
 			Usage:
-			  radaptor webpage:delete <path> [--dry-run] [--json]
-			  radaptor webpage:delete --widget <WidgetName> [--dry-run] [--json]
+			  radaptor webpage:delete <path> [--dry-run|--apply] [--json]
+			  radaptor webpage:delete --widget <WidgetName> [--dry-run|--apply] [--json]
 
 			Examples:
-			  radaptor webpage:delete /learn/hello-world/
+			  radaptor webpage:delete /learn/hello-world/ --apply
 			  radaptor webpage:delete --widget HelloWorldPluginDemo --dry-run
 			  radaptor webpage:delete /learn/ --dry-run --json
 			DOC;
@@ -37,8 +37,10 @@ class CLICommandWebpageDelete extends AbstractCLICommand
 
 	public function run(): void
 	{
+		$usage = "Usage: radaptor webpage:delete <path> [--dry-run|--apply] [--json]\n   or: radaptor webpage:delete --widget <WidgetName> [--dry-run|--apply] [--json]";
+		CLIOptionHelper::assertNoApplyDryRunConflict($usage);
 		$json_mode = Request::hasArg('json');
-		$dry_run = Request::hasArg('dry-run');
+		$dry_run = !Request::hasArg('apply');
 		$widget_name = $this->getWidgetArgument();
 		$path_arg = Request::getMainArg();
 
@@ -53,7 +55,7 @@ class CLICommandWebpageDelete extends AbstractCLICommand
 		}
 
 		if ($path_arg === null || $this->looksLikeCliOption($path_arg)) {
-			Kernel::abort("Usage: radaptor webpage:delete <path> [--dry-run] [--json]\n   or: radaptor webpage:delete --widget <WidgetName> [--dry-run] [--json]");
+			Kernel::abort($usage);
 		}
 
 		$path = CLIWebpageHelper::normalizePath($path_arg);
@@ -95,7 +97,11 @@ class CLICommandWebpageDelete extends AbstractCLICommand
 		];
 
 		if (!$dry_run) {
-			$deletion = ResourceTreeHandler::deleteResourceEntriesRecursive($node_id);
+			$deletion = CmsMutationAuditService::withContext(
+				'webpage:delete',
+				['path' => $path, 'node_id' => $node_id],
+				static fn (): array => ResourceTreeHandler::deleteResourceEntriesRecursive($node_id)
+			);
 			$result['deleted'] = (($deletion['success'] ?? false) === true) && (($deletion['erroneous'] ?? 0) === 0);
 			$result['deletion'] = $deletion;
 		}
@@ -195,7 +201,11 @@ class CLICommandWebpageDelete extends AbstractCLICommand
 			];
 
 			foreach ($targets as $target) {
-				$current = ResourceTreeHandler::deleteResourceEntriesRecursive((int) $target['page_id']);
+				$current = CmsMutationAuditService::withContext(
+					'webpage:delete-by-widget',
+					['widget' => $widget_name, 'page_id' => (int) $target['page_id']],
+					static fn (): array => ResourceTreeHandler::deleteResourceEntriesRecursive((int) $target['page_id'])
+				);
 				$deletion['success'] = $deletion['success']
 					&& (($current['success'] ?? false) === true)
 					&& (($current['erroneous'] ?? 0) === 0);
