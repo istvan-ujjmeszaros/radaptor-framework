@@ -215,6 +215,27 @@ class Kernel
 	}
 
 	/**
+	 * @param array<string, mixed> $context
+	 */
+	public static function logException(Throwable $exception, string $message = 'Exception', array $context = []): void
+	{
+		try {
+			$logger = new Monolog\Logger('app');
+			$logger->pushHandler(new Monolog\Handler\StreamHandler(DEPLOY_ROOT . '.logs/app_errors.log', Monolog\Level::Error));
+			$logger->error($message . ': ' . $exception->getMessage(), [
+				'exception' => $exception,
+			] + $context);
+		} catch (Throwable $logging_exception) {
+			error_log(sprintf(
+				'Radaptor exception log fallback: [%s] %s (logging fallback: %s)',
+				$exception::class,
+				$exception->getMessage(),
+				$logging_exception->getMessage()
+			));
+		}
+	}
+
+	/**
 	 * @return array{status: int, code: string, message: string}
 	 */
 	private static function mapExceptionToApiError(Throwable $e): array

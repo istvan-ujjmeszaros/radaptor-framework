@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 final class LocaleDiagnosticsService
 {
+	private const int SOURCE_KEY_SCAN_CACHE_VERSION = 1;
+	private const string SOURCE_KEY_SCAN_CACHE_RELATIVE_PATH = 'generated/i18n-source-scan-cache.json';
+	private const string UNSCOPED_TEXT_COLUMN_ALLOWLIST_RELATIVE_PATH = 'generated/i18n-unscoped-allowlist.json';
+
+	// Keep in sync with .gitignore and generated/build output directories.
 	private const array SOURCE_KEY_EXCLUDED_DIRECTORIES = [
 		'.git',
 		'cache',
@@ -418,11 +423,14 @@ final class LocaleDiagnosticsService
 
 		$existing_keys = self::getRegisteredI18nMessageKeys();
 		$source_keys = [];
+		$scan_cache = self::loadSourceKeyScanCache();
+		$next_scan_cache = self::emptySourceKeyScanCache();
 
 		foreach (self::getSourceKeyScanRoots() as $root) {
-			self::scanSourceKeyRoot($root, $source_keys);
+			self::scanSourceKeyRoot($root, $source_keys, $scan_cache, $next_scan_cache);
 		}
 
+		self::writeSourceKeyScanCache($next_scan_cache);
 		ksort($source_keys);
 		$issues = [];
 
@@ -500,8 +508,10 @@ final class LocaleDiagnosticsService
 
 	/**
 	 * @param array<string, list<array{file: string, line: int}>> $source_keys
+	 * @param array{version: int, files: array<string, array<string, mixed>>} $scan_cache
+	 * @param array{version: int, files: array<string, array<string, mixed>>} $next_scan_cache
 	 */
-	private static function scanSourceKeyRoot(string $root, array &$source_keys): void
+	private static function scanSourceKeyRoot(string $root, array &$source_keys, array $scan_cache, array &$next_scan_cache): void
 	{
 		if (!is_dir($root)) {
 			return;
@@ -526,21 +536,177 @@ final class LocaleDiagnosticsService
 				continue;
 			}
 
+			if (!self::isSourceKeyScanFile($path)) {
+				continue;
+			}
+
+			$file_source_keys = self::getCachedSourceKeysForFile($path, $file, $scan_cache);
+
+			if ($file_source_keys !== null) {
+				self::mergeSourceI18nKeys($file_source_keys, $source_keys);
+				$next_scan_cache['files'][$path] = self::buildSourceKeyScanCacheEntry($file, $file_source_keys);
+
+				continue;
+			}
+
 			$content = file_get_contents($path);
 
 			if ($content === false) {
 				continue;
 			}
 
-			if (str_ends_with($path, '.blade.php') || str_ends_with($path, '.twig') || str_ends_with($path, '.js')) {
-				self::extractRegexSourceKeys($content, $path, $source_keys);
+			$file_source_keys = [];
 
+			if (str_ends_with($path, '.blade.php') || str_ends_with($path, '.twig') || str_ends_with($path, '.js')) {
+				self::extractRegexSourceKeys($content, $path, $file_source_keys);
+			} elseif (str_ends_with($path, '.php')) {
+				self::extractPhpSourceKeys($content, $path, $file_source_keys);
+				self::extractTemplateStringBagSourceKeys($content, $path, $file_source_keys);
+			}
+
+			self::mergeSourceI18nKeys($file_source_keys, $source_keys);
+			$next_scan_cache['files'][$path] = self::buildSourceKeyScanCacheEntry($file, $file_source_keys);
+		}
+	}
+
+	/**
+	 * @return array{version: int, files: array<string, array<string, mixed>>}
+	 */
+	private static function emptySourceKeyScanCache(): array
+	{
+		return [
+			'version' => self::SOURCE_KEY_SCAN_CACHE_VERSION,
+			'files' => [],
+		];
+	}
+
+	/**
+	 * @return array{version: int, files: array<string, array<string, mixed>>}
+	 */
+	private static function loadSourceKeyScanCache(): array
+	{
+		$path = self::sourceKeyScanCachePath();
+
+		if (!is_file($path)) {
+			return self::emptySourceKeyScanCache();
+		}
+
+		try {
+			$decoded = json_decode((string) file_get_contents($path), true, 512, JSON_THROW_ON_ERROR);
+		} catch (Throwable) {
+			return self::emptySourceKeyScanCache();
+		}
+
+		if (!is_array($decoded) || (int) ($decoded['version'] ?? 0) !== self::SOURCE_KEY_SCAN_CACHE_VERSION || !is_array($decoded['files'] ?? null)) {
+			return self::emptySourceKeyScanCache();
+		}
+
+		return [
+			'version' => self::SOURCE_KEY_SCAN_CACHE_VERSION,
+			'files' => $decoded['files'],
+		];
+	}
+
+	/**
+	 * @param array{version: int, files: array<string, array<string, mixed>>} $cache
+	 */
+	private static function writeSourceKeyScanCache(array $cache): void
+	{
+		$path = self::sourceKeyScanCachePath();
+		$directory = dirname($path);
+
+		try {
+			if (!is_dir($directory) && !mkdir($directory, 0o775, true) && !is_dir($directory)) {
+				return;
+			}
+
+			$encoded = json_encode($cache, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+
+			if (!is_string($encoded)) {
+				return;
+			}
+
+			file_put_contents($path, $encoded . "\n", LOCK_EX);
+		} catch (Throwable) {
+			// Diagnostics must not fail because the optional scan cache is unavailable.
+		}
+	}
+
+	private static function sourceKeyScanCachePath(): string
+	{
+		return DEPLOY_ROOT . self::SOURCE_KEY_SCAN_CACHE_RELATIVE_PATH;
+	}
+
+	/**
+	 * @param array{version: int, files: array<string, array<string, mixed>>} $scan_cache
+	 * @return array<string, list<array{file: string, line: int}>>|null
+	 */
+	private static function getCachedSourceKeysForFile(string $path, SplFileInfo $file, array $scan_cache): ?array
+	{
+		$entry = $scan_cache['files'][$path] ?? null;
+
+		if (!is_array($entry) || (int) ($entry['mtime'] ?? -1) !== $file->getMTime() || (int) ($entry['size'] ?? -1) !== $file->getSize()) {
+			return null;
+		}
+
+		return self::normalizeCachedSourceKeyMap($entry['keys'] ?? null);
+	}
+
+	/**
+	 * @param array<string, list<array{file: string, line: int}>> $file_source_keys
+	 * @return array{mtime: int, size: int, keys: array<string, list<array{file: string, line: int}>>}
+	 */
+	private static function buildSourceKeyScanCacheEntry(SplFileInfo $file, array $file_source_keys): array
+	{
+		ksort($file_source_keys);
+
+		return [
+			'mtime' => $file->getMTime(),
+			'size' => $file->getSize(),
+			'keys' => $file_source_keys,
+		];
+	}
+
+	/**
+	 * @return array<string, list<array{file: string, line: int}>>|null
+	 */
+	private static function normalizeCachedSourceKeyMap(mixed $keys): ?array
+	{
+		if (!is_array($keys)) {
+			return null;
+		}
+
+		$normalized = [];
+
+		foreach ($keys as $key => $occurrences) {
+			if (!is_string($key) || !is_array($occurrences)) {
 				continue;
 			}
 
-			if (str_ends_with($path, '.php')) {
-				self::extractPhpSourceKeys($content, $path, $source_keys);
-				self::extractTemplateStringBagSourceKeys($content, $path, $source_keys);
+			foreach ($occurrences as $occurrence) {
+				if (!is_array($occurrence) || !is_string($occurrence['file'] ?? null)) {
+					continue;
+				}
+
+				$normalized[$key][] = [
+					'file' => $occurrence['file'],
+					'line' => max(1, (int) ($occurrence['line'] ?? 1)),
+				];
+			}
+		}
+
+		return $normalized;
+	}
+
+	/**
+	 * @param array<string, list<array{file: string, line: int}>> $file_source_keys
+	 * @param array<string, list<array{file: string, line: int}>> $source_keys
+	 */
+	private static function mergeSourceI18nKeys(array $file_source_keys, array &$source_keys): void
+	{
+		foreach ($file_source_keys as $key => $occurrences) {
+			foreach ($occurrences as $occurrence) {
+				self::registerSourceI18nKey($key, $occurrence['file'], $occurrence['line'], $source_keys);
 			}
 		}
 	}
@@ -556,6 +722,14 @@ final class LocaleDiagnosticsService
 		}
 
 		return false;
+	}
+
+	private static function isSourceKeyScanFile(string $path): bool
+	{
+		return str_ends_with($path, '.php')
+			|| str_ends_with($path, '.blade.php')
+			|| str_ends_with($path, '.twig')
+			|| str_ends_with($path, '.js');
 	}
 
 	/**
@@ -781,6 +955,7 @@ final class LocaleDiagnosticsService
 		}
 
 		$result = [];
+		$allowlist = self::getPotentialUnscopedTextColumnAllowlist();
 		$interesting_names = [
 			'title' => true,
 			'subtitle' => true,
@@ -801,6 +976,10 @@ final class LocaleDiagnosticsService
 				continue;
 			}
 
+			if (isset($allowlist[$table . '.' . $column]) || isset($allowlist[$table . '.*'])) {
+				continue;
+			}
+
 			if (!isset($interesting_names[strtolower($column)])) {
 				continue;
 			}
@@ -813,6 +992,46 @@ final class LocaleDiagnosticsService
 		}
 
 		return $result;
+	}
+
+	/**
+	 * @return array<string, true>
+	 */
+	private static function getPotentialUnscopedTextColumnAllowlist(): array
+	{
+		$path = DEPLOY_ROOT . self::UNSCOPED_TEXT_COLUMN_ALLOWLIST_RELATIVE_PATH;
+
+		if (!is_file($path)) {
+			return [];
+		}
+
+		try {
+			$decoded = json_decode((string) file_get_contents($path), true, 512, JSON_THROW_ON_ERROR);
+		} catch (Throwable) {
+			return [];
+		}
+
+		if (!is_array($decoded)) {
+			return [];
+		}
+
+		$items = is_array($decoded['allow'] ?? null) ? $decoded['allow'] : $decoded;
+
+		if (!is_array($items)) {
+			return [];
+		}
+
+		$allowlist = [];
+
+		foreach ($items as $item) {
+			if (!is_string($item) || !preg_match('/^[A-Za-z0-9_]+\\.(?:[A-Za-z0-9_]+|\\*)$/', $item)) {
+				continue;
+			}
+
+			$allowlist[$item] = true;
+		}
+
+		return $allowlist;
 	}
 
 	/**

@@ -320,7 +320,17 @@ class Url
 		return self::getUrl($eventName, $customparams, '&');
 	}
 
-	public static function redirect(string $location, int $status_code = 301): never
+	public static function redirectTemporary(string $location, int $status_code = 302): never
+	{
+		self::redirect($location, $status_code);
+	}
+
+	public static function redirectPermanent(string $location): never
+	{
+		self::redirect($location, 301);
+	}
+
+	public static function redirect(string $location, int $status_code = 302): never
 	{
 		if (headers_sent()) {
 			echo "

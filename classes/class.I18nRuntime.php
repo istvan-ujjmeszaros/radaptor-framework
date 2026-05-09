@@ -19,6 +19,9 @@ class I18nRuntime
 	/** @var array<string, int> locale → file mtime at last load */
 	private static array $_catalogMtime = [];
 
+	private static ?bool $_localesTableExists = null;
+	private static ?bool $_i18nTranslationsTableExists = null;
+
 	public static function t(string $key, array $params = []): string
 	{
 		$locale = LocaleService::canonicalize(Kernel::getLocale());
@@ -67,14 +70,28 @@ class I18nRuntime
 	{
 		try {
 			$pdo = Db::instance();
+		} catch (Throwable) {
+			return [LocaleService::getDefaultLocale()];
+		}
 
-			if ($pdo->query("SHOW TABLES LIKE 'locales'")->rowCount() > 0) {
+		if (self::_localesTableExists($pdo)) {
+			try {
 				$stmt = $pdo->prepare('SELECT `locale` FROM `locales` WHERE `is_enabled` = 1 ORDER BY `sort_order`, `locale`');
 				$stmt->execute();
 
 				return self::_normalizeLocaleRows($stmt->fetchAll(\PDO::FETCH_ASSOC));
-			}
+			} catch (Throwable $exception) {
+				self::_logAvailableLocaleFailure($exception);
 
+				throw $exception;
+			}
+		}
+
+		if (!self::_i18nTranslationsTableExists($pdo)) {
+			return [LocaleService::getDefaultLocale()];
+		}
+
+		try {
 			$stmt = $pdo->prepare('SELECT DISTINCT `locale` FROM `i18n_translations` ORDER BY `locale`');
 			$stmt->execute();
 			$locales = self::_normalizeLocaleRows($stmt->fetchAll(\PDO::FETCH_ASSOC));
@@ -82,11 +99,52 @@ class I18nRuntime
 			if ($locales !== []) {
 				return $locales;
 			}
-		} catch (Throwable) {
-			// Installation and doctor-safe flows may run before i18n tables exist.
+		} catch (Throwable $exception) {
+			self::_logAvailableLocaleFailure($exception);
+
+			throw $exception;
 		}
 
 		return [LocaleService::getDefaultLocale()];
+	}
+
+	private static function _localesTableExists(object $pdo): bool
+	{
+		if (self::$_localesTableExists !== null) {
+			return self::$_localesTableExists;
+		}
+
+		try {
+			return self::$_localesTableExists = $pdo->query("SHOW TABLES LIKE 'locales'")->rowCount() > 0;
+		} catch (Throwable) {
+			// Installation and doctor-safe flows may run before i18n tables exist.
+			return self::$_localesTableExists = false;
+		}
+	}
+
+	private static function _i18nTranslationsTableExists(object $pdo): bool
+	{
+		if (self::$_i18nTranslationsTableExists !== null) {
+			return self::$_i18nTranslationsTableExists;
+		}
+
+		try {
+			return self::$_i18nTranslationsTableExists = $pdo->query("SHOW TABLES LIKE 'i18n_translations'")->rowCount() > 0;
+		} catch (Throwable) {
+			// Installation and doctor-safe flows may run before i18n tables exist.
+			return self::$_i18nTranslationsTableExists = false;
+		}
+	}
+
+	private static function _logAvailableLocaleFailure(Throwable $exception): void
+	{
+		if (class_exists(Kernel::class) && method_exists(Kernel::class, 'logException')) {
+			Kernel::logException($exception, 'I18nRuntime::getAvailableLocaleCodes failed after locale tables were detected');
+
+			return;
+		}
+
+		error_log('I18nRuntime::getAvailableLocaleCodes failed after locale tables were detected: ' . $exception->getMessage());
 	}
 
 	/**

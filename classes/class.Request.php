@@ -104,31 +104,47 @@ class Request
 	{
 		$ctx = RequestContextHolder::current();
 		$server = !empty($ctx->SERVER) ? $ctx->SERVER : $_SERVER;
-		$accept = strtolower(trim((string) ($server['HTTP_ACCEPT'] ?? $server['http_accept'] ?? '')));
+		$accept = self::serverHeader($server, 'HTTP_ACCEPT');
 
 		if (str_contains($accept, 'application/json')) {
 			return true;
 		}
 
-		$requested_with = strtolower(trim((string) ($server['HTTP_X_REQUESTED_WITH'] ?? $server['http_x_requested_with'] ?? '')));
+		$requested_with = self::serverHeader($server, 'HTTP_X_REQUESTED_WITH');
 
 		if ($requested_with === 'xmlhttprequest') {
 			return true;
 		}
 
-		$hx_request = strtolower(trim((string) ($server['HTTP_HX_REQUEST'] ?? $server['http_hx_request'] ?? '')));
+		return self::isHtmxRequest($server) && !self::isHtmxBoostedRequest($server);
+	}
 
-		if ($hx_request === 'true') {
-			$hx_boosted = strtolower(trim((string) ($server['HTTP_HX_BOOSTED'] ?? $server['http_hx_boosted'] ?? '')));
+	/**
+	 * @param array<string, mixed>|null $server
+	 */
+	public static function isHtmxRequest(?array $server = null): bool
+	{
+		$server ??= RequestContextHolder::current()->SERVER ?: $_SERVER;
 
-			if ($hx_boosted === 'true') {
-				return false;
-			}
+		return self::serverHeader($server, 'HTTP_HX_REQUEST') === 'true';
+	}
 
-			return true;
-		}
+	/**
+	 * @param array<string, mixed>|null $server
+	 */
+	public static function isHtmxBoostedRequest(?array $server = null): bool
+	{
+		$server ??= RequestContextHolder::current()->SERVER ?: $_SERVER;
 
-		return false;
+		return self::isHtmxRequest($server) && self::serverHeader($server, 'HTTP_HX_BOOSTED') === 'true';
+	}
+
+	/**
+	 * @param array<string, mixed> $server
+	 */
+	private static function serverHeader(array $server, string $key): string
+	{
+		return strtolower(trim((string) ($server[$key] ?? $server[strtolower($key)] ?? '')));
 	}
 
 	/**

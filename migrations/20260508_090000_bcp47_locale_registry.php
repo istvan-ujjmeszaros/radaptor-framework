@@ -10,9 +10,9 @@ class Migration_20260508_090000_bcp47_locale_registry
 		$default_locale = LocaleService::getDefaultLocale();
 
 		$this->createLocalesTable($pdo);
-		$this->assertCanonicalizationIsSafe($pdo);
+		$this->assertCanonicalizationIsSafe($pdo, $default_locale);
 		$this->widenLocaleColumns($pdo, $default_locale);
-		$this->canonicalizeExistingLocaleValues($pdo);
+		$this->canonicalizeExistingLocaleValues($pdo, $default_locale);
 		$this->seedLocales($pdo, $default_locale);
 		$this->addForeignKeys($pdo);
 	}
@@ -31,7 +31,7 @@ class Migration_20260508_090000_bcp47_locale_registry
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 	}
 
-	private function canonicalizeExistingLocaleValues(PDO $pdo): void
+	private function canonicalizeExistingLocaleValues(PDO $pdo, string $default_locale): void
 	{
 		foreach ([
 			['users', 'locale'],
@@ -44,13 +44,13 @@ class Migration_20260508_090000_bcp47_locale_registry
 				continue;
 			}
 
-			$rows = $pdo->query("SELECT DISTINCT `{$column}` AS locale FROM `{$table}` WHERE `{$column}` IS NOT NULL AND `{$column}` <> ''")->fetchAll(PDO::FETCH_ASSOC);
+			$rows = $pdo->query("SELECT DISTINCT `{$column}` AS locale FROM `{$table}` WHERE `{$column}` IS NOT NULL")->fetchAll(PDO::FETCH_ASSOC);
 
 			foreach ($rows as $row) {
 				$raw = (string) ($row['locale'] ?? '');
-				$canonical = LocaleService::tryCanonicalize($raw);
+				$canonical = $this->canonicalizeLegacyLocaleValue($raw, $default_locale);
 
-				if ($canonical === null || $canonical === $raw) {
+				if ($canonical === $raw) {
 					continue;
 				}
 
@@ -60,16 +60,16 @@ class Migration_20260508_090000_bcp47_locale_registry
 		}
 	}
 
-	private function assertCanonicalizationIsSafe(PDO $pdo): void
+	private function assertCanonicalizationIsSafe(PDO $pdo, string $default_locale): void
 	{
-		$this->assertPrimaryLocaleCanonicalizationIsSafe($pdo, 'i18n_build_state', ['locale']);
-		$this->assertPrimaryLocaleCanonicalizationIsSafe($pdo, 'i18n_translations', ['domain', 'key', 'context', 'locale']);
+		$this->assertPrimaryLocaleCanonicalizationIsSafe($pdo, 'i18n_build_state', ['locale'], $default_locale);
+		$this->assertPrimaryLocaleCanonicalizationIsSafe($pdo, 'i18n_translations', ['domain', 'key', 'context', 'locale'], $default_locale);
 	}
 
 	/**
 	 * @param list<string> $primary_columns
 	 */
-	private function assertPrimaryLocaleCanonicalizationIsSafe(PDO $pdo, string $table, array $primary_columns): void
+	private function assertPrimaryLocaleCanonicalizationIsSafe(PDO $pdo, string $table, array $primary_columns, string $default_locale): void
 	{
 		if (!$this->tableExists($pdo, $table)) {
 			return;
@@ -91,7 +91,7 @@ class Migration_20260508_090000_bcp47_locale_registry
 				$value = (string) ($row[$column] ?? '');
 
 				if ($column === 'locale') {
-					$value = LocaleService::canonicalize($value);
+					$value = $this->canonicalizeLegacyLocaleValue($value, $default_locale);
 				}
 
 				$key_parts[] = $value;
@@ -131,14 +131,10 @@ class Migration_20260508_090000_bcp47_locale_registry
 				continue;
 			}
 
-			$rows = $pdo->query("SELECT DISTINCT `{$column}` AS locale FROM `{$table}` WHERE `{$column}` IS NOT NULL AND `{$column}` <> ''")->fetchAll(PDO::FETCH_ASSOC);
+			$rows = $pdo->query("SELECT DISTINCT `{$column}` AS locale FROM `{$table}` WHERE `{$column}` IS NOT NULL")->fetchAll(PDO::FETCH_ASSOC);
 
 			foreach ($rows as $row) {
-				$canonical = LocaleService::tryCanonicalize((string) ($row['locale'] ?? ''));
-
-				if ($canonical !== null) {
-					$locales[$canonical] = true;
-				}
+				$locales[$this->canonicalizeLegacyLocaleValue((string) ($row['locale'] ?? ''), $default_locale)] = true;
 			}
 		}
 
@@ -163,6 +159,17 @@ class Migration_20260508_090000_bcp47_locale_registry
 			]);
 			$sort_order += 10;
 		}
+	}
+
+	private function canonicalizeLegacyLocaleValue(string $value, string $default_locale): string
+	{
+		$canonical = LocaleService::tryCanonicalize($value);
+
+		if ($canonical === null || $canonical === 'und') {
+			return $default_locale;
+		}
+
+		return $canonical;
 	}
 
 	private function addForeignKeys(PDO $pdo): void

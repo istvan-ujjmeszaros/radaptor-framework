@@ -289,8 +289,20 @@ final class LocaleService
 
 			$q = 1.0;
 
-			if (preg_match('/(?:^|;)\s*q=([0-9.]+)/', ';' . $rawParams, $matches)) {
-				$q = max(0.0, min(1.0, (float) $matches[1]));
+			foreach (explode(';', $rawParams) as $rawParam) {
+				$param = trim($rawParam);
+
+				if ($param === '' || !str_starts_with(strtolower($param), 'q=')) {
+					continue;
+				}
+
+				if (!preg_match('/^q=(?:0(?:\.[0-9]{1,3})?|1(?:\.0{1,3})?)$/i', $param)) {
+					$q = -1.0;
+
+					break;
+				}
+
+				$q = (float) substr($param, 2);
 			}
 
 			if ($q <= 0.0) {
