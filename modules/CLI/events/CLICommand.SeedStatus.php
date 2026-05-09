@@ -69,9 +69,20 @@ class CLICommandSeedStatus extends AbstractCLICommand
 		echo "Pending: {$result['status_counts']['pending']}\n";
 		echo "Applied: {$result['status_counts']['applied']}\n";
 		echo "Changed: {$result['status_counts']['changed']}\n";
+		echo "Bootstrap auto-skipped: {$result['status_counts']['bootstrap_auto_skipped']}\n";
 
 		foreach ($result['seeds'] as $seed) {
-			echo "{$seed['module']} / {$seed['class']} ({$seed['kind']}): {$seed['status']}\n";
+			$version_note = '';
+
+			if (($seed['status'] ?? null) === 'bootstrap_auto_skipped') {
+				$version_note = " (applied {$seed['applied_version']}, current {$seed['current_version']})";
+			}
+
+			echo "{$seed['module']} / {$seed['class']} ({$seed['kind']}): {$seed['status']}{$version_note}\n";
+
+			if (!empty($seed['message'])) {
+				echo "  {$seed['message']}\n";
+			}
 		}
 	}
 }

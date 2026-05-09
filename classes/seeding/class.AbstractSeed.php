@@ -9,7 +9,15 @@
  */
 abstract class AbstractSeed
 {
+	public const string RUN_POLICY_VERSIONED = 'versioned';
+	public const string RUN_POLICY_BOOTSTRAP_ONCE = 'bootstrap_once';
+
 	abstract public function getVersion(): string;
+
+	public function getRunPolicy(): string
+	{
+		return self::RUN_POLICY_VERSIONED;
+	}
 
 	/**
 	 * @return list<class-string<AbstractSeed>>

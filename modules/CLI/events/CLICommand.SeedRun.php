@@ -12,12 +12,13 @@ class CLICommandSeedRun extends AbstractCLICommand
 		return <<<'DOC'
 			Run package/app data seeds.
 
-			Usage: radaptor seed:run [--include-demo-seeds] [--rerun-demo-seeds] [--skip-seeds] [--module <module>] [--seed-class <SeedClass>] [--dry-run] [--json]
+			Usage: radaptor seed:run [--include-demo-seeds] [--rerun-demo-seeds] [--rerun-bootstrap-seeds] [--skip-seeds] [--module <module>] [--seed-class <SeedClass>] [--dry-run] [--json]
 
 			Examples:
 			  radaptor seed:run
 			  radaptor seed:run --include-demo-seeds
 			  radaptor seed:run --include-demo-seeds --rerun-demo-seeds
+			  radaptor seed:run --module app --seed-class SeedSkeletonBootstrap --rerun-bootstrap-seeds
 			  radaptor seed:run --skip-seeds
 			DOC;
 	}
@@ -31,6 +32,7 @@ class CLICommandSeedRun extends AbstractCLICommand
 	{
 		$include_demo_seeds = Request::hasArg('include-demo-seeds');
 		$rerun_demo_seeds = Request::hasArg('rerun-demo-seeds');
+		$rerun_bootstrap_seeds = Request::hasArg('rerun-bootstrap-seeds');
 		$skip_seeds = Request::hasArg('skip-seeds');
 		$dry_run = Request::hasArg('dry-run');
 		$json = Request::hasArg('json');
@@ -48,7 +50,8 @@ class CLICommandSeedRun extends AbstractCLICommand
 				$dry_run,
 				$prompt,
 				$module_filter !== '' ? $module_filter : null,
-				$seed_class_filter !== '' ? $seed_class_filter : null
+				$seed_class_filter !== '' ? $seed_class_filter : null,
+				$rerun_bootstrap_seeds
 			);
 		} catch (Throwable $exception) {
 			if ($json) {

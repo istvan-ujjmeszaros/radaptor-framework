@@ -12,7 +12,8 @@ class SeedRunner
 		bool $dry_run = false,
 		?callable $confirm_demo_rerun = null,
 		?string $module_filter = null,
-		?string $seed_class_filter = null
+		?string $seed_class_filter = null,
+		bool $rerun_bootstrap_seeds = false
 	): array {
 		return self::runPaths(
 			PackageLockfile::getPath(),
@@ -23,7 +24,8 @@ class SeedRunner
 			$dry_run,
 			$confirm_demo_rerun,
 			$module_filter,
-			$seed_class_filter
+			$seed_class_filter,
+			$rerun_bootstrap_seeds
 		);
 	}
 
@@ -78,7 +80,8 @@ class SeedRunner
 		bool $dry_run = false,
 		?callable $confirm_demo_rerun = null,
 		?string $module_filter = null,
-		?string $seed_class_filter = null
+		?string $seed_class_filter = null,
+		bool $rerun_bootstrap_seeds = false
 	): array {
 		if ($skip_seeds) {
 			return [
@@ -86,6 +89,7 @@ class SeedRunner
 				'dry_run' => $dry_run,
 				'include_demo_seeds' => $include_demo_seeds,
 				'rerun_demo_seeds' => $rerun_demo_seeds,
+				'rerun_bootstrap_seeds' => $rerun_bootstrap_seeds,
 				'skip_seeds' => true,
 				'prompted_demo_rerun' => false,
 				'demo_rerun_confirmed' => null,
@@ -130,6 +134,7 @@ class SeedRunner
 					'dry_run' => $dry_run,
 					'include_demo_seeds' => $include_demo_seeds,
 					'rerun_demo_seeds' => false,
+					'rerun_bootstrap_seeds' => $rerun_bootstrap_seeds,
 					'skip_seeds' => false,
 					'prompted_demo_rerun' => $prompted_demo_rerun,
 					'demo_rerun_confirmed' => $demo_rerun_confirmed,
@@ -150,10 +155,10 @@ class SeedRunner
 		$results = [];
 
 		foreach ($selected_seeds as $seed) {
-			$should_run = self::shouldRunSeed($seed, $rerun_demo_seeds);
+			$should_run = self::shouldRunSeed($seed, $rerun_demo_seeds, $rerun_bootstrap_seeds);
 
 			if (!$should_run) {
-				$seed['run_status'] = 'skipped';
+				$seed['run_status'] = $seed['status'] === 'bootstrap_auto_skipped' ? 'bootstrap_auto_skipped' : 'skipped';
 				$results[] = $seed;
 				$seeds_skipped++;
 
@@ -174,6 +179,7 @@ class SeedRunner
 				'dry_run' => $dry_run,
 				'include_demo_seeds' => $include_demo_seeds,
 				'rerun_demo_seeds' => $rerun_demo_seeds,
+				'rerun_bootstrap_seeds' => $rerun_bootstrap_seeds,
 				'skip_seeds' => false,
 				'prompted_demo_rerun' => $prompted_demo_rerun,
 				'demo_rerun_confirmed' => $demo_rerun_confirmed,
@@ -191,6 +197,7 @@ class SeedRunner
 			'dry_run' => $dry_run,
 			'include_demo_seeds' => $include_demo_seeds,
 			'rerun_demo_seeds' => $rerun_demo_seeds,
+			'rerun_bootstrap_seeds' => $rerun_bootstrap_seeds,
 			'skip_seeds' => false,
 			'prompted_demo_rerun' => $prompted_demo_rerun,
 			'demo_rerun_confirmed' => $demo_rerun_confirmed,
@@ -284,6 +291,7 @@ class SeedRunner
 			$key = self::buildSeedKey($seed['module'], $seed['class']);
 			$applied_seed = $applied[$key] ?? null;
 			$status = 'pending';
+			$message = null;
 
 			if ($applied_seed !== null) {
 				$status = $applied_seed['version'] === $seed['version']
@@ -291,9 +299,25 @@ class SeedRunner
 					: 'changed';
 			}
 
+			if (($seed['run_policy'] ?? null) === AbstractSeed::RUN_POLICY_BOOTSTRAP_ONCE) {
+				if ($applied_seed === null) {
+					$message = 'Bootstrap seed marker missing; will run on next install/update.';
+				} elseif ($applied_seed['version'] !== $seed['version']) {
+					$status = 'bootstrap_auto_skipped';
+					$message = "Bootstrap seed already ran as version {$applied_seed['version']}; current version {$seed['version']} will not run automatically. Use --rerun-bootstrap-seeds to recover or reapply it.";
+				}
+			}
+
 			$seed['status'] = $status;
 			$seed['applied_version'] = $applied_seed['version'] ?? null;
 			$seed['applied_at'] = $applied_seed['applied_at'] ?? null;
+			$seed['current_version'] = $seed['version'];
+			$seed['bootstrap_marker_present'] = $applied_seed !== null;
+
+			if ($message !== null) {
+				$seed['message'] = $message;
+			}
+
 			$with_status[] = $seed;
 		}
 
@@ -503,6 +527,16 @@ class SeedRunner
 			throw new RuntimeException("Seed '{$class_name}' must declare a non-empty version.");
 		}
 
+		$run_policy = trim($seed->getRunPolicy());
+		$valid_run_policies = [
+			AbstractSeed::RUN_POLICY_VERSIONED,
+			AbstractSeed::RUN_POLICY_BOOTSTRAP_ONCE,
+		];
+
+		if (!in_array($run_policy, $valid_run_policies, true)) {
+			throw new RuntimeException("Seed '{$class_name}' declared unsupported run policy '{$run_policy}'.");
+		}
+
 		return [
 			'module' => $module,
 			'kind' => $kind,
@@ -510,6 +544,7 @@ class SeedRunner
 			'path' => $seed_file,
 			'base_path' => $base_path,
 			'version' => $version,
+			'run_policy' => $run_policy,
 			'description' => trim($seed->getDescription()),
 			'dependencies' => $seed->getDependencies(),
 		];
@@ -706,9 +741,13 @@ class SeedRunner
 	/**
 	 * @param array<string, mixed> $seed
 	 */
-	private static function shouldRunSeed(array $seed, bool $rerun_demo_seeds): bool
+	private static function shouldRunSeed(array $seed, bool $rerun_demo_seeds, bool $rerun_bootstrap_seeds): bool
 	{
 		if ($seed['kind'] === 'mandatory') {
+			if (($seed['run_policy'] ?? AbstractSeed::RUN_POLICY_VERSIONED) === AbstractSeed::RUN_POLICY_BOOTSTRAP_ONCE) {
+				return $seed['status'] === 'pending' || $rerun_bootstrap_seeds;
+			}
+
 			return in_array($seed['status'], ['pending', 'changed'], true);
 		}
 
@@ -734,6 +773,7 @@ class SeedRunner
 			'pending' => 0,
 			'applied' => 0,
 			'changed' => 0,
+			'bootstrap_auto_skipped' => 0,
 		];
 
 		foreach ($seeds as $seed) {
