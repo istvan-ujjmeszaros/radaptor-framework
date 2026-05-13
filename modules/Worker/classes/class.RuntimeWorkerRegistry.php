@@ -137,8 +137,8 @@ class RuntimeWorkerRegistry
 
 	public static function tableExists(string $table_name): bool
 	{
-		if (array_key_exists($table_name, self::$tableExistsCache)) {
-			return self::$tableExistsCache[$table_name];
+		if ((self::$tableExistsCache[$table_name] ?? false) === true) {
+			return true;
 		}
 
 		$quoted_table_name = Db::instance()->quote($table_name);
