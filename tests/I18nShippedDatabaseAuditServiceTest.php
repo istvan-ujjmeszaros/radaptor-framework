@@ -190,4 +190,20 @@ final class I18nShippedDatabaseAuditServiceTest extends TestCase
 		$this->assertSame('', $result['suggested_command']);
 		$this->assertSame([], $result['issues']);
 	}
+
+	public function testAuditUsesShippedSourceTextHashForExistingMessages(): void
+	{
+		$method = new ReflectionMethod(I18nShippedDatabaseAuditService::class, 'resolveSourceHashForSeedRow');
+		$existing_message = ['source_hash' => md5('old source')];
+
+		$this->assertSame(
+			md5('new source'),
+			$method->invoke(null, ['source_text' => 'new source'], $existing_message)
+		);
+		$this->assertSame(
+			md5('old source'),
+			$method->invoke(null, ['source_text' => ''], $existing_message)
+		);
+		$this->assertNull($method->invoke(null, ['source_text' => ''], null));
+	}
 }

@@ -55,6 +55,12 @@ template UI text.
 Hardcoded UI findings are advisory by default. `i18n:doctor` reports them in the `hardcoded_ui`
 section and only fails because of them when `--strict-hardcoded` is passed.
 
+Shipped i18n database audits compare database rows against the source text carried by the shipped
+seed file. If a package changes `source_text`, the audit uses the shipped source hash even when the
+`i18n_messages` row already exists in the database. This prevents stale source-hash snapshots from
+hiding required translation sync work. Enabled locales that are not shipped by a package are skipped
+for that package instead of being reported as missing seed files.
+
 ## License
 
 This package is distributed under the proprietary evaluation license in

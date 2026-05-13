@@ -493,25 +493,18 @@ class I18nShippedDatabaseAuditService
 
 			$message_key = self::buildMessageKey($domain, $key, $context);
 			$message = $existing_messages[$message_key] ?? null;
+			$source_hash = self::resolveSourceHashForSeedRow($row, $message);
 
-			if ($message === null) {
-				$source_text = trim((string) ($row['source_text'] ?? ''));
+			if ($source_hash === null) {
+				$errors[] = self::error('source_message_missing', [
+					'line' => $line,
+					'domain' => $domain,
+					'key' => $key,
+					'context' => $context,
+				]);
+				$skipped++;
 
-				if ($source_text === '') {
-					$errors[] = self::error('source_message_missing', [
-						'line' => $line,
-						'domain' => $domain,
-						'key' => $key,
-						'context' => $context,
-					]);
-					$skipped++;
-
-					continue;
-				}
-
-				$source_hash = md5($source_text);
-			} else {
-				$source_hash = (string) ($message['source_hash'] ?? '');
+				continue;
 			}
 
 			$natural_key = self::buildTranslationKey($domain, $key, $context, $locale);
@@ -565,6 +558,27 @@ class I18nShippedDatabaseAuditService
 			'deleted' => 0,
 			'errors' => $errors,
 		];
+	}
+
+	/**
+	 * @param array<string, string|int> $row
+	 * @param array<string, mixed>|null $message
+	 */
+	private static function resolveSourceHashForSeedRow(array $row, ?array $message): ?string
+	{
+		$source_text = trim((string) ($row['source_text'] ?? ''));
+
+		if ($source_text !== '') {
+			return md5($source_text);
+		}
+
+		if ($message === null) {
+			return null;
+		}
+
+		$source_hash = (string) ($message['source_hash'] ?? '');
+
+		return $source_hash !== '' ? $source_hash : null;
 	}
 
 	/**
