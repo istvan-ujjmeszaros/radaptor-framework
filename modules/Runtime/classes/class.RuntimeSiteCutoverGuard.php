@@ -340,8 +340,8 @@ class RuntimeSiteCutoverGuard
 
 	private static function isAvailable(): bool
 	{
-		if (self::$tableExists !== null) {
-			return self::$tableExists;
+		if (self::$tableExists === true) {
+			return true;
 		}
 
 		$quoted_table_name = Db::instance()->quote(self::TABLE_LOCKS);
