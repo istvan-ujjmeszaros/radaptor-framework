@@ -100,6 +100,8 @@ Runtime table existence checks intentionally cache only positive results. In lon
 missing tables are re-probed after migrations instead of being treated as absent until process
 restart. Cutover gate checks also fail open if the default database cannot be probed, so bootstrap,
 diagnostic, and repair CLI commands are not blocked by the guard before the database is reachable.
+The positive database probe result is cached for the process lifetime to avoid an extra connectivity
+probe on every mutating gate check.
 
 ## Runtime Worker Pause Control
 

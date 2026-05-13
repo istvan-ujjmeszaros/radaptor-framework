@@ -27,6 +27,7 @@ class RuntimeSiteCutoverGuard
 	];
 
 	private static ?bool $tableExists = null;
+	private static ?bool $defaultDatabaseReachable = null;
 
 	/**
 	 * @param array<string, mixed> $metadata
@@ -307,8 +308,18 @@ class RuntimeSiteCutoverGuard
 
 	private static function canProbeRuntimeLockTable(): bool
 	{
+		if (self::$defaultDatabaseReachable === true) {
+			return true;
+		}
+
 		try {
-			return Db::checkDsnConnection((string) Config::DB_DEFAULT_DSN->value());
+			if (!Db::checkDsnConnection((string) Config::DB_DEFAULT_DSN->value())) {
+				return false;
+			}
+
+			self::$defaultDatabaseReachable = true;
+
+			return true;
 		} catch (Throwable $exception) {
 			Kernel::logException($exception, 'Cutover guard database probe failed open');
 

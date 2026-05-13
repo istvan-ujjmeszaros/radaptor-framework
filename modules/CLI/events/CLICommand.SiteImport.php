@@ -74,7 +74,7 @@ class CLICommandSiteImport extends AbstractCLICommand
 			$snapshot = CmsSiteSnapshotService::loadSnapshotFile($file);
 			$profile = (string) ($snapshot['profile'] ?? self::PROFILE_DISASTER_RECOVERY);
 
-			if ($profile === self::PROFILE_SITE_MIGRATION && $apply && $pause_target_workers === $skip_target_worker_pause) {
+			if ($profile === self::PROFILE_SITE_MIGRATION && $apply && !self::hasExactlyOneTargetPauseDecision($pause_target_workers, $skip_target_worker_pause)) {
 				Kernel::abort('Site migration restore requires exactly one of --pause-target-workers or --skip-target-worker-pause when applying.');
 			}
 
@@ -133,5 +133,11 @@ class CLICommandSiteImport extends AbstractCLICommand
 		foreach ($payload['errors'] as $error) {
 			echo "ERROR: {$error}\n";
 		}
+	}
+
+	private static function hasExactlyOneTargetPauseDecision(bool $pause_target_workers, bool $skip_target_worker_pause): bool
+	{
+		return ($pause_target_workers && !$skip_target_worker_pause)
+			|| (!$pause_target_workers && $skip_target_worker_pause);
 	}
 }
