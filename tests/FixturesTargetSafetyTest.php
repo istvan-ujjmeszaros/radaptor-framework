@@ -6,6 +6,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 require_once __DIR__ . '/../classes/testing/class.AbstractFixture.php';
+require_once __DIR__ . '/../classes/class.Db.php';
 require_once __DIR__ . '/../classes/testing/class.Fixtures.php';
 
 final class FixturesTargetSafetyTest extends TestCase
@@ -33,9 +34,15 @@ final class FixturesTargetSafetyTest extends TestCase
 
 	public function testFixtureLoadingRequiresNamedDatabase(): void
 	{
-		$this->expectException(RuntimeException::class);
-		$this->expectExceptionMessage('does not contain a database name');
-
-		Fixtures::loadAll('mysql:host=mariadb;port=3306;user=root;password=secret');
+		try {
+			Fixtures::loadAll('mysql:host=mariadb;port=3306;user=root;password=secret');
+			$this->fail('Fixture loading should reject DSNs without a database name.');
+		} catch (RuntimeException $exception) {
+			$this->assertStringContainsString('does not contain a database name', $exception->getMessage());
+			$this->assertStringContainsString('user=<redacted>', $exception->getMessage());
+			$this->assertStringContainsString('password=<redacted>', $exception->getMessage());
+			$this->assertStringNotContainsString('user=root', $exception->getMessage());
+			$this->assertStringNotContainsString('password=secret', $exception->getMessage());
+		}
 	}
 }

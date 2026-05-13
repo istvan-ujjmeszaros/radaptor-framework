@@ -565,6 +565,8 @@ class Fixtures
 			}
 		}
 
-		throw new RuntimeException("Fixture loading target DSN does not contain a database name: {$dsn}");
+		throw new RuntimeException(
+			'Fixture loading target DSN does not contain a database name: ' . Db::redactDSNUserAndPassword($dsn)
+		);
 	}
 }
