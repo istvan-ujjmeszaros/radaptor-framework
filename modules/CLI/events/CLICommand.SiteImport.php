@@ -76,7 +76,7 @@ class CLICommandSiteImport extends AbstractCLICommand
 			}
 
 			$options = [
-				'pause_target_workers' => $pause_target_workers || (!$apply && !$skip_target_worker_pause),
+				'pause_target_workers' => $apply && $pause_target_workers,
 				'allow_stale_workers' => Request::hasArg('allow-stale-workers'),
 				'pause_timeout_seconds' => CLIOptionHelper::getNullableIntOption('pause-timeout') ?? 30,
 				'pause_context' => $file,
