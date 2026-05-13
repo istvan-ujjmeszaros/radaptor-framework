@@ -26,10 +26,14 @@ class Fixtures
 
 	/**
 	 * Loads all fixtures in dependency order.
+	 *
+	 * @param string $target_dsn Explicit _test database DSN. Fixture loading is destructive.
 	 */
-	public static function loadAll(): void
+	public static function loadAll(string $target_dsn): void
 	{
-		$pdo = Db::instance();
+		self::assertSafeFixtureTargetDsn($target_dsn);
+		$pdo = Db::instance($target_dsn);
+		self::assertFixtureConnectionMatchesTarget($target_dsn, $pdo);
 
 		// Clear refs at start of each load
 		self::$refs = [];
@@ -243,7 +247,7 @@ class Fixtures
 
 		// Check if this is nested tree data (has '_' key)
 		if (self::isTreeData($rows)) {
-			$rows = self::flattenTree($rows, $table, $referenceBy);
+			$rows = self::flattenTree($rows, $table, $referenceBy, $pdo);
 		} else {
 			// For non-tree data, resolve refs and insert normally
 			$rows = self::insertRows($rows, $table, $referenceBy, $pdo);
@@ -400,11 +404,11 @@ class Fixtures
 	 * @param array<int, array<string, mixed>> $rows
 	 * @param string $table
 	 * @param string $referenceBy
+	 * @param PDO $pdo
 	 * @return list<array<string, mixed>>
 	 */
-	private static function flattenTree(array $rows, string $table, string $referenceBy): array
+	private static function flattenTree(array $rows, string $table, string $referenceBy, PDO $pdo): array
 	{
-		$pdo = Db::instance();
 		$flat = [];
 		$counter = 0;
 
@@ -512,5 +516,57 @@ class Fixtures
 		$counter++; // rgt
 
 		return ['node' => $node, 'rgt' => $counter];
+	}
+
+	private static function assertSafeFixtureTargetDsn(string $target_dsn): void
+	{
+		$db_name = self::extractDbNameFromDsn($target_dsn);
+
+		if (!str_ends_with($db_name, '_test') || str_ends_with($db_name, '_audit')) {
+			throw new RuntimeException(
+				"Fixture loading target must be an explicit _test database, got '{$db_name}'."
+			);
+		}
+	}
+
+	private static function assertFixtureConnectionMatchesTarget(string $target_dsn, PDO $pdo): void
+	{
+		$expected_db_name = self::extractDbNameFromDsn($target_dsn);
+		$stmt = $pdo->query('SELECT DATABASE()');
+
+		if (!$stmt instanceof PDOStatement) {
+			throw new RuntimeException('Unable to verify fixture loading target database.');
+		}
+
+		$actual_db_name = (string) $stmt->fetchColumn();
+
+		if ($actual_db_name !== $expected_db_name) {
+			throw new RuntimeException(
+				"Fixture loading connection mismatch: target DSN points to '{$expected_db_name}', active connection uses '{$actual_db_name}'."
+			);
+		}
+
+		if (!str_ends_with($actual_db_name, '_test') || str_ends_with($actual_db_name, '_audit')) {
+			throw new RuntimeException(
+				"Fixture loading active database must be an explicit _test database, got '{$actual_db_name}'."
+			);
+		}
+	}
+
+	private static function extractDbNameFromDsn(string $dsn): string
+	{
+		foreach (explode(';', $dsn) as $part) {
+			if (str_starts_with($part, 'dbname=')) {
+				$db_name = substr($part, strlen('dbname='));
+
+				if ($db_name !== '') {
+					return $db_name;
+				}
+			}
+		}
+
+		throw new RuntimeException(
+			'Fixture loading target DSN does not contain a database name: ' . Db::redactDSNUserAndPassword($dsn)
+		);
 	}
 }
