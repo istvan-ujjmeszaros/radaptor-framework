@@ -65,6 +65,8 @@ class Migration_20260513_090000_runtime_worker_registry
 		}
 
 		foreach ([
+			'migrations',
+			'seeds',
 			'mcp_tokens',
 			'mcp_audit',
 			'i18n_build_state',
