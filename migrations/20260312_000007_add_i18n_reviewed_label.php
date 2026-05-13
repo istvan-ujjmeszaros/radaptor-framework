@@ -17,6 +17,7 @@ class Migration_20260312_000007_add_i18n_reviewed_label
 		$sourceHash = md5($sourceText);
 		$pdo = Db::instance();
 		$existing_locales = $this->getExistingLocales($pdo);
+		$should_filter_locales = $existing_locales !== null;
 
 		$pdo->prepare(
 			"INSERT INTO `i18n_messages` (`domain`, `key`, `context`, `source_text`, `source_hash`)
@@ -36,7 +37,7 @@ class Migration_20260312_000007_add_i18n_reviewed_label
 		);
 
 		foreach ($translations as $locale => $text) {
-			if (!isset($existing_locales[$locale])) {
+			if ($should_filter_locales && !isset($existing_locales[$locale])) {
 				continue;
 			}
 
@@ -45,14 +46,14 @@ class Migration_20260312_000007_add_i18n_reviewed_label
 	}
 
 	/**
-	 * @return array<string, bool>
+	 * @return array<string, bool>|null
 	 */
-	private function getExistingLocales(PDO $pdo): array
+	private function getExistingLocales(PDO $pdo): ?array
 	{
 		try {
 			$rows = $pdo->query("SELECT `locale` FROM `locales`")->fetchAll(PDO::FETCH_ASSOC);
 		} catch (Throwable) {
-			return [];
+			return null;
 		}
 
 		$locales = [];
