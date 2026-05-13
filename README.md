@@ -92,11 +92,14 @@ When source workers are paused, workers confirm the pause through the runtime wo
 export continues. The source instance is then locked into cutover read-only mode. Web mutations, MCP
 write tools, and mutating CLI commands are blocked until `site:cutover-release` is run with the
 required confirmation text. The read-only title/message are i18n keys; the lock table stores the
-message key, not a rendered translation snapshot.
+message key, not a rendered translation snapshot. Releasing a cutover lock only auto-resumes worker
+pause requests that were created for that cutover; pre-existing/manual pauses stay paused and must be
+released explicitly by the operator.
 
 Runtime table existence checks intentionally cache only positive results. In long-running runtimes,
 missing tables are re-probed after migrations instead of being treated as absent until process
-restart.
+restart. Cutover gate checks also fail open if the default database cannot be probed, so bootstrap,
+diagnostic, and repair CLI commands are not blocked by the guard before the database is reachable.
 
 ## Runtime Worker Pause Control
 

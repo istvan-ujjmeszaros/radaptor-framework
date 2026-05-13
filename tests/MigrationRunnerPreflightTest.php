@@ -50,6 +50,20 @@ final class MigrationRunnerPreflightTest extends TestCase
 		$this->assertStringContainsString('Database schema is not initialized', $result['message']);
 	}
 
+	public function testPreflightRejectsOperationalRuntimeTablesOnlyDatabase(): void
+	{
+		$this->switchDefaultDsnToTemporaryDatabase();
+		MigrationRunner::ensureMigrationsTable();
+		Db::instance()->exec('CREATE TABLE runtime_site_locks (id INT UNSIGNED NOT NULL PRIMARY KEY)');
+		Db::instance()->exec('CREATE TABLE runtime_worker_instances (id INT UNSIGNED NOT NULL PRIMARY KEY)');
+		Db::instance()->exec('CREATE TABLE runtime_worker_pause_requests (id INT UNSIGNED NOT NULL PRIMARY KEY)');
+
+		$result = MigrationRunner::checkPendingMigrations([$this->fakeMigrationDescriptor()]);
+
+		$this->assertFalse($result['success']);
+		$this->assertStringContainsString('Database schema is not initialized', $result['message']);
+	}
+
 	public function testPreflightAllowsDatabaseWithApplicationTables(): void
 	{
 		$this->switchDefaultDsnToTemporaryDatabase();

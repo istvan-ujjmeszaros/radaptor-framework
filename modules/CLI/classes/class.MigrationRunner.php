@@ -787,7 +787,7 @@ class MigrationRunner
 			$tables,
 			static fn (string $table): bool => !in_array($table, [
 				'migrations',
-				'runtime_site_cutover_locks',
+				'runtime_site_locks',
 				'runtime_worker_instances',
 				'runtime_worker_pause_requests',
 			], true)
