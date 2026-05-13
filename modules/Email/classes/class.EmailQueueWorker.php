@@ -8,6 +8,11 @@ class EmailQueueWorker
 	public const string QUEUE_NAME = 'transactional_email';
 	private static ?string $workerInstanceId = null;
 
+	public static function getStaleAfterSeconds(): int
+	{
+		return max(15, (int) ceil(max(1, (int) Config::EMAIL_QUEUE_WORKER_SLEEP_MS->value()) / 1000) * 20);
+	}
+
 	public static function runForever(): void
 	{
 		$purge_interval_seconds = max(1, (int) Config::EMAIL_QUEUE_PURGE_INTERVAL_SECONDS->value());
@@ -17,12 +22,6 @@ class EmailQueueWorker
 
 		try {
 			for (;;) {
-				if (RuntimeWorkerPauseControl::pauseIfRequested(self::$workerInstanceId, self::WORKER_TYPE, self::QUEUE_NAME)) {
-					usleep((int) Config::EMAIL_QUEUE_WORKER_SLEEP_MS->value() * 1000);
-
-					continue;
-				}
-
 				$processed = self::runOnce(self::$workerInstanceId);
 
 				if (RuntimeWorkerPauseControl::getActivePauseRequest(self::WORKER_TYPE, self::QUEUE_NAME) !== null) {

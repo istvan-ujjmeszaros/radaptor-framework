@@ -39,3 +39,5 @@ browser_event_docs,required_yes,,zh-Hans-CN,yes,是,0,是
 browser_event_docs,required_no,,zh-Hans-CN,no,否,0,否
 browser_event_docs,section.notes,,zh-Hans-CN,Notes,备注,0,备注
 browser_event_docs,section.side_effects,,zh-Hans-CN,"Side Effects",副作用,0,副作用
+runtime.site_cutover,readonly_title,,zh-Hans-CN,"Site is read-only","Site is read-only",0,"Site is read-only"
+runtime.site_cutover,readonly_message,,zh-Hans-CN,"This site instance is locked read-only after a site migration export. Use the new site instance for further work, or explicitly release the cutover lock if you understand that the previous migration export may become inconsistent.","This site instance is locked read-only after a site migration export. Use the new site instance for further work, or explicitly release the cutover lock if you understand that the previous migration export may become inconsistent.",0,"This site instance is locked read-only after a site migration export. Use the new site instance for further work, or explicitly release the cutover lock if you understand that the previous migration export may become inconsistent."

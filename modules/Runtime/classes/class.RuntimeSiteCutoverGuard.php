@@ -9,6 +9,8 @@ class RuntimeSiteCutoverGuard
 	public const string STATUS_ACTIVE = 'active';
 	public const string STATUS_RELEASED = 'released';
 	public const string RELEASE_CONFIRMATION_TEXT = 'I understand the previous migration export may be inconsistent';
+	public const string READONLY_MESSAGE_KEY = 'runtime.site_cutover.readonly_message';
+	public const string READONLY_TITLE_KEY = 'runtime.site_cutover.readonly_title';
 	private const array CLI_ALLOWLIST = [
 		'site:cutover-release',
 		'site:cutover-status',
@@ -53,7 +55,6 @@ class RuntimeSiteCutoverGuard
 
 		$lock_id = 'site_lock_' . bin2hex(random_bytes(16));
 		$metadata_json = $metadata === [] ? null : json_encode($metadata, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
-		$message = self::readonlyMessage();
 
 		DbHelper::prexecute(
 			"INSERT INTO `" . self::TABLE_LOCKS . "` (
@@ -65,7 +66,7 @@ class RuntimeSiteCutoverGuard
 				self::STATUS_ACTIVE,
 				$reason,
 				$context,
-				$message,
+				self::READONLY_MESSAGE_KEY,
 				self::getCurrentUserIdOrNull(),
 				$metadata_json,
 			]
@@ -208,11 +209,7 @@ class RuntimeSiteCutoverGuard
 			return false;
 		}
 
-		try {
-			return self::isActive();
-		} catch (Throwable) {
-			return false;
-		}
+		return self::isActiveForGate('cli', ['command' => $command_slug]);
 	}
 
 	private static function commandDeclaresRiskLevel(AbstractCLICommand $command): bool
@@ -241,7 +238,7 @@ class RuntimeSiteCutoverGuard
 
 	public static function shouldBlockWebEvent(iEvent $event): bool
 	{
-		if (!self::isActive()) {
+		if (!self::isActiveForGate('web', ['event_class' => get_class($event)])) {
 			return false;
 		}
 
@@ -269,7 +266,7 @@ class RuntimeSiteCutoverGuard
 	 */
 	public static function shouldBlockMcpTool(array $meta): bool
 	{
-		if (!self::isActive()) {
+		if (!self::isActiveForGate('mcp', ['tool' => $meta['name'] ?? $meta['tool'] ?? null])) {
 			return false;
 		}
 
@@ -278,9 +275,28 @@ class RuntimeSiteCutoverGuard
 		return (string) ($mcp['risk'] ?? 'write') !== 'read';
 	}
 
+	public static function readonlyTitle(): string
+	{
+		return t(self::READONLY_TITLE_KEY);
+	}
+
 	public static function readonlyMessage(): string
 	{
-		return 'This site instance is locked read-only after a site migration export. Use the new site instance for further work, or explicitly release the cutover lock if you understand that the previous migration export may become inconsistent.';
+		return t(self::READONLY_MESSAGE_KEY);
+	}
+
+	/**
+	 * @param array<string, mixed> $context
+	 */
+	private static function isActiveForGate(string $gate, array $context = []): bool
+	{
+		try {
+			return self::isActive();
+		} catch (Throwable $exception) {
+			Kernel::logException($exception, 'Cutover guard failed open', ['gate' => $gate] + $context);
+
+			return false;
+		}
 	}
 
 	/**

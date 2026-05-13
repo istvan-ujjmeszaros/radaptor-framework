@@ -39,3 +39,5 @@ browser_event_docs,required_yes,,de-DE,yes,ja,0,ja
 browser_event_docs,required_no,,de-DE,no,nein,0,nein
 browser_event_docs,section.notes,,de-DE,Notes,Notizen,0,Notizen
 browser_event_docs,section.side_effects,,de-DE,"Side Effects",Nebenwirkungen,0,Nebenwirkungen
+runtime.site_cutover,readonly_title,,de-DE,"Site is read-only","Site is read-only",0,"Site is read-only"
+runtime.site_cutover,readonly_message,,de-DE,"This site instance is locked read-only after a site migration export. Use the new site instance for further work, or explicitly release the cutover lock if you understand that the previous migration export may become inconsistent.","This site instance is locked read-only after a site migration export. Use the new site instance for further work, or explicitly release the cutover lock if you understand that the previous migration export may become inconsistent.",0,"This site instance is locked read-only after a site migration export. Use the new site instance for further work, or explicitly release the cutover lock if you understand that the previous migration export may become inconsistent."

@@ -64,7 +64,8 @@ class CLICommandWorkerPause extends AbstractCLICommand
 				$queue_name,
 				(string) $result['pause_request_id'],
 				$timeout,
-				$allow_stale_workers
+				$allow_stale_workers,
+				$this->resolveStaleAfterSeconds($worker_type, $queue_name)
 			);
 		}
 
@@ -80,5 +81,14 @@ class CLICommandWorkerPause extends AbstractCLICommand
 		if (isset($result['confirmation']) && is_array($result['confirmation'])) {
 			echo 'Confirmed: ' . (($result['confirmation']['confirmed'] ?? false) ? 'yes' : 'no') . "\n";
 		}
+	}
+
+	private function resolveStaleAfterSeconds(string $worker_type, string $queue_name): int
+	{
+		if ($worker_type === EmailQueueWorker::WORKER_TYPE && $queue_name === EmailQueueWorker::QUEUE_NAME) {
+			return EmailQueueWorker::getStaleAfterSeconds();
+		}
+
+		return 30;
 	}
 }

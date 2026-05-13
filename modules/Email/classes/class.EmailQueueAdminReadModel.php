@@ -228,7 +228,7 @@ class EmailQueueAdminReadModel
 
 	private static function getWorkerStaleAfterSeconds(): int
 	{
-		return max(15, (int) ceil(max(1, (int) Config::EMAIL_QUEUE_WORKER_SLEEP_MS->value()) / 1000) * 20);
+		return EmailQueueWorker::getStaleAfterSeconds();
 	}
 
 	private static function tableExists(string $table_name): bool

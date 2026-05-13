@@ -56,7 +56,8 @@ class CLICommandEmailqueuePause extends AbstractCLICommand
 				EmailQueueWorker::QUEUE_NAME,
 				(string) $result['pause_request_id'],
 				$timeout,
-				$allow_stale_workers
+				$allow_stale_workers,
+				EmailQueueWorker::getStaleAfterSeconds()
 			);
 		}
 

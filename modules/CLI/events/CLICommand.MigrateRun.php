@@ -3,10 +3,12 @@
 /**
  * Run all pending migrations.
  *
- * Usage: radaptor migrate:run [--json]
+ * Usage: radaptor migrate:run [--dry-run] [--sandbox] [--json]
  *
  * Examples:
  *   radaptor migrate:run
+ *   radaptor migrate:run --dry-run
+ *   radaptor migrate:run --dry-run --sandbox
  *   radaptor migrate:run --json
  */
 class CLICommandMigrateRun extends AbstractCLICommand
@@ -21,10 +23,12 @@ class CLICommandMigrateRun extends AbstractCLICommand
 		return <<<'DOC'
 			Run all pending database migrations in chronological order.
 
-			Usage: radaptor migrate:run [--json]
+			Usage: radaptor migrate:run [--dry-run] [--sandbox] [--json]
 
 			Examples:
 			  radaptor migrate:run
+			  radaptor migrate:run --dry-run
+			  radaptor migrate:run --dry-run --sandbox
 			  radaptor migrate:run --json
 			DOC;
 	}
@@ -37,6 +41,8 @@ class CLICommandMigrateRun extends AbstractCLICommand
 	public function getWebParams(): array
 	{
 		return [
+			['name' => 'dry-run', 'label' => 'Dry run', 'type' => 'flag'],
+			['name' => 'sandbox', 'label' => 'Sandbox proof', 'type' => 'flag'],
 			['name' => 'json', 'label' => 'JSON output', 'type' => 'flag'],
 		];
 	}
@@ -49,6 +55,8 @@ class CLICommandMigrateRun extends AbstractCLICommand
 	public function run(): void
 	{
 		$json_mode = Request::hasArg('json');
+		$dry_run = Request::hasArg('dry-run');
+		$sandbox = Request::hasArg('sandbox');
 		$original_db_mode = Db::getCLIDatabaseMode();
 		$switched_to_normal = false;
 
@@ -62,6 +70,19 @@ class CLICommandMigrateRun extends AbstractCLICommand
 		}
 
 		try {
+			if ($sandbox && !$dry_run) {
+				if ($json_mode) {
+					echo json_encode([
+						'status' => 'error',
+						'message' => '--sandbox requires --dry-run',
+					], JSON_PRETTY_PRINT) . "\n";
+				} else {
+					echo "Error: --sandbox requires --dry-run.\n";
+				}
+
+				return;
+			}
+
 			$pending = MigrationRunner::getPendingMigrations();
 
 			if (empty($pending)) {
@@ -74,6 +95,12 @@ class CLICommandMigrateRun extends AbstractCLICommand
 				} else {
 					echo "No pending migrations.\n";
 				}
+
+				return;
+			}
+
+			if ($dry_run) {
+				$this->renderDryRun($pending, $sandbox, $json_mode);
 
 				return;
 			}
@@ -120,6 +147,45 @@ class CLICommandMigrateRun extends AbstractCLICommand
 					echo "\033[33mRestored CLI DB mode to TEST.\033[0m\n";
 				}
 			}
+		}
+	}
+
+	/**
+	 * @param array<int, array<string, mixed>> $pending
+	 */
+	private function renderDryRun(array $pending, bool $sandbox, bool $json_mode): void
+	{
+		$result = $sandbox
+			? MigrationRunner::provePendingMigrationsInSandbox($pending)
+			: MigrationRunner::checkPendingMigrations($pending);
+		$status = ($result['success'] ?? false) === true ? 'success' : 'error';
+		$pending_summary = array_map(
+			static fn (array $migration): array => [
+				'module' => (string) ($migration['module'] ?? ''),
+				'filename' => (string) ($migration['filename'] ?? ''),
+			],
+			$pending
+		);
+
+		if ($json_mode) {
+			echo json_encode([
+				'status' => $status,
+				'dry_run' => true,
+				'sandbox' => $sandbox,
+				'pending' => $pending_summary,
+				'result' => $result,
+			], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
+
+			return;
+		}
+
+		$mode = $sandbox ? 'sandbox proof' : 'preflight';
+		echo "[dry-run] Migration {$mode}: {$status}\n";
+		echo "[dry-run] {$result['message']}\n";
+		echo "[dry-run] Pending migrations: " . count($pending_summary) . "\n";
+
+		foreach ($pending_summary as $migration) {
+			echo "[dry-run] - {$migration['module']} / {$migration['filename']}\n";
 		}
 	}
 }
