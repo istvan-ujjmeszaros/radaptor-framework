@@ -75,6 +75,32 @@ final class MigrationRunnerPreflightTest extends TestCase
 		$this->assertTrue($result['success']);
 	}
 
+	public function testDryRunPendingDoesNotCreateMigrationsTable(): void
+	{
+		$this->switchDefaultDsnToTemporaryDatabase();
+
+		MigrationRunner::getPendingMigrationsForDryRun();
+
+		$this->assertFalse($this->tableExists('migrations'));
+	}
+
+	public function testDryRunPendingDoesNotUpgradeLegacyMigrationsTable(): void
+	{
+		$this->switchDefaultDsnToTemporaryDatabase();
+		Db::instance()->exec(
+			'CREATE TABLE migrations (
+				migration_hash VARCHAR(32) NOT NULL PRIMARY KEY,
+				migration_name VARCHAR(255) NOT NULL,
+				applied_at DATETIME NOT NULL
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
+		);
+
+		MigrationRunner::getPendingMigrationsForDryRun();
+
+		$this->assertTrue($this->tableExists('migrations'));
+		$this->assertFalse($this->columnExists('migrations', 'module'));
+	}
+
 	private function switchDefaultDsnToTemporaryDatabase(): void
 	{
 		$dsn = $this->rewriteDsnDatabaseName(Config::DB_DEFAULT_DSN->value(), $this->temporary_database);
@@ -111,6 +137,20 @@ final class MigrationRunnerPreflightTest extends TestCase
 		}
 
 		$this->fail('Test DSN does not contain dbname.');
+	}
+
+	private function tableExists(string $table): bool
+	{
+		$stmt = Db::instance()->query('SHOW TABLES LIKE ' . Db::instance()->quote($table));
+
+		return $stmt !== false && $stmt->fetch(PDO::FETCH_NUM) !== false;
+	}
+
+	private function columnExists(string $table, string $column): bool
+	{
+		$stmt = Db::instance()->query("SHOW COLUMNS FROM {$table} LIKE " . Db::instance()->quote($column));
+
+		return $stmt !== false && $stmt->fetch(PDO::FETCH_ASSOC) !== false;
 	}
 
 	/**

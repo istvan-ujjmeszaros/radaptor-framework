@@ -90,8 +90,45 @@ class MigrationRunner
 	{
 		self::ensureMigrationsTable();
 
+		return self::readAppliedMigrations(true);
+	}
+
+	/**
+	 * @return array<string, array{
+	 *     module: string,
+	 *     migration_name: string,
+	 *     applied_at: string,
+	 *     migration_hash: string
+	 * }>
+	 */
+	private static function getAppliedMigrationsReadonly(): array
+	{
+		if (!self::tableExists('migrations') || !self::tableColumnExists('migrations', 'migration_name')) {
+			return [];
+		}
+
+		return self::readAppliedMigrations(false);
+	}
+
+	/**
+	 * @return array<string, array{
+	 *     module: string,
+	 *     migration_name: string,
+	 *     applied_at: string,
+	 *     migration_hash: string
+	 * }>
+	 */
+	private static function readAppliedMigrations(bool $table_is_current): array
+	{
+		$has_module_column = $table_is_current || self::tableColumnExists('migrations', 'module');
+		$has_hash_column = $table_is_current || self::tableColumnExists('migrations', 'migration_hash');
+		$has_applied_at_column = $table_is_current || self::tableColumnExists('migrations', 'applied_at');
+		$module_select = $has_module_column ? 'module' : "'' AS module";
+		$hash_select = $has_hash_column ? 'migration_hash' : "'' AS migration_hash";
+		$applied_at_select = $has_applied_at_column ? 'applied_at' : "'' AS applied_at";
+		$known_modules_by_filename = $has_module_column ? [] : self::getKnownModulesByFilename();
 		$stmt = Db::instance()->prepare(
-			"SELECT migration_hash, module, migration_name, applied_at
+			"SELECT {$hash_select}, {$module_select}, migration_name, {$applied_at_select}
 			 FROM migrations
 			 ORDER BY applied_at, module, migration_name"
 		);
@@ -101,15 +138,16 @@ class MigrationRunner
 		$applied = [];
 
 		foreach ($rows as $row) {
-			$module = (string) ($row['module'] ?? 'framework');
 			$filename = (string) $row['migration_name'];
+			$module = self::resolveAppliedMigrationModule($filename, (string) ($row['module'] ?? ''), $known_modules_by_filename);
 			$key = self::buildMigrationKey($module, $filename);
+			$migration_hash = (string) ($row['migration_hash'] ?? '');
 
 			$applied[$key] = [
 				'module' => $module,
 				'migration_name' => $filename,
 				'applied_at' => (string) $row['applied_at'],
-				'migration_hash' => (string) $row['migration_hash'],
+				'migration_hash' => $migration_hash !== '' ? $migration_hash : self::buildMigrationHash($module, $filename),
 			];
 		}
 
@@ -175,8 +213,45 @@ class MigrationRunner
 	 */
 	public static function getPendingMigrations(): array
 	{
+		return self::buildPendingMigrations(self::getAppliedMigrations());
+	}
+
+	/**
+	 * @return array<int, array{
+	 *     key: string,
+	 *     module: string,
+	 *     filename: string,
+	 *     filepath: string,
+	 *     hash: string,
+	 *     base_class_name: string,
+	 *     runtime_class_name: string
+	 * }>
+	 */
+	public static function getPendingMigrationsForDryRun(): array
+	{
+		return self::buildPendingMigrations(self::getAppliedMigrationsReadonly());
+	}
+
+	/**
+	 * @param array<string, array{
+	 *     module: string,
+	 *     migration_name: string,
+	 *     applied_at: string,
+	 *     migration_hash: string
+	 * }> $applied
+	 * @return array<int, array{
+	 *     key: string,
+	 *     module: string,
+	 *     filename: string,
+	 *     filepath: string,
+	 *     hash: string,
+	 *     base_class_name: string,
+	 *     runtime_class_name: string
+	 * }>
+	 */
+	private static function buildPendingMigrations(array $applied): array
+	{
 		$all_files = self::getAllMigrationFiles();
-		$applied = self::getAppliedMigrations();
 
 		return array_values(array_filter(
 			$all_files,
@@ -1301,6 +1376,14 @@ class MigrationRunner
 		$stmt = Db::instance()->query("SHOW COLUMNS FROM {$table} LIKE '{$column}'");
 
 		return $stmt !== false && $stmt->fetch(PDO::FETCH_ASSOC) !== false;
+	}
+
+	private static function tableExists(string $table): bool
+	{
+		$quoted_table = Db::instance()->quote($table);
+		$stmt = Db::instance()->query("SHOW TABLES LIKE {$quoted_table}");
+
+		return $stmt !== false && $stmt->fetch(PDO::FETCH_NUM) !== false;
 	}
 
 	private static function tableIndexExists(string $table, string $index_name): bool

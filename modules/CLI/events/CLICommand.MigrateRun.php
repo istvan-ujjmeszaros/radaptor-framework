@@ -83,7 +83,9 @@ class CLICommandMigrateRun extends AbstractCLICommand
 				return;
 			}
 
-			$pending = MigrationRunner::getPendingMigrations();
+			$pending = $dry_run
+				? MigrationRunner::getPendingMigrationsForDryRun()
+				: MigrationRunner::getPendingMigrations();
 
 			if (empty($pending)) {
 				if ($json_mode) {
