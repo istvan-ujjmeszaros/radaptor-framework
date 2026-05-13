@@ -200,15 +200,19 @@ class RuntimeSiteCutoverGuard
 
 	public static function shouldBlockCliCommand(AbstractCLICommand $command, string $command_slug): bool
 	{
-		if (!self::isActive()) {
-			return false;
-		}
-
 		if (in_array($command_slug, self::CLI_ALLOWLIST, true)) {
 			return false;
 		}
 
-		return $command->getRiskLevel() !== 'safe';
+		if ($command->getRiskLevel() === 'safe') {
+			return false;
+		}
+
+		try {
+			return self::isActive();
+		} catch (Throwable) {
+			return false;
+		}
 	}
 
 	/**
