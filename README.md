@@ -74,6 +74,8 @@ radaptor migrate:run --json
 ```
 
 `--dry-run` lists pending migrations and runs the same preflight without mutating the database.
+It computes pending migrations from the existing metadata table in read-only mode, so it does not
+create or upgrade the `migrations` table on empty or legacy schemas.
 `--dry-run --sandbox` clones the current database into a temporary database, applies pending
 migrations there, reports the result, and drops the temporary database. Use the sandbox proof before
 running migrations on important development, staging, migration, or production-like snapshots.
