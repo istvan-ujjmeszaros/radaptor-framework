@@ -32,6 +32,10 @@ class CLICommandResourceSpecCompatScan extends AbstractCLICommand
 		$json = CLIOptionHelper::isJson();
 
 		try {
+			if (!class_exists(CmsResourceSpecCompatScanService::class)) {
+				throw new RuntimeException('resource-spec:compat-scan requires CmsResourceSpecCompatScanService from a compatible radaptor/core/cms package.');
+			}
+
 			$result = CmsResourceSpecCompatScanService::scan($path);
 		} catch (Throwable $exception) {
 			if ($json) {

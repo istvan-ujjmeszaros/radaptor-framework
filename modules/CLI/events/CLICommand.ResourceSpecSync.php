@@ -36,6 +36,10 @@ class CLICommandResourceSpecSync extends AbstractCLICommand
 		$json = CLIOptionHelper::isJson();
 
 		try {
+			if (!$dry_run && !class_exists(CmsMutationAuditService::class)) {
+				throw new RuntimeException('resource-spec:sync --apply requires CmsMutationAuditService from a compatible radaptor/core/cms package.');
+			}
+
 			$spec = CmsResourceTreeSpecService::loadSpecFile($path);
 			$result = $dry_run
 				? CmsResourceTreeSpecService::syncSpec($spec, true)

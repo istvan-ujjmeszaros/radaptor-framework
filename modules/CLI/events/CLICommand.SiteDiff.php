@@ -46,6 +46,10 @@ class CLICommandSiteDiff extends AbstractCLICommand
 		}
 
 		try {
+			if (!class_exists(CmsSiteDiffService::class)) {
+				throw new RuntimeException('site:diff requires CmsSiteDiffService from a compatible radaptor/core/cms package.');
+			}
+
 			$baseline = CmsSiteSnapshotService::loadSnapshotFile($baseline_path);
 			$result = $live
 				? CmsSiteDiffService::diffLive($baseline)
