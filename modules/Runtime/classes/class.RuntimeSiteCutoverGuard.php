@@ -133,7 +133,7 @@ class RuntimeSiteCutoverGuard
 	/**
 	 * @return array<string, mixed>
 	 */
-	public static function attachWorkerPauseRequest(string $lock_id, string $pause_request_id): array
+	public static function attachWorkerPauseRequest(string $lock_id, string $pause_request_id, ?bool $created_by_cutover = null): array
 	{
 		if (!self::isAvailable()) {
 			return [
@@ -155,6 +155,7 @@ class RuntimeSiteCutoverGuard
 
 		$metadata = self::decodeMetadata($lock['metadata_json'] ?? null);
 		$metadata['worker_pause_request_id'] = $pause_request_id;
+		$metadata['worker_pause_created_by_cutover'] = $created_by_cutover ?? self::isPauseRequestCreatedForLock($pause_request_id, $lock_id);
 
 		DbHelper::prexecute(
 			"UPDATE `" . self::TABLE_LOCKS . "`
@@ -168,6 +169,7 @@ class RuntimeSiteCutoverGuard
 			'attached' => true,
 			'lock_id' => $lock_id,
 			'pause_request_id' => $pause_request_id,
+			'created_by_cutover' => $metadata['worker_pause_created_by_cutover'],
 		];
 	}
 
@@ -290,10 +292,25 @@ class RuntimeSiteCutoverGuard
 	 */
 	private static function isActiveForGate(string $gate, array $context = []): bool
 	{
+		if (!self::canProbeRuntimeLockTable()) {
+			return false;
+		}
+
 		try {
 			return self::isActive();
 		} catch (Throwable $exception) {
 			Kernel::logException($exception, 'Cutover guard failed open', ['gate' => $gate] + $context);
+
+			return false;
+		}
+	}
+
+	private static function canProbeRuntimeLockTable(): bool
+	{
+		try {
+			return Db::checkDsnConnection((string) Config::DB_DEFAULT_DSN->value());
+		} catch (Throwable $exception) {
+			Kernel::logException($exception, 'Cutover guard database probe failed open');
 
 			return false;
 		}
@@ -389,8 +406,20 @@ class RuntimeSiteCutoverGuard
 		foreach ($locks as $lock) {
 			$metadata = self::decodeMetadata($lock['metadata_json'] ?? null);
 			$pause_request_id = (string) ($metadata['worker_pause_request_id'] ?? '');
+			$created_by_cutover = ($metadata['worker_pause_created_by_cutover'] ?? false) === true;
 
 			if ($pause_request_id === '') {
+				continue;
+			}
+
+			if (!$created_by_cutover) {
+				$results[] = [
+					'lock_id' => (string) ($lock['lock_id'] ?? ''),
+					'pause_request_id' => $pause_request_id,
+					'skipped' => true,
+					'skip_reason' => 'pause_not_created_by_cutover',
+				];
+
 				continue;
 			}
 
@@ -426,5 +455,23 @@ class RuntimeSiteCutoverGuard
 		}
 
 		return is_array($metadata) ? $metadata : [];
+	}
+
+	private static function isPauseRequestCreatedForLock(string $pause_request_id, string $lock_id): bool
+	{
+		if (!class_exists(RuntimeWorkerPauseControl::class)) {
+			return false;
+		}
+
+		$request = RuntimeWorkerPauseControl::getPauseRequestById($pause_request_id);
+
+		if (!is_array($request)) {
+			return false;
+		}
+
+		$metadata = self::decodeMetadata($request['metadata_json'] ?? null);
+
+		return (string) ($request['reason'] ?? '') === 'site_migration_export'
+			&& (string) ($metadata['cutover_lock_id'] ?? '') === $lock_id;
 	}
 }

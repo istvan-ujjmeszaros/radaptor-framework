@@ -40,6 +40,7 @@ class RuntimeWorkerPauseControl
 					'available' => true,
 					'pause_request_id' => (string) $existing['pause_request_id'],
 					'status' => 'already_requested',
+					'created' => false,
 					'request' => $existing,
 				];
 			}
@@ -68,6 +69,7 @@ class RuntimeWorkerPauseControl
 				'available' => true,
 				'pause_request_id' => $pause_request_id,
 				'status' => self::STATUS_REQUESTED,
+				'created' => true,
 				'request' => self::getPauseRequestById($pause_request_id),
 			];
 		} finally {
