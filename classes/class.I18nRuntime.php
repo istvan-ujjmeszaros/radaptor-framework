@@ -110,29 +110,41 @@ class I18nRuntime
 
 	private static function _localesTableExists(object $pdo): bool
 	{
-		if (self::$_localesTableExists !== null) {
-			return self::$_localesTableExists;
+		if (self::$_localesTableExists === true) {
+			return true;
 		}
 
 		try {
-			return self::$_localesTableExists = $pdo->query("SHOW TABLES LIKE 'locales'")->rowCount() > 0;
+			$exists = $pdo->query("SHOW TABLES LIKE 'locales'")->rowCount() > 0;
+
+			if ($exists) {
+				self::$_localesTableExists = true;
+			}
+
+			return $exists;
 		} catch (Throwable) {
 			// Installation and doctor-safe flows may run before i18n tables exist.
-			return self::$_localesTableExists = false;
+			return false;
 		}
 	}
 
 	private static function _i18nTranslationsTableExists(object $pdo): bool
 	{
-		if (self::$_i18nTranslationsTableExists !== null) {
-			return self::$_i18nTranslationsTableExists;
+		if (self::$_i18nTranslationsTableExists === true) {
+			return true;
 		}
 
 		try {
-			return self::$_i18nTranslationsTableExists = $pdo->query("SHOW TABLES LIKE 'i18n_translations'")->rowCount() > 0;
+			$exists = $pdo->query("SHOW TABLES LIKE 'i18n_translations'")->rowCount() > 0;
+
+			if ($exists) {
+				self::$_i18nTranslationsTableExists = true;
+			}
+
+			return $exists;
 		} catch (Throwable) {
 			// Installation and doctor-safe flows may run before i18n tables exist.
-			return self::$_i18nTranslationsTableExists = false;
+			return false;
 		}
 	}
 
