@@ -45,7 +45,7 @@ interface iCsvMap
 	 * Export rows. The map may perform any JOINs or queries needed.
 	 * Yielding rows is preferred over returning a large array.
 	 *
-	 * @param array<string, mixed> $filters  Optional filters (e.g. ['locale' => 'hu_HU'])
+	 * @param array<string, mixed> $filters  Optional filters (e.g. ['locale' => 'hu-HU'])
 	 * @return iterable<array<string, string>>
 	 */
 	public function exportRows(array $filters = []): iterable;

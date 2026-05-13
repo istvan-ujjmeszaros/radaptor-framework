@@ -12,11 +12,11 @@ class CLICommandResourceMove extends AbstractCLICommand
 		return <<<'DOC'
 			Move a resource under a target parent folder.
 
-			Usage: radaptor resource:move <path> --parent <target_path> [--position <n>] [--dry-run] [--json]
+			Usage: radaptor resource:move <path> --parent <target_path> [--position <n>] [--dry-run|--apply] [--json]
 
 			Examples:
 			  radaptor resource:move /comparison/ --parent /
-			  radaptor resource:move /request-access/ --parent /archive/ --position 0 --json
+			  radaptor resource:move /request-access/ --parent /archive/ --position 0 --apply --json
 			DOC;
 	}
 
@@ -27,11 +27,12 @@ class CLICommandResourceMove extends AbstractCLICommand
 
 	public function run(): void
 	{
-		$usage = 'Usage: radaptor resource:move <path> --parent <target_path> [--position <n>] [--dry-run] [--json]';
+		$usage = 'Usage: radaptor resource:move <path> --parent <target_path> [--position <n>] [--dry-run|--apply] [--json]';
+		CLIOptionHelper::assertNoApplyDryRunConflict($usage);
 		$path = CLIOptionHelper::getMainArgOrAbort($usage);
 		$parent_path = CLIOptionHelper::getRequiredOption('parent', $usage);
 		$position = CLIOptionHelper::getNullableIntOption('position');
-		$dry_run = Request::hasArg('dry-run');
+		$dry_run = !Request::hasArg('apply');
 		$json = CLIOptionHelper::isJson();
 
 		try {
@@ -52,7 +53,11 @@ class CLICommandResourceMove extends AbstractCLICommand
 
 			$position ??= ResourceTreeHandler::countChildren((int) $parent['node_id']);
 
-			if (!$dry_run && !ResourceTreeHandler::moveResourceEntryToPosition((int) $resource['node_id'], (int) $parent['node_id'], $position)) {
+			$moved = $dry_run
+				? true
+				: ResourceTreeHandler::moveResourceEntryToPosition((int) $resource['node_id'], (int) $parent['node_id'], $position);
+
+			if (!$dry_run && !$moved) {
 				throw new RuntimeException("Unable to move {$path}.");
 			}
 

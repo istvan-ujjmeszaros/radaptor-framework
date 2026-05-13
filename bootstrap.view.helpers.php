@@ -133,7 +133,7 @@ function modify_url(array $params): string
 /**
  * Translate a string by key from the compiled i18n catalog.
  *
- * Falls back: current locale → en_US → key slug.
+ * Falls back: current locale → en-US → key slug.
  *
  * @param string $key    Dot-separated key (e.g. 'common.save', 'workers.list.title')
  * @param array<string, mixed> $params Named parameters for interpolation (e.g. ['name' => 'John'])

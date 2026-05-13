@@ -20,7 +20,7 @@ class Migration_20260309_000001_add_i18n_tables
 			`domain`               VARCHAR(100) NOT NULL,
 			`key`                  VARCHAR(255) NOT NULL,
 			`context`              VARCHAR(100) NOT NULL DEFAULT '',
-			`locale`               VARCHAR(10) NOT NULL,
+			`locale`               VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
 			`text`                 TEXT NOT NULL DEFAULT '',
 			`status`               ENUM('missing','translated','needs_review','approved') NOT NULL DEFAULT 'missing',
 			`source_hash_snapshot` CHAR(32) NOT NULL DEFAULT '',
@@ -32,7 +32,7 @@ class Migration_20260309_000001_add_i18n_tables
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
 		$pdo->exec("CREATE TABLE IF NOT EXISTS `i18n_build_state` (
-			`locale`       VARCHAR(10) NOT NULL,
+			`locale`       VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
 			`catalog_hash` CHAR(32) NOT NULL,
 			`built_at`     DATETIME NOT NULL,
 			PRIMARY KEY (`locale`)
@@ -40,8 +40,8 @@ class Migration_20260309_000001_add_i18n_tables
 
 		$pdo->exec("CREATE TABLE IF NOT EXISTS `i18n_tm_entries` (
 			`tm_id`                  INT NOT NULL AUTO_INCREMENT,
-			`source_locale`          VARCHAR(10) NOT NULL,
-			`target_locale`          VARCHAR(10) NOT NULL,
+			`source_locale`          VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+			`target_locale`          VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
 			`source_text_normalized` TEXT NOT NULL,
 			`source_text_raw`        TEXT NOT NULL,
 			`target_text`            TEXT NOT NULL,

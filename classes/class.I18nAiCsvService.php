@@ -25,6 +25,8 @@ class I18nAiCsvService
 	 */
 	public static function exportForLocale(string $locale, array $options = []): string
 	{
+		$locale = LocaleService::canonicalize($locale);
+
 		if (!LocaleRegistry::isKnownLocale($locale)) {
 			throw new RuntimeException("Unknown locale: {$locale}");
 		}
@@ -111,7 +113,7 @@ class I18nAiCsvService
 	 */
 	public static function importCsv(string $csv_content, array $options = []): array
 	{
-		$expected_locale = trim((string) ($options['expect_locale'] ?? ''));
+		$expected_locale = LocaleService::tryCanonicalize((string) ($options['expect_locale'] ?? '')) ?? trim((string) ($options['expect_locale'] ?? ''));
 		$dry_run = (bool) ($options['dry_run'] ?? false);
 		$validation = self::validateCsv($csv_content, $expected_locale);
 
@@ -249,7 +251,9 @@ class I18nAiCsvService
 				$data[$column] = (string) ($row[$index] ?? '');
 			}
 
-			$locale = trim($data['locale'] ?? '');
+			$raw_locale = trim($data['locale'] ?? '');
+			$locale = LocaleService::tryCanonicalize($raw_locale) ?? $raw_locale;
+			$data['locale'] = $locale;
 			$locales[$locale] = true;
 
 			if ($expected_locale !== '' && $locale !== $expected_locale) {
@@ -257,7 +261,7 @@ class I18nAiCsvService
 			}
 
 			if ($locale !== '' && !LocaleRegistry::isKnownLocale($locale)) {
-				$errors[] = "Line {$line}: unknown locale {$locale}.";
+				$errors[] = "Line {$line}: unknown locale {$raw_locale}.";
 			}
 
 			foreach (['domain', 'key', 'locale', 'source_text'] as $required) {

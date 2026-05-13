@@ -132,15 +132,19 @@ class I18nSeedExportService
 	 */
 	private static function normalizeLocales(mixed $locales): array
 	{
-		$normalized = self::normalizeStringList($locales);
+		$normalized = [];
 
-		foreach ($normalized as $locale) {
+		foreach (self::normalizeStringList($locales) as $locale) {
+			$locale = LocaleService::canonicalize($locale);
+
 			if (!LocaleRegistry::isKnownLocale($locale)) {
 				throw new RuntimeException("Unknown locale: {$locale}");
 			}
+
+			$normalized[$locale] = true;
 		}
 
-		return $normalized;
+		return array_keys($normalized);
 	}
 
 	/**

@@ -53,7 +53,7 @@ class Migration_20260312_000005_replace_i18n_status_with_human_reviewed
 				`updated_at`
 			)
 			SELECT
-				'en_US' AS `source_locale`,
+				'en-US' AS `source_locale`,
 				t.`locale` AS `target_locale`,
 				LOWER(TRIM(m.`source_text`)) AS `source_text_normalized`,
 				m.`source_text` AS `source_text_raw`,

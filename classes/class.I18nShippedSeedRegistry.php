@@ -47,6 +47,7 @@ class I18nShippedSeedRegistry
 					'common',
 					'datatable',
 					'layout',
+					'locale_admin',
 					'mcp',
 					'record_action',
 					'record_meta',

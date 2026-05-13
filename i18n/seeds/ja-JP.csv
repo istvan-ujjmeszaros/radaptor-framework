@@ -1,0 +1,41 @@
+domain,key,context,locale,source_text,expected_text,human_reviewed,text
+browser_event_docs,title,,ja-JP,"Browser Event API Docs",ブラウザーイベントAPIドキュメント,0,ブラウザーイベントAPIドキュメント
+browser_event_docs,fallback_title,,ja-JP,"Browser Event Docs",ブラウザーイベントドキュメント,0,ブラウザーイベントドキュメント
+browser_event_docs,unknown_event,,ja-JP,"Unknown event",不明なイベント,0,不明なイベント
+browser_event_docs,lead,,ja-JP,"Curated manual for important browser events. Total documented events: {total}","重要なブラウザーイベント向けの厳選マニュアル。ドキュメント化されたイベント総数: {total}",0,"重要なブラウザーイベント向けの厳選マニュアル。ドキュメント化されたイベント総数: {total}"
+browser_event_docs,empty_prefix,,ja-JP,"No browser event docs were generated yet. Run",ブラウザーイベントドキュメントはまだ生成されていません。実行してください,0,ブラウザーイベントドキュメントはまだ生成されていません。実行してください
+browser_event_docs,back_to_index,,ja-JP,"Back to Browser Event API Docs",ブラウザーイベントAPIドキュメントへ戻る,0,ブラウザーイベントAPIドキュメントへ戻る
+browser_event_docs,col.name,,ja-JP,Name,名前,0,名前
+browser_event_docs,col.route,,ja-JP,Route,ルート,0,ルート
+browser_event_docs,col.slug,,ja-JP,Slug,Slug,0,Slug
+browser_event_docs,col.summary,,ja-JP,Summary,概要,0,概要
+browser_event_docs,section.description,,ja-JP,Description,説明,0,説明
+browser_event_docs,section.identity,,ja-JP,Identity,識別情報,0,識別情報
+browser_event_docs,identity.slug,,ja-JP,Slug,Slug,0,Slug
+browser_event_docs,identity.event_name,,ja-JP,"Event Name",イベント名,0,イベント名
+browser_event_docs,identity.browser_route,,ja-JP,"Browser Route",ブラウザールート,0,ブラウザールート
+browser_event_docs,identity.class,,ja-JP,Class,クラス,0,クラス
+browser_event_docs,section.authorization,,ja-JP,Authorization,認可,0,認可
+browser_event_docs,authorization.visibility,,ja-JP,Visibility,可視性,0,可視性
+browser_event_docs,authorization.description,,ja-JP,Description,説明,0,説明
+browser_event_docs,section.request_response,,ja-JP,"Request / Response","リクエスト / レスポンス",0,"リクエスト / レスポンス"
+browser_event_docs,request.method,,ja-JP,Method,メソッド,0,メソッド
+browser_event_docs,response.kind,,ja-JP,"Response Kind",レスポンス種別,0,レスポンス種別
+browser_event_docs,response.content_type,,ja-JP,"Content Type",コンテンツタイプ,0,コンテンツタイプ
+browser_event_docs,response.description,,ja-JP,"Response Description",レスポンス説明,0,レスポンス説明
+browser_event_docs,section.invocation,,ja-JP,"How to Call This",呼び出し方法,0,呼び出し方法
+browser_event_docs,invocation.url_php,,ja-JP,"PHP URL Helper","PHP URLヘルパー",0,"PHP URLヘルパー"
+browser_event_docs,invocation.template_helper,,ja-JP,"Template Helper",テンプレートヘルパー,0,テンプレートヘルパー
+browser_event_docs,invocation.ajax_helper,,ja-JP,"AJAX Helper","AJAX Helper",0,"AJAX Helper"
+browser_event_docs,invocation.ajax_helper_raw,,ja-JP,"AJAX Helper Raw",AJAXヘルパーRaw,0,AJAXヘルパーRaw
+browser_event_docs,section.parameters,,ja-JP,Parameters,パラメータ,0,パラメータ
+browser_event_docs,parameters.empty,,ja-JP,"No parameters documented.",ドキュメント化されたパラメータはありません。,0,ドキュメント化されたパラメータはありません。
+browser_event_docs,parameter.name,,ja-JP,Name,名前,0,名前
+browser_event_docs,parameter.source,,ja-JP,Source,ソース,0,ソース
+browser_event_docs,parameter.type,,ja-JP,Type,型,0,型
+browser_event_docs,parameter.required,,ja-JP,Required,必須,0,必須
+browser_event_docs,parameter.description,,ja-JP,Description,説明,0,説明
+browser_event_docs,required_yes,,ja-JP,yes,はい,0,はい
+browser_event_docs,required_no,,ja-JP,no,いいえ,0,いいえ
+browser_event_docs,section.notes,,ja-JP,Notes,注記,0,注記
+browser_event_docs,section.side_effects,,ja-JP,"Side Effects",副作用,0,副作用

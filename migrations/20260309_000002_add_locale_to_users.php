@@ -13,8 +13,8 @@ class Migration_20260309_000002_add_locale_to_users
 		}
 
 		$pdo->exec("ALTER TABLE `users`
-			ADD COLUMN `locale` VARCHAR(10) NOT NULL DEFAULT 'en_US'
-			COMMENT 'Preferred locale for UI (e.g. en_US, hu_HU)'
+			ADD COLUMN `locale` VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL DEFAULT 'en-US'
+			COMMENT 'Preferred BCP 47 locale for UI (e.g. en-US, hu-HU)'
 			AFTER `timezone`");
 	}
 }

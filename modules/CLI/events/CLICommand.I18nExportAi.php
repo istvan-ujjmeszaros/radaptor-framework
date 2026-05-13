@@ -12,7 +12,7 @@ class CLICommandI18nExportAi extends AbstractCLICommand
 		return <<<'DOC'
 			Export a normalized one-locale CSV for AI-assisted translation.
 
-			Usage: radaptor i18n:export-ai --locale hu_HU [--missing-only] [--unreviewed-only] [--domain admin] [--key-prefix menu.] [--output file.csv] [--json]
+			Usage: radaptor i18n:export-ai --locale hu-HU [--missing-only] [--unreviewed-only] [--domain admin] [--key-prefix menu.] [--output file.csv] [--json]
 			DOC;
 	}
 
@@ -41,7 +41,7 @@ class CLICommandI18nExportAi extends AbstractCLICommand
 
 	public function run(): void
 	{
-		$locale = CLIOptionHelper::getOption('locale');
+		$locale = LocaleService::tryCanonicalize(CLIOptionHelper::getOption('locale')) ?? CLIOptionHelper::getOption('locale');
 		$output = CLIOptionHelper::getOption('output');
 		$json = Request::hasArg('json');
 

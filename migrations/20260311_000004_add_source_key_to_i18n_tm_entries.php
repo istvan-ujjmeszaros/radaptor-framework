@@ -46,7 +46,7 @@ class Migration_20260311_000004_add_source_key_to_i18n_tm_entries
 					`updated_at`
 				)
 				SELECT
-					'en_US' AS `source_locale`,
+					'en-US' AS `source_locale`,
 					t.`locale` AS `target_locale`,
 					LOWER(TRIM(m.`source_text`)) AS `source_text_normalized`,
 					m.`source_text` AS `source_text_raw`,
@@ -68,7 +68,7 @@ class Migration_20260311_000004_add_source_key_to_i18n_tm_entries
 					ON t.`domain` = m.`domain`
 					AND t.`key` = m.`key`
 					AND t.`context` = m.`context`
-				WHERE t.`locale` <> 'en_US'
+				WHERE t.`locale` <> 'en-US'
 					AND m.`source_text` <> ''
 					AND t.`text` <> ''"
 			);
@@ -97,7 +97,7 @@ class Migration_20260311_000004_add_source_key_to_i18n_tm_entries
 				`updated_at`
 			)
 			SELECT
-				'en_US' AS `source_locale`,
+				'en-US' AS `source_locale`,
 				t.`locale` AS `target_locale`,
 				LOWER(TRIM(m.`source_text`)) AS `source_text_normalized`,
 				m.`source_text` AS `source_text_raw`,
@@ -118,7 +118,7 @@ class Migration_20260311_000004_add_source_key_to_i18n_tm_entries
 				ON t.`domain` = m.`domain`
 				AND t.`key` = m.`key`
 				AND t.`context` = m.`context`
-			WHERE t.`locale` <> 'en_US'
+			WHERE t.`locale` <> 'en-US'
 				AND m.`source_text` <> ''
 				AND t.`text` <> ''"
 		);

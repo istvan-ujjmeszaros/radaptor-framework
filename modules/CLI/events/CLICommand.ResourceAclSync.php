@@ -12,11 +12,11 @@ class CLICommandResourceAclSync extends AbstractCLICommand
 		return <<<'DOC'
 			Reconcile one resource ACL against a JSON spec.
 
-			Usage: radaptor resource:acl-sync <path> --spec-json <json> [--dry-run] [--json]
+			Usage: radaptor resource:acl-sync <path> --spec-json <json> [--dry-run|--apply] [--json]
 
 			Examples:
 			  radaptor resource:acl-sync /admin/ --spec-json '{"inherit":false,"usergroups":{"Administrators":{"view":true,"list":true,"edit":true,"create":true}}}'
-			  radaptor resource:acl-sync /comparison/ --spec-json '{"inherit":true,"usergroups":[]}' --json
+			  radaptor resource:acl-sync /comparison/ --spec-json '{"inherit":true,"usergroups":[]}' --apply --json
 			DOC;
 	}
 
@@ -27,10 +27,11 @@ class CLICommandResourceAclSync extends AbstractCLICommand
 
 	public function run(): void
 	{
-		$usage = 'Usage: radaptor resource:acl-sync <path> --spec-json <json> [--dry-run] [--json]';
+		$usage = 'Usage: radaptor resource:acl-sync <path> --spec-json <json> [--dry-run|--apply] [--json]';
+		CLIOptionHelper::assertNoApplyDryRunConflict($usage);
 		$path = CLIOptionHelper::getMainArgOrAbort($usage);
 		$spec = CLIOptionHelper::getJsonOptionAsArray('spec-json', true, $usage);
-		$dry_run = Request::hasArg('dry-run');
+		$dry_run = !Request::hasArg('apply');
 		$json = CLIOptionHelper::isJson();
 
 		try {

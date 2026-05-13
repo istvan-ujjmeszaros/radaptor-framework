@@ -7,6 +7,13 @@ class CLIOptionHelper
 		return Request::hasArg('json');
 	}
 
+	public static function assertNoApplyDryRunConflict(string $usage): void
+	{
+		if (Request::hasArg('apply') && Request::hasArg('dry-run')) {
+			Kernel::abort("--apply and --dry-run are mutually exclusive.\n{$usage}");
+		}
+	}
+
 	public static function getMainArgOrAbort(string $usage): string
 	{
 		$main_arg = Request::getMainArg();

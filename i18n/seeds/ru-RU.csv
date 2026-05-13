@@ -1,0 +1,41 @@
+domain,key,context,locale,source_text,expected_text,human_reviewed,text
+browser_event_docs,title,,ru-RU,"Browser Event API Docs","Документация API событий браузера",0,"Документация API событий браузера"
+browser_event_docs,fallback_title,,ru-RU,"Browser Event Docs","Документация событий браузера",0,"Документация событий браузера"
+browser_event_docs,unknown_event,,ru-RU,"Unknown event","Неизвестное событие",0,"Неизвестное событие"
+browser_event_docs,lead,,ru-RU,"Curated manual for important browser events. Total documented events: {total}","Подборка документации по важным событиям браузера. Всего задокументировано событий: {total}",0,"Подборка документации по важным событиям браузера. Всего задокументировано событий: {total}"
+browser_event_docs,empty_prefix,,ru-RU,"No browser event docs were generated yet. Run","Документация событий браузера еще не создана. Выполните",0,"Документация событий браузера еще не создана. Выполните"
+browser_event_docs,back_to_index,,ru-RU,"Back to Browser Event API Docs","Назад к документации API событий браузера",0,"Назад к документации API событий браузера"
+browser_event_docs,col.name,,ru-RU,Name,Имя,0,Имя
+browser_event_docs,col.route,,ru-RU,Route,Маршрут,0,Маршрут
+browser_event_docs,col.slug,,ru-RU,Slug,Slug,0,Slug
+browser_event_docs,col.summary,,ru-RU,Summary,Сводка,0,Сводка
+browser_event_docs,section.description,,ru-RU,Description,Описание,0,Описание
+browser_event_docs,section.identity,,ru-RU,Identity,Идентификация,0,Идентификация
+browser_event_docs,identity.slug,,ru-RU,Slug,Slug,0,Slug
+browser_event_docs,identity.event_name,,ru-RU,"Event Name","Имя события",0,"Имя события"
+browser_event_docs,identity.browser_route,,ru-RU,"Browser Route","Маршрут браузера",0,"Маршрут браузера"
+browser_event_docs,identity.class,,ru-RU,Class,Класс,0,Класс
+browser_event_docs,section.authorization,,ru-RU,Authorization,Авторизация,0,Авторизация
+browser_event_docs,authorization.visibility,,ru-RU,Visibility,Видимость,0,Видимость
+browser_event_docs,authorization.description,,ru-RU,Description,Описание,0,Описание
+browser_event_docs,section.request_response,,ru-RU,"Request / Response","Запрос / ответ",0,"Запрос / ответ"
+browser_event_docs,request.method,,ru-RU,Method,Метод,0,Метод
+browser_event_docs,response.kind,,ru-RU,"Response Kind","Тип ответа",0,"Тип ответа"
+browser_event_docs,response.content_type,,ru-RU,"Content Type","Тип содержимого",0,"Тип содержимого"
+browser_event_docs,response.description,,ru-RU,"Response Description","Описание ответа",0,"Описание ответа"
+browser_event_docs,section.invocation,,ru-RU,"How to Call This","Как вызвать",0,"Как вызвать"
+browser_event_docs,invocation.url_php,,ru-RU,"PHP URL Helper","PHP URL helper",0,"PHP URL helper"
+browser_event_docs,invocation.template_helper,,ru-RU,"Template Helper","Helper шаблона",0,"Helper шаблона"
+browser_event_docs,invocation.ajax_helper,,ru-RU,"AJAX Helper","AJAX Helper",0,"AJAX Helper"
+browser_event_docs,invocation.ajax_helper_raw,,ru-RU,"AJAX Helper Raw","Сырой AJAX helper",0,"Сырой AJAX helper"
+browser_event_docs,section.parameters,,ru-RU,Parameters,Параметры,0,Параметры
+browser_event_docs,parameters.empty,,ru-RU,"No parameters documented.","Параметры не задокументированы.",0,"Параметры не задокументированы."
+browser_event_docs,parameter.name,,ru-RU,Name,Имя,0,Имя
+browser_event_docs,parameter.source,,ru-RU,Source,Источник,0,Источник
+browser_event_docs,parameter.type,,ru-RU,Type,Тип,0,Тип
+browser_event_docs,parameter.required,,ru-RU,Required,Обязательно,0,Обязательно
+browser_event_docs,parameter.description,,ru-RU,Description,Описание,0,Описание
+browser_event_docs,required_yes,,ru-RU,yes,да,0,да
+browser_event_docs,required_no,,ru-RU,no,нет,0,нет
+browser_event_docs,section.notes,,ru-RU,Notes,Примечания,0,Примечания
+browser_event_docs,section.side_effects,,ru-RU,"Side Effects","Побочные эффекты",0,"Побочные эффекты"

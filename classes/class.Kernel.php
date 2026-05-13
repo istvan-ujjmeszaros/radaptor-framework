@@ -104,6 +104,8 @@ class Kernel
 		} else {
 			// We only want to show a plain message in CLI mode when calling Kernel::abort(), don't want to trigger any error
 			echo $message . "\n\0";
+
+			exit(1);
 		}
 
 		// Errors are converted to Exception in 'test' environment, so we are explicitly ending the script here
@@ -215,6 +217,27 @@ class Kernel
 	}
 
 	/**
+	 * @param array<string, mixed> $context
+	 */
+	public static function logException(Throwable $exception, string $message = 'Exception', array $context = []): void
+	{
+		try {
+			$logger = new Monolog\Logger('app');
+			$logger->pushHandler(new Monolog\Handler\StreamHandler(DEPLOY_ROOT . '.logs/app_errors.log', Monolog\Level::Error));
+			$logger->error($message . ': ' . $exception->getMessage(), [
+				'exception' => $exception,
+			] + $context);
+		} catch (Throwable $logging_exception) {
+			error_log(sprintf(
+				'Radaptor exception log fallback: [%s] %s (logging fallback: %s)',
+				$exception::class,
+				$exception->getMessage(),
+				$logging_exception->getMessage()
+			));
+		}
+	}
+
+	/**
 	 * @return array{status: int, code: string, message: string}
 	 */
 	private static function mapExceptionToApiError(Throwable $e): array
@@ -317,10 +340,12 @@ class Kernel
 
 	public static function setLocale(string $locale): void
 	{
+		$locale = LocaleService::canonicalize($locale);
+		$posix_locale = LocaleService::toPosixLocale($locale);
 		RequestContextHolder::current()->locale = $locale;
 
-		putenv("LC_ALL={$locale}");
-		setlocale(LC_ALL, "{$locale}");
+		putenv("LC_ALL={$posix_locale}");
+		setlocale(LC_ALL, $posix_locale, LocaleService::toIntlLocale($locale), $locale);
 		bindtextdomain("messages", "./locale");
 		textdomain("messages");
 	}
@@ -332,6 +357,7 @@ class Kernel
 	 */
 	public static function setRequestLocale(string $locale): void
 	{
+		$locale = LocaleService::canonicalize($locale);
 		RequestContextHolder::current()->locale = $locale;
 	}
 
@@ -343,7 +369,7 @@ class Kernel
 	/**
 	 * Ellenőrzi a felhasználói állapotot.
 	 */
-	public static function initialize(string $locale = 'en_US'): void
+	public static function initialize(string $locale = 'en-US'): void
 	{
 		$ctx = RequestContextHolder::current();
 
@@ -385,30 +411,40 @@ class Kernel
 		$user = User::getCurrentUser();
 
 		if ($user !== null) {
-			$locale = $user['locale'] ?? '';
+			$locale = LocaleService::tryCanonicalize((string) ($user['locale'] ?? '')) ?? '';
 
-			if ($locale !== '') {
+			if ($locale !== '' && LocaleService::isEnabled($locale)) {
 				self::setRequestLocale($locale);
 
 				return;
 			}
 		}
 
-		// 2. Accept-Language header
-		$accept = RequestContextHolder::current()->SERVER['HTTP_ACCEPT_LANGUAGE'] ?? '';
+		// 2. Anonymous/session preference
+		if (class_exists('LocaleSwitchService') && method_exists('LocaleSwitchService', 'getStoredRequestLocale')) {
+			$stored_locale = LocaleSwitchService::getStoredRequestLocale();
 
-		if ($accept !== '') {
-			$lang = substr($accept, 0, 2);
-			$map = ['hu' => 'hu_HU', 'en' => 'en_US'];
-
-			if (isset($map[$lang])) {
-				self::setRequestLocale($map[$lang]);
+			if ($stored_locale !== null) {
+				self::setRequestLocale($stored_locale);
 
 				return;
 			}
 		}
 
-		// 3. Keep default (en_US set at start of initialize())
+		// 3. Accept-Language header
+		$accept = RequestContextHolder::current()->SERVER['HTTP_ACCEPT_LANGUAGE'] ?? '';
+
+		if ($accept !== '') {
+			self::setRequestLocale(LocaleService::matchEnabledLocaleFromAcceptLanguage(
+				(string) $accept,
+				LocaleService::enabledForUserChoice(),
+				LocaleService::getDefaultLocale()
+			));
+
+			return;
+		}
+
+		self::setRequestLocale(LocaleService::getDefaultLocale());
 	}
 
 	/**

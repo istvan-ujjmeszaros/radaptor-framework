@@ -320,7 +320,17 @@ class Url
 		return self::getUrl($eventName, $customparams, '&');
 	}
 
-	public static function redirect(string $location): never
+	public static function redirectTemporary(string $location, int $status_code = 302): never
+	{
+		self::redirect($location, $status_code);
+	}
+
+	public static function redirectPermanent(string $location): never
+	{
+		self::redirect($location, 301);
+	}
+
+	public static function redirect(string $location, int $status_code = 302): never
 	{
 		if (headers_sent()) {
 			echo "
@@ -334,10 +344,22 @@ class Url
 
 		ResourceTreeHandler::setNoCacheHeaders();
 
-		WebpageView::header("HTTP/1.1 301 Moved Permanently");
+		WebpageView::header(self::redirectStatusHeader($status_code));
 		WebpageView::header("Location: $location");
 
 		exit;
+	}
+
+	public static function redirectStatusHeader(int $status_code): string
+	{
+		return match ($status_code) {
+			301 => 'HTTP/1.1 301 Moved Permanently',
+			302 => 'HTTP/1.1 302 Found',
+			303 => 'HTTP/1.1 303 See Other',
+			307 => 'HTTP/1.1 307 Temporary Redirect',
+			308 => 'HTTP/1.1 308 Permanent Redirect',
+			default => throw new InvalidArgumentException("Unsupported redirect status code: {$status_code}"),
+		};
 	}
 
 	public static function addAnchor(string $anchor, string $ampersand = '&'): string

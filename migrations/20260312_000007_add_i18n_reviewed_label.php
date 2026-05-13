@@ -8,14 +8,16 @@ class Migration_20260312_000007_add_i18n_reviewed_label
 	public function run(): void
 	{
 		$translations = [
-			'en_US' => 'Reviewed',
-			'hu_HU' => 'Ellenőrizve',
-			'de_DE' => 'Geprüft',
+			'en-US' => 'Reviewed',
+			'hu-HU' => 'Ellenőrizve',
+			'de-DE' => 'Geprüft',
 		];
 
-		$sourceText = $translations['en_US'];
+		$sourceText = $translations['en-US'];
 		$sourceHash = md5($sourceText);
 		$pdo = Db::instance();
+		$existing_locales = $this->getExistingLocales($pdo);
+		$should_filter_locales = $existing_locales !== null;
 
 		$pdo->prepare(
 			"INSERT INTO `i18n_messages` (`domain`, `key`, `context`, `source_text`, `source_hash`)
@@ -35,7 +37,37 @@ class Migration_20260312_000007_add_i18n_reviewed_label
 		);
 
 		foreach ($translations as $locale => $text) {
+			if ($should_filter_locales && !isset($existing_locales[$locale])) {
+				continue;
+			}
+
 			$stmt->execute(['admin', 'i18n.col.reviewed', $locale, $text, $sourceHash]);
 		}
+	}
+
+	/**
+	 * @return array<string, bool>|null
+	 */
+	private function getExistingLocales(PDO $pdo): ?array
+	{
+		try {
+			$rows = $pdo->query("SELECT `locale` FROM `locales`")->fetchAll(PDO::FETCH_ASSOC);
+		} catch (Throwable) {
+			return null;
+		}
+
+		$locales = [];
+
+		foreach ($rows as $row) {
+			$locale = (string) ($row['locale'] ?? '');
+
+			if ($locale === '') {
+				continue;
+			}
+
+			$locales[$locale] = true;
+		}
+
+		return $locales;
 	}
 }

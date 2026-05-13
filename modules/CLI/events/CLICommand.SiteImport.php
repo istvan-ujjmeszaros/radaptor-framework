@@ -16,7 +16,7 @@ class CLICommandSiteImport extends AbstractCLICommand
 			A successful apply runs post-import maintenance after the data has been restored:
 			tag i18n sync, shipped i18n sync, translation-memory rebuild, build:all, and cache flush.
 
-			Usage: radaptor site:import <file> [--dry-run|--apply] [--replace] [--json]
+			Usage: radaptor site:import <file> [--dry-run|--apply] [--replace] [--allow-environment-mismatch] [--json]
 
 			Examples:
 			  radaptor site:import tmp/site-snapshot.json --dry-run --json
@@ -45,21 +45,26 @@ class CLICommandSiteImport extends AbstractCLICommand
 			['name' => 'main_arg', 'label' => 'Snapshot file', 'type' => 'main_arg', 'required' => true],
 			['name' => 'apply', 'label' => 'Apply import', 'type' => 'flag'],
 			['name' => 'replace', 'label' => 'Replace current data', 'type' => 'flag'],
+			['name' => 'allow-environment-mismatch', 'label' => 'Allow environment mismatch', 'type' => 'flag'],
 			['name' => 'json', 'label' => 'JSON output', 'type' => 'flag'],
 		];
 	}
 
 	public function run(): void
 	{
-		$usage = 'Usage: radaptor site:import <file> [--dry-run|--apply] [--replace] [--json]';
+		$usage = 'Usage: radaptor site:import <file> [--dry-run|--apply] [--replace] [--allow-environment-mismatch] [--json]';
+		CLIOptionHelper::assertNoApplyDryRunConflict($usage);
 		$file = CLIOptionHelper::getMainArgOrAbort($usage);
 		$apply = Request::hasArg('apply');
 		$replace = Request::hasArg('replace');
+		$allow_environment_mismatch = Request::hasArg('allow-environment-mismatch');
 		$json = CLIOptionHelper::isJson();
 
 		try {
 			$snapshot = CmsSiteSnapshotService::loadSnapshotFile($file);
-			$payload = CmsSiteSnapshotService::importSnapshot($snapshot, !$apply, $replace);
+			$payload = !$apply
+				? CmsSiteSnapshotService::importSnapshot($snapshot, true, $replace, $allow_environment_mismatch)
+				: CmsSiteSnapshotService::importSnapshot($snapshot, false, $replace, $allow_environment_mismatch);
 		} catch (Throwable $exception) {
 			if ($json) {
 				CLIOptionHelper::writeJson(['status' => 'error', 'message' => $exception->getMessage()]);
@@ -81,6 +86,7 @@ class CLICommandSiteImport extends AbstractCLICommand
 		echo 'Site snapshot import ' . ($payload['applied'] ? 'applied' : 'checked') . ": {$payload['status']}\n";
 		echo 'Tables: ' . count($payload['summary']) . "\n";
 		echo 'Uploads: ' . ($payload['uploads']['ok'] ? 'OK' : 'ERROR') . " ({$payload['uploads']['present']}/{$payload['uploads']['total']} present)\n";
+		echo 'Environment: ' . (string) ($payload['environment_check']['status'] ?? 'unknown') . "\n";
 
 		if (($payload['post_import_maintenance']['ran'] ?? false) === true) {
 			echo 'Post-import maintenance: ' . (($payload['post_import_maintenance']['success'] ?? false) ? 'OK' : 'ERROR') . "\n";

@@ -4,11 +4,11 @@
  * Delete a webpage, file, or folder subtree from the resource tree.
  *
  * Usage:
- *   radaptor webpage:delete <path> [--dry-run] [--json]
- *   radaptor webpage:delete --widget <WidgetName> [--dry-run] [--json]
+ *   radaptor webpage:delete <path> [--dry-run|--apply] [--json]
+ *   radaptor webpage:delete --widget <WidgetName> [--dry-run|--apply] [--json]
  *
  * Examples:
- *   radaptor webpage:delete /learn/hello-world/
+ *   radaptor webpage:delete /learn/hello-world/ --apply
  *   radaptor webpage:delete --widget HelloWorldPluginDemo --dry-run
  *   radaptor webpage:delete /learn/ --dry-run --json
  */
@@ -25,11 +25,11 @@ class CLICommandWebpageDelete extends AbstractCLICommand
 			Delete a webpage, file, or folder subtree from the resource tree.
 
 			Usage:
-			  radaptor webpage:delete <path> [--dry-run] [--json]
-			  radaptor webpage:delete --widget <WidgetName> [--dry-run] [--json]
+			  radaptor webpage:delete <path> [--dry-run|--apply] [--json]
+			  radaptor webpage:delete --widget <WidgetName> [--dry-run|--apply] [--json]
 
 			Examples:
-			  radaptor webpage:delete /learn/hello-world/
+			  radaptor webpage:delete /learn/hello-world/ --apply
 			  radaptor webpage:delete --widget HelloWorldPluginDemo --dry-run
 			  radaptor webpage:delete /learn/ --dry-run --json
 			DOC;
@@ -37,8 +37,10 @@ class CLICommandWebpageDelete extends AbstractCLICommand
 
 	public function run(): void
 	{
+		$usage = "Usage: radaptor webpage:delete <path> [--dry-run|--apply] [--json]\n   or: radaptor webpage:delete --widget <WidgetName> [--dry-run|--apply] [--json]";
+		CLIOptionHelper::assertNoApplyDryRunConflict($usage);
 		$json_mode = Request::hasArg('json');
-		$dry_run = Request::hasArg('dry-run');
+		$dry_run = !Request::hasArg('apply');
 		$widget_name = $this->getWidgetArgument();
 		$path_arg = Request::getMainArg();
 
@@ -53,7 +55,7 @@ class CLICommandWebpageDelete extends AbstractCLICommand
 		}
 
 		if ($path_arg === null || $this->looksLikeCliOption($path_arg)) {
-			Kernel::abort("Usage: radaptor webpage:delete <path> [--dry-run] [--json]\n   or: radaptor webpage:delete --widget <WidgetName> [--dry-run] [--json]");
+			Kernel::abort($usage);
 		}
 
 		$path = CLIWebpageHelper::normalizePath($path_arg);

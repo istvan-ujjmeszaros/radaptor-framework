@@ -3,12 +3,12 @@
 /**
  * Build compiled i18n catalog files from non-empty translations.
  *
- * Usage: radaptor i18n:build [--locale hu_HU | locale=hu_HU]
+ * Usage: radaptor i18n:build [--locale hu-HU | locale=hu-HU]
  *
  * Examples:
  *   radaptor i18n:build                    # all locales
- *   radaptor i18n:build --locale hu_HU    # single locale
- *   radaptor i18n:build locale=hu_HU      # single locale (key=value form)
+ *   radaptor i18n:build --locale hu-HU    # single locale
+ *   radaptor i18n:build locale=hu-HU      # single locale (key=value form)
  */
 class CLICommandI18nBuild extends AbstractCLICommand
 {
@@ -22,11 +22,11 @@ class CLICommandI18nBuild extends AbstractCLICommand
 		return <<<'DOC'
 			Build compiled i18n catalog files from non-empty translations.
 
-			Usage: radaptor i18n:build [--locale hu_HU]
+			Usage: radaptor i18n:build [--locale hu-HU]
 
 			Examples:
 			  radaptor i18n:build
-			  radaptor i18n:build --locale hu_HU
+			  radaptor i18n:build --locale hu-HU
 			DOC;
 	}
 

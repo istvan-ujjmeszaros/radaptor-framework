@@ -3,14 +3,14 @@
 /**
  * Export translations to CSV.
  *
- * Usage: radaptor i18n:export [--format normalized|wide] [--locale hu_HU] [--output translations.csv]
+ * Usage: radaptor i18n:export [--format normalized|wide] [--locale hu-HU] [--output translations.csv]
  *
  * Without --output, writes CSV to stdout (suitable for shell redirection):
- *   radaptor i18n:export --format wide --locale hu_HU > hu_HU-wide.csv
+ *   radaptor i18n:export --format wide --locale hu-HU > hu-HU-wide.csv
  *
  * Examples:
  *   radaptor i18n:export                                 # normalized, all locales → stdout
- *   radaptor i18n:export --locale hu_HU                  # normalized, one locale → stdout
+ *   radaptor i18n:export --locale hu-HU                  # normalized, one locale → stdout
  *   radaptor i18n:export --format wide --output translations.csv # wide, all locales → file
  */
 class CLICommandI18nExport extends AbstractCLICommand
@@ -25,11 +25,11 @@ class CLICommandI18nExport extends AbstractCLICommand
 		return <<<'DOC'
 			Export translations to CSV.
 
-			Usage: radaptor i18n:export [--locale hu_HU] [--output translations.csv] [--format normalized|wide]
+			Usage: radaptor i18n:export [--locale hu-HU] [--output translations.csv] [--format normalized|wide]
 
 			Examples:
 			  radaptor i18n:export
-			  radaptor i18n:export --locale hu_HU
+			  radaptor i18n:export --locale hu-HU
 			  radaptor i18n:export --format wide --output translations.csv
 			DOC;
 	}
@@ -56,7 +56,7 @@ class CLICommandI18nExport extends AbstractCLICommand
 	public function run(): void
 	{
 		$format     = $this->_getCliOption('format', 'normalized');
-		$locale     = $this->_getCliOption('locale', '');
+		$locale     = LocaleService::tryCanonicalize($this->_getCliOption('locale', '')) ?? $this->_getCliOption('locale', '');
 		$outputFile = $this->_getCliOption('output', '');
 		$dataset = new ImportExportDatasetI18nTranslations();
 		$csv = $dataset->export([

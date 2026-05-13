@@ -3,7 +3,7 @@
 /**
  * Import translations from CSV.
  *
- * Usage: radaptor i18n:import <file> [--format auto|normalized|wide] [--mode upsert|insert_new|sync] [--expect-locale hu_HU] [--dry-run]
+ * Usage: radaptor i18n:import <file> [--format auto|normalized|wide] [--mode upsert|insert_new|sync] [--expect-locale hu-HU] [--dry-run]
  *
  * Modes:
  *   insert_new   Add keys that do not yet exist; skip existing translations.
@@ -28,12 +28,12 @@
  * After a successful import, run `radaptor i18n:build` to rebuild catalogs.
  *
  * Examples:
- *   radaptor i18n:import hu_HU.csv
- *   radaptor i18n:import hu_HU.csv --mode insert_new
- *   radaptor i18n:import hu_HU.csv --mode sync
+ *   radaptor i18n:import hu-HU.csv
+ *   radaptor i18n:import hu-HU.csv --mode insert_new
+ *   radaptor i18n:import hu-HU.csv --mode sync
  *   radaptor i18n:import translations.csv --format wide --mode upsert
- *   radaptor i18n:import hu_HU.csv --format normalized --mode sync --expect-locale hu_HU
- *   radaptor i18n:import hu_HU.csv --dry-run
+ *   radaptor i18n:import hu-HU.csv --format normalized --mode sync --expect-locale hu-HU
+ *   radaptor i18n:import hu-HU.csv --dry-run
  */
 class CLICommandI18nImport extends AbstractCLICommand
 {
@@ -47,13 +47,13 @@ class CLICommandI18nImport extends AbstractCLICommand
 		return <<<'DOC'
 			Import translations from CSV.
 
-			Usage: radaptor i18n:import <file> [--mode upsert|insert_new|sync] [--expect-locale hu_HU] [--dry-run] [--json]
+			Usage: radaptor i18n:import <file> [--mode upsert|insert_new|sync] [--expect-locale hu-HU] [--dry-run] [--json]
 
 			Examples:
-			  radaptor i18n:import hu_HU.csv
-			  radaptor i18n:import hu_HU.csv --mode insert_new
-			  radaptor i18n:import hu_HU.csv --mode sync --expect-locale hu_HU
-			  radaptor i18n:import hu_HU.csv --dry-run
+			  radaptor i18n:import hu-HU.csv
+			  radaptor i18n:import hu-HU.csv --mode insert_new
+			  radaptor i18n:import hu-HU.csv --mode sync --expect-locale hu-HU
+			  radaptor i18n:import hu-HU.csv --dry-run
 			DOC;
 	}
 
@@ -89,7 +89,7 @@ class CLICommandI18nImport extends AbstractCLICommand
 		$dryRun = Request::hasArg('dry-run');
 
 		if ($file === null || trim($file) === '') {
-			Kernel::abort("Usage: radaptor i18n:import <file> [--format auto|normalized|wide] [--mode upsert|insert_new|sync] [--expect-locale hu_HU] [--dry-run]");
+			Kernel::abort("Usage: radaptor i18n:import <file> [--format auto|normalized|wide] [--mode upsert|insert_new|sync] [--expect-locale hu-HU] [--dry-run]");
 		}
 
 		if (!file_exists($file)) {

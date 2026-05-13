@@ -12,11 +12,11 @@ class CLICommandWidgetRemove extends AbstractCLICommand
 		return <<<'DOC'
 			Remove one or more widget placements from a webpage slot.
 
-			Usage: radaptor widget:remove <path> --slot <slot> (--connection-id <id> | --widget <WidgetName>) [--all] [--dry-run] [--json]
+			Usage: radaptor widget:remove <path> --slot <slot> (--connection-id <id> | --widget <WidgetName>) [--all] [--dry-run|--apply] [--json]
 
 			Examples:
 			  radaptor widget:remove /login.html --slot content --widget AdminMenu
-			  radaptor widget:remove /foo/ --slot content --widget PlainHtml --all --json
+			  radaptor widget:remove /foo/ --slot content --widget PlainHtml --all --apply --json
 			DOC;
 	}
 
@@ -27,13 +27,14 @@ class CLICommandWidgetRemove extends AbstractCLICommand
 
 	public function run(): void
 	{
-		$usage = 'Usage: radaptor widget:remove <path> --slot <slot> (--connection-id <id> | --widget <WidgetName>) [--all] [--dry-run] [--json]';
+		$usage = 'Usage: radaptor widget:remove <path> --slot <slot> (--connection-id <id> | --widget <WidgetName>) [--all] [--dry-run|--apply] [--json]';
+		CLIOptionHelper::assertNoApplyDryRunConflict($usage);
 		$path = CLIOptionHelper::getMainArgOrAbort($usage);
 		$slot = CLIOptionHelper::getRequiredOption('slot', $usage);
 		$connection_id = CLIOptionHelper::getNullableIntOption('connection-id');
 		$widget_name = CLIOptionHelper::getOption('widget');
 		$all = Request::hasArg('all');
-		$dry_run = Request::hasArg('dry-run');
+		$dry_run = !Request::hasArg('apply');
 		$json = CLIOptionHelper::isJson();
 
 		if ($connection_id === null && $widget_name === '') {
@@ -41,14 +42,21 @@ class CLICommandWidgetRemove extends AbstractCLICommand
 		}
 
 		try {
-			$removed = $dry_run
-				? []
-				: CmsResourceSpecService::removeWidget($path, $slot, $connection_id, $widget_name !== '' ? $widget_name : null, $all);
-			$result = [
-				'status' => 'success',
-				'dry_run' => $dry_run,
-				'removed' => $removed,
-			];
+			if ($dry_run) {
+				$result = CmsResourceSpecService::previewRemoveWidget($path, $slot, $connection_id, $widget_name !== '' ? $widget_name : null, $all);
+			} else {
+				$removed = CmsResourceSpecService::removeWidget($path, $slot, $connection_id, $widget_name !== '' ? $widget_name : null, $all);
+				$result = [
+					'status' => 'success',
+					'dry_run' => false,
+					'removed' => $removed,
+					'summary' => [
+						'touched_pages' => 1,
+						'touched_slots' => 1,
+						'deleted_widgets' => count($removed),
+					],
+				];
+			}
 		} catch (Throwable $exception) {
 			if ($json) {
 				CLIOptionHelper::writeJson(['status' => 'error', 'message' => $exception->getMessage()]);
@@ -67,6 +75,7 @@ class CLICommandWidgetRemove extends AbstractCLICommand
 			return;
 		}
 
-		echo ($dry_run ? '[dry-run] ' : '') . "Removed " . count($result['removed']) . " widget connection(s).\n";
+		$count = (int) ($result['summary']['deleted_widgets'] ?? count($result['removed'] ?? []));
+		echo ($dry_run ? '[dry-run] ' : '') . "Remove {$count} widget connection(s).\n";
 	}
 }
