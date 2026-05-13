@@ -39,11 +39,7 @@ class CLICommandWidgetSync extends AbstractCLICommand
 			if ($dry_run) {
 				$result = CmsResourceSpecService::previewWidgetSlotSync($path, $slot, array_values($spec));
 			} else {
-				$result = CmsMutationAuditService::withContext(
-					'widget:sync',
-					$this->auditArgs($path, $slot, $spec),
-					static fn (): array => CmsResourceSpecService::syncWidgetSlotWithSummary($path, $slot, array_values($spec))
-				);
+				$result = CmsResourceSpecService::syncWidgetSlotWithSummary($path, $slot, array_values($spec));
 			}
 		} catch (Throwable $exception) {
 			if ($json) {
@@ -68,18 +64,5 @@ class CLICommandWidgetSync extends AbstractCLICommand
 		if (isset($result['summary'])) {
 			echo 'Summary: ' . json_encode($result['summary'], JSON_UNESCAPED_SLASHES) . "\n";
 		}
-	}
-
-	/**
-	 * @param array<string, mixed> $spec
-	 * @return array<string, mixed>
-	 */
-	private function auditArgs(string $path, string $slot, array $spec): array
-	{
-		return [
-			'path' => $path,
-			'slot' => $slot,
-			'spec' => $spec,
-		];
 	}
 }

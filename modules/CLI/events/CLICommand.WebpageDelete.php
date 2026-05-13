@@ -97,11 +97,7 @@ class CLICommandWebpageDelete extends AbstractCLICommand
 		];
 
 		if (!$dry_run) {
-			$deletion = CmsMutationAuditService::withContext(
-				'webpage:delete',
-				['path' => $path, 'node_id' => $node_id],
-				static fn (): array => ResourceTreeHandler::deleteResourceEntriesRecursive($node_id)
-			);
+			$deletion = ResourceTreeHandler::deleteResourceEntriesRecursive($node_id);
 			$result['deleted'] = (($deletion['success'] ?? false) === true) && (($deletion['erroneous'] ?? 0) === 0);
 			$result['deletion'] = $deletion;
 		}
@@ -201,11 +197,7 @@ class CLICommandWebpageDelete extends AbstractCLICommand
 			];
 
 			foreach ($targets as $target) {
-				$current = CmsMutationAuditService::withContext(
-					'webpage:delete-by-widget',
-					['widget' => $widget_name, 'page_id' => (int) $target['page_id']],
-					static fn (): array => ResourceTreeHandler::deleteResourceEntriesRecursive((int) $target['page_id'])
-				);
+				$current = ResourceTreeHandler::deleteResourceEntriesRecursive((int) $target['page_id']);
 				$deletion['success'] = $deletion['success']
 					&& (($current['success'] ?? false) === true)
 					&& (($current['erroneous'] ?? 0) === 0);

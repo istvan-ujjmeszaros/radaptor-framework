@@ -256,7 +256,13 @@ class I18nShippedDatabaseAuditService
 		$processed_locales = [];
 
 		foreach ($locales as $locale) {
-			$file = self::auditFile($input_dir . '/' . $locale . '.csv', $locale);
+			$file_path = $input_dir . '/' . $locale . '.csv';
+
+			if (!is_file($file_path)) {
+				continue;
+			}
+
+			$file = self::auditFile($file_path, $locale);
 			$files[] = $file;
 			$processed_locales[] = $locale;
 			$conflicts += (int) ($file['conflicts'] ?? 0);

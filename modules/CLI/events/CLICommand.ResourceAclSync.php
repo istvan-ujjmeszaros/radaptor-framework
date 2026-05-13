@@ -37,11 +37,7 @@ class CLICommandResourceAclSync extends AbstractCLICommand
 		try {
 			$result = $dry_run
 				? ['status' => 'success', 'dry_run' => true, 'spec' => $spec]
-				: CmsMutationAuditService::withContext(
-					'resource:acl-sync',
-					['path' => $path, 'spec' => $spec],
-					static fn (): array => ['status' => 'success', 'dry_run' => false] + CmsResourceSpecService::syncAclForPath($path, $spec)
-				);
+				: ['status' => 'success', 'dry_run' => false] + CmsResourceSpecService::syncAclForPath($path, $spec);
 		} catch (Throwable $exception) {
 			if ($json) {
 				CLIOptionHelper::writeJson(['status' => 'error', 'message' => $exception->getMessage()]);

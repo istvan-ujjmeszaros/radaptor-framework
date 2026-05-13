@@ -55,11 +55,7 @@ class CLICommandResourceMove extends AbstractCLICommand
 
 			$moved = $dry_run
 				? true
-				: CmsMutationAuditService::withContext(
-					'resource:move',
-					['path' => $path, 'parent' => $parent_path, 'position' => $position],
-					static fn (): bool => ResourceTreeHandler::moveResourceEntryToPosition((int) $resource['node_id'], (int) $parent['node_id'], $position)
-				);
+				: ResourceTreeHandler::moveResourceEntryToPosition((int) $resource['node_id'], (int) $parent['node_id'], $position);
 
 			if (!$dry_run && !$moved) {
 				throw new RuntimeException("Unable to move {$path}.");

@@ -168,7 +168,7 @@ final class I18nShippedDatabaseAuditServiceTest extends TestCase
 		$this->assertSame('shipped_i18n_legacy_error', $result['issues'][0]['errors'][0]['code'] ?? null);
 	}
 
-	public function testMissingSeedFilesUseStructuredErrorPayloads(): void
+	public function testMissingSeedFilesAreSkippedForEnabledLocalesNotShippedByPackage(): void
 	{
 		$temp_dir = sys_get_temp_dir() . '/radaptor-i18n-audit-' . bin2hex(random_bytes(6));
 		mkdir($temp_dir);
@@ -183,9 +183,11 @@ final class I18nShippedDatabaseAuditServiceTest extends TestCase
 			rmdir($temp_dir);
 		}
 
-		$this->assertSame('error', $result['status']);
-		$this->assertSame('shipped_i18n_seed_import_error', $result['issues'][0]['code'] ?? null);
-		$this->assertSame('shipped_i18n_seed_file_missing', $result['issues'][0]['errors'][0]['code'] ?? null);
-		$this->assertSame($temp_dir . '/en-US.csv', $result['issues'][0]['errors'][0]['params']['file'] ?? null);
+		$this->assertSame('ok', $result['status']);
+		$this->assertSame(1, $result['groups_processed']);
+		$this->assertSame(0, $result['files_processed']);
+		$this->assertSame([], $result['sync_locales']);
+		$this->assertSame('', $result['suggested_command']);
+		$this->assertSame([], $result['issues']);
 	}
 }

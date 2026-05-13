@@ -41,11 +41,7 @@ class CLICommandMenuDelete extends AbstractCLICommand
 				'dry_run' => $dry_run,
 				'deleted' => $dry_run
 					? false
-					: CmsMutationAuditService::withContext(
-						'menu:delete',
-						['type' => $type, 'id' => $id, 'recursive' => $recursive],
-						static fn (): bool => CmsMenuService::delete($type, $id, $recursive)
-					),
+					: CmsMenuService::delete($type, $id, $recursive),
 				'summary' => [
 					'deleted_menu_entries' => $dry_run ? 0 : 1,
 				],

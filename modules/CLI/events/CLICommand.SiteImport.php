@@ -64,11 +64,7 @@ class CLICommandSiteImport extends AbstractCLICommand
 			$snapshot = CmsSiteSnapshotService::loadSnapshotFile($file);
 			$payload = !$apply
 				? CmsSiteSnapshotService::importSnapshot($snapshot, true, $replace, $allow_environment_mismatch)
-				: CmsMutationAuditService::withContext(
-					'site:import',
-					['file' => $file, 'replace' => $replace, 'allow_environment_mismatch' => $allow_environment_mismatch],
-					static fn (): array => CmsSiteSnapshotService::importSnapshot($snapshot, false, $replace, $allow_environment_mismatch)
-				);
+				: CmsSiteSnapshotService::importSnapshot($snapshot, false, $replace, $allow_environment_mismatch);
 		} catch (Throwable $exception) {
 			if ($json) {
 				CLIOptionHelper::writeJson(['status' => 'error', 'message' => $exception->getMessage()]);

@@ -45,17 +45,7 @@ class CLICommandWidgetRemove extends AbstractCLICommand
 			if ($dry_run) {
 				$result = CmsResourceSpecService::previewRemoveWidget($path, $slot, $connection_id, $widget_name !== '' ? $widget_name : null, $all);
 			} else {
-				$removed = CmsMutationAuditService::withContext(
-					'widget:remove',
-					[
-						'path' => $path,
-						'slot' => $slot,
-						'connection_id' => $connection_id,
-						'widget' => $widget_name,
-						'all' => $all,
-					],
-					static fn (): array => CmsResourceSpecService::removeWidget($path, $slot, $connection_id, $widget_name !== '' ? $widget_name : null, $all)
-				);
+				$removed = CmsResourceSpecService::removeWidget($path, $slot, $connection_id, $widget_name !== '' ? $widget_name : null, $all);
 				$result = [
 					'status' => 'success',
 					'dry_run' => false,

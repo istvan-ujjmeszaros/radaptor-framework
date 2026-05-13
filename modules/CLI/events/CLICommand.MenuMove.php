@@ -46,11 +46,7 @@ class CLICommandMenuMove extends AbstractCLICommand
 				'dry_run' => $dry_run,
 				'item' => $dry_run
 					? ['node_id' => $id, 'parent_id' => $parent_id, 'position' => $position]
-					: CmsMutationAuditService::withContext(
-						'menu:move',
-						['type' => $type, 'id' => $id, 'parent_id' => $parent_id, 'position' => $position],
-						static fn (): array => CmsMenuService::move($type, $id, $parent_id, $position)
-					),
+					: CmsMenuService::move($type, $id, $parent_id, $position),
 			];
 		} catch (Throwable $exception) {
 			if ($json) {
