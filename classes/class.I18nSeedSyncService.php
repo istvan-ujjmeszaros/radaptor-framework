@@ -170,10 +170,16 @@ class I18nSeedSyncService
 		$normalized = [];
 
 		foreach ($locales as $locale) {
-			$locale = LocaleService::tryCanonicalize((string) $locale) ?? '';
+			$raw_locale = trim((string) $locale);
 
-			if ($locale === '') {
+			if ($raw_locale === '') {
 				continue;
+			}
+
+			$locale = LocaleService::tryCanonicalize($raw_locale);
+
+			if ($locale === null) {
+				throw new RuntimeException("Invalid locale: {$raw_locale}");
 			}
 
 			if (!LocaleRegistry::isKnownLocale($locale)) {
