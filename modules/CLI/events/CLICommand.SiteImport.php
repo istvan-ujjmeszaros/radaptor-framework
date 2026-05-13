@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 class CLICommandSiteImport extends AbstractCLICommand
 {
+	private const string PROFILE_DISASTER_RECOVERY = 'disaster_recovery';
+	private const string PROFILE_SITE_MIGRATION = 'site_migration';
+
 	public function getName(): string
 	{
 		return 'Import site snapshot';
@@ -16,11 +19,12 @@ class CLICommandSiteImport extends AbstractCLICommand
 			A successful apply runs post-import maintenance after the data has been restored:
 			tag i18n sync, shipped i18n sync, translation-memory rebuild, build:all, and cache flush.
 
-			Usage: radaptor site:import <file> [--dry-run|--apply] [--replace] [--allow-environment-mismatch] [--json]
+			Usage: radaptor site:import <file> [--dry-run|--apply] [--replace] [--allow-environment-mismatch] [--pause-target-workers|--skip-target-worker-pause] [--json]
 
 			Examples:
 			  radaptor site:import tmp/site-snapshot.json --dry-run --json
 			  radaptor site:import tmp/site-snapshot.json --apply --replace --json
+			  radaptor site:import tmp/site-migration.json --apply --replace --pause-target-workers --allow-environment-mismatch --json
 			DOC;
 	}
 
@@ -46,25 +50,47 @@ class CLICommandSiteImport extends AbstractCLICommand
 			['name' => 'apply', 'label' => 'Apply import', 'type' => 'flag'],
 			['name' => 'replace', 'label' => 'Replace current data', 'type' => 'flag'],
 			['name' => 'allow-environment-mismatch', 'label' => 'Allow environment mismatch', 'type' => 'flag'],
+			['name' => 'pause-target-workers', 'label' => 'Pause target workers', 'type' => 'flag'],
+			['name' => 'skip-target-worker-pause', 'label' => 'Skip target worker pause', 'type' => 'flag'],
+			['name' => 'allow-stale-workers', 'label' => 'Allow stale workers', 'type' => 'flag'],
+			['name' => 'pause-timeout', 'label' => 'Pause timeout seconds', 'type' => 'option', 'default' => '30'],
 			['name' => 'json', 'label' => 'JSON output', 'type' => 'flag'],
 		];
 	}
 
 	public function run(): void
 	{
-		$usage = 'Usage: radaptor site:import <file> [--dry-run|--apply] [--replace] [--allow-environment-mismatch] [--json]';
+		$usage = 'Usage: radaptor site:import <file> [--dry-run|--apply] [--replace] [--allow-environment-mismatch] [--pause-target-workers|--skip-target-worker-pause] [--json]';
 		CLIOptionHelper::assertNoApplyDryRunConflict($usage);
 		$file = CLIOptionHelper::getMainArgOrAbort($usage);
 		$apply = Request::hasArg('apply');
 		$replace = Request::hasArg('replace');
 		$allow_environment_mismatch = Request::hasArg('allow-environment-mismatch');
+		$pause_target_workers = Request::hasArg('pause-target-workers');
+		$skip_target_worker_pause = Request::hasArg('skip-target-worker-pause');
 		$json = CLIOptionHelper::isJson();
 
 		try {
 			$snapshot = CmsSiteSnapshotService::loadSnapshotFile($file);
+			$profile = (string) ($snapshot['profile'] ?? self::PROFILE_DISASTER_RECOVERY);
+
+			if ($profile === self::PROFILE_SITE_MIGRATION && $apply && !self::hasExactlyOneTargetPauseDecision($pause_target_workers, $skip_target_worker_pause)) {
+				Kernel::abort('Site migration restore requires exactly one of --pause-target-workers or --skip-target-worker-pause when applying.');
+			}
+
+			$options = [
+				'pause_target_workers' => $apply && $pause_target_workers,
+				'allow_stale_workers' => Request::hasArg('allow-stale-workers'),
+				'pause_timeout_seconds' => CLIOptionHelper::getNullableIntOption('pause-timeout') ?? 30,
+				'pause_context' => $file,
+			];
 			$payload = !$apply
-				? CmsSiteSnapshotService::importSnapshot($snapshot, true, $replace, $allow_environment_mismatch)
-				: CmsSiteSnapshotService::importSnapshot($snapshot, false, $replace, $allow_environment_mismatch);
+				? CmsSiteSnapshotService::importSnapshot($snapshot, true, $replace, $allow_environment_mismatch, $options)
+				: CmsMutationAuditService::withContext(
+					'site:import',
+					['file' => $file, 'replace' => $replace, 'allow_environment_mismatch' => $allow_environment_mismatch],
+					static fn (): array => CmsSiteSnapshotService::importSnapshot($snapshot, false, $replace, $allow_environment_mismatch, $options)
+				);
 		} catch (Throwable $exception) {
 			if ($json) {
 				CLIOptionHelper::writeJson(['status' => 'error', 'message' => $exception->getMessage()]);
@@ -84,6 +110,7 @@ class CLICommandSiteImport extends AbstractCLICommand
 		}
 
 		echo 'Site snapshot import ' . ($payload['applied'] ? 'applied' : 'checked') . ": {$payload['status']}\n";
+		echo 'Profile: ' . (string) ($payload['profile'] ?? 'unknown') . "\n";
 		echo 'Tables: ' . count($payload['summary']) . "\n";
 		echo 'Uploads: ' . ($payload['uploads']['ok'] ? 'OK' : 'ERROR') . " ({$payload['uploads']['present']}/{$payload['uploads']['total']} present)\n";
 		echo 'Environment: ' . (string) ($payload['environment_check']['status'] ?? 'unknown') . "\n";
@@ -106,5 +133,11 @@ class CLICommandSiteImport extends AbstractCLICommand
 		foreach ($payload['errors'] as $error) {
 			echo "ERROR: {$error}\n";
 		}
+	}
+
+	private static function hasExactlyOneTargetPauseDecision(bool $pause_target_workers, bool $skip_target_worker_pause): bool
+	{
+		return ($pause_target_workers && !$skip_target_worker_pause)
+			|| (!$pause_target_workers && $skip_target_worker_pause);
 	}
 }

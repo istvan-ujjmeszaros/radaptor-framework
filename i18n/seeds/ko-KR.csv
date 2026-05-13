@@ -39,3 +39,5 @@ browser_event_docs,required_yes,,ko-KR,yes,예,0,예
 browser_event_docs,required_no,,ko-KR,no,아니요,0,아니요
 browser_event_docs,section.notes,,ko-KR,Notes,메모,0,메모
 browser_event_docs,section.side_effects,,ko-KR,"Side Effects",부작용,0,부작용
+runtime.site_cutover,readonly_title,,ko-KR,"Site is read-only","Site is read-only",0,"Site is read-only"
+runtime.site_cutover,readonly_message,,ko-KR,"This site instance is locked read-only after a site migration export. Use the new site instance for further work, or explicitly release the cutover lock if you understand that the previous migration export may become inconsistent.","This site instance is locked read-only after a site migration export. Use the new site instance for further work, or explicitly release the cutover lock if you understand that the previous migration export may become inconsistent.",0,"This site instance is locked read-only after a site migration export. Use the new site instance for further work, or explicitly release the cutover lock if you understand that the previous migration export may become inconsistent."

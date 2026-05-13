@@ -35,7 +35,6 @@ class Migration_20260203_120000_rename_sections_to_widget_connections
 		$stmt = $pdo->query("SHOW TABLES LIKE 'webpage_section_connections'");
 
 		if ($stmt->rowCount() === 0) {
-			// Neither table exists - nothing to migrate
 			return;
 		}
 

@@ -217,6 +217,12 @@ abstract class EventResolver implements iEvent
 			return;
 		}
 
+		if (class_exists(RuntimeSiteCutoverGuard::class) && RuntimeSiteCutoverGuard::shouldBlockWebEvent($event)) {
+			self::_cutoverReadonlyResponse();
+
+			return;
+		}
+
 		$event->run();
 	}
 
@@ -236,5 +242,21 @@ abstract class EventResolver implements iEvent
 			http_response_code(403);
 			echo '<h1>403 ' . e(t('response_error.forbidden.title')) . '</h1><p>' . e(t('response_error.forbidden.message')) . '</p>';
 		}
+	}
+
+	private static function _cutoverReadonlyResponse(): void
+	{
+		$title = RuntimeSiteCutoverGuard::readonlyTitle();
+		$message = RuntimeSiteCutoverGuard::readonlyMessage();
+
+		if (Request::wantsNonHtmlResponse()) {
+			http_response_code(423);
+			ApiResponse::renderError('SITE_CUTOVER_READONLY', $message, 423);
+
+			return;
+		}
+
+		http_response_code(423);
+		echo '<h1>423 ' . e($title) . '</h1><p>' . e($message) . '</p>';
 	}
 }
