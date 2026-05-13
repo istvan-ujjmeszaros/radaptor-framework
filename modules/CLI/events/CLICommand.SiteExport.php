@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 class CLICommandSiteExport extends AbstractCLICommand
 {
+	private const string PROFILE_DISASTER_RECOVERY = 'disaster_recovery';
+	private const string PROFILE_SITE_MIGRATION = 'site_migration';
+
 	public function getName(): string
 	{
 		return 'Export site snapshot';
@@ -41,7 +44,7 @@ class CLICommandSiteExport extends AbstractCLICommand
 	{
 		return [
 			['name' => 'output', 'label' => 'Output file', 'type' => 'option', 'required' => true, 'default' => 'tmp/site-snapshot.json'],
-			['name' => 'profile', 'label' => 'Snapshot profile', 'type' => 'option', 'default' => CmsSiteSnapshotService::PROFILE_DISASTER_RECOVERY],
+			['name' => 'profile', 'label' => 'Snapshot profile', 'type' => 'option', 'default' => self::PROFILE_DISASTER_RECOVERY],
 			['name' => 'uploads-backed-up', 'label' => 'Uploaded files backed up', 'type' => 'flag'],
 			['name' => 'pause-source-workers', 'label' => 'Pause source workers', 'type' => 'flag'],
 			['name' => 'skip-source-worker-pause', 'label' => 'Skip source worker pause', 'type' => 'flag'],
@@ -56,16 +59,16 @@ class CLICommandSiteExport extends AbstractCLICommand
 		$usage = 'Usage: radaptor site:export --output <file> --uploads-backed-up [--profile disaster_recovery|site_migration] [--pause-source-workers|--skip-source-worker-pause] [--json]';
 		$output = CLIOptionHelper::getRequiredOption('output', $usage);
 		$uploads_backed_up = Request::hasArg('uploads-backed-up');
-		$profile = CLIOptionHelper::getOption('profile', CmsSiteSnapshotService::PROFILE_DISASTER_RECOVERY);
+		$profile = CLIOptionHelper::getOption('profile', self::PROFILE_DISASTER_RECOVERY);
 		$pause_source_workers = Request::hasArg('pause-source-workers');
 		$skip_source_worker_pause = Request::hasArg('skip-source-worker-pause');
 		$json = CLIOptionHelper::isJson();
 
-		if (!in_array($profile, [CmsSiteSnapshotService::PROFILE_DISASTER_RECOVERY, CmsSiteSnapshotService::PROFILE_SITE_MIGRATION], true)) {
+		if (!in_array($profile, [self::PROFILE_DISASTER_RECOVERY, self::PROFILE_SITE_MIGRATION], true)) {
 			Kernel::abort('Snapshot profile must be disaster_recovery or site_migration.');
 		}
 
-		if ($profile === CmsSiteSnapshotService::PROFILE_SITE_MIGRATION && $pause_source_workers === $skip_source_worker_pause) {
+		if ($profile === self::PROFILE_SITE_MIGRATION && $pause_source_workers === $skip_source_worker_pause) {
 			Kernel::abort('Site migration export requires exactly one of --pause-source-workers or --skip-source-worker-pause.');
 		}
 

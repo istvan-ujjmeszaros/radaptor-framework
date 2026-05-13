@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 class CLICommandSiteImport extends AbstractCLICommand
 {
+	private const string PROFILE_DISASTER_RECOVERY = 'disaster_recovery';
+	private const string PROFILE_SITE_MIGRATION = 'site_migration';
+
 	public function getName(): string
 	{
 		return 'Import site snapshot';
@@ -69,9 +72,9 @@ class CLICommandSiteImport extends AbstractCLICommand
 
 		try {
 			$snapshot = CmsSiteSnapshotService::loadSnapshotFile($file);
-			$profile = (string) ($snapshot['profile'] ?? CmsSiteSnapshotService::PROFILE_DISASTER_RECOVERY);
+			$profile = (string) ($snapshot['profile'] ?? self::PROFILE_DISASTER_RECOVERY);
 
-			if ($profile === CmsSiteSnapshotService::PROFILE_SITE_MIGRATION && $apply && $pause_target_workers === $skip_target_worker_pause) {
+			if ($profile === self::PROFILE_SITE_MIGRATION && $apply && $pause_target_workers === $skip_target_worker_pause) {
 				Kernel::abort('Site migration restore requires exactly one of --pause-target-workers or --skip-target-worker-pause when applying.');
 			}
 
