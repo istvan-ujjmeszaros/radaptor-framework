@@ -32,6 +32,10 @@ class McpApiEventResolver
 			throw new InvalidArgumentException("Unknown MCP tool: {$tool_name}");
 		}
 
+		if (class_exists(RuntimeSiteCutoverGuard::class) && RuntimeSiteCutoverGuard::shouldBlockMcpTool($meta)) {
+			return self::toolError('site_cutover_readonly', RuntimeSiteCutoverGuard::readonlyMessage());
+		}
+
 		try {
 			[$get, $post] = $this->mapArguments($meta, $arguments);
 		} catch (InvalidArgumentException $exception) {

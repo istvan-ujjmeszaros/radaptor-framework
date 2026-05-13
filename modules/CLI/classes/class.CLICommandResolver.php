@@ -226,6 +226,21 @@ class CLICommandResolver
 
 		$shortName = self::getCommandNameFromArgv();
 		$command   = self::factory($shortName);
+		$command_slug = CLICommandRegistry::shortNameToSlug($shortName);
+
+		if (class_exists(RuntimeSiteCutoverGuard::class) && RuntimeSiteCutoverGuard::shouldBlockCliCommand($command, $command_slug)) {
+			$payload = RuntimeSiteCutoverGuard::cliBlockedPayload($command_slug, $command);
+
+			if (class_exists(CLIOptionHelper::class) && CLIOptionHelper::isJson()) {
+				CLIOptionHelper::writeJson($payload);
+			} else {
+				echo (string) $payload['message'] . "\n";
+				echo 'Blocked command: ' . $command_slug . ' (' . $command->getRiskLevel() . ")\n";
+				echo 'Release command: radaptor site:cutover-release --confirm "' . RuntimeSiteCutoverGuard::RELEASE_CONFIRMATION_TEXT . '"' . "\n";
+			}
+
+			exit(1);
+		}
 
 		if ($command instanceof iAuthorizable) {
 			$policyContext = PolicyContext::fromCli($command);

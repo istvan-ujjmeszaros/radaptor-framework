@@ -23,7 +23,9 @@ class EmailQueueAdminReadModel
 	 *         last_seen_at: ?string,
 	 *         last_processed_at: ?string,
 	 *         status: string,
-	 *         is_stale: bool
+	 *         is_stale: bool,
+	 *         instances?: list<array<string, mixed>>,
+	 *         active_pause_request?: array<string, mixed>|null
 	 *     }
 	 * }
 	 */
@@ -57,7 +59,7 @@ class EmailQueueAdminReadModel
 			'sent_last_24h_count' => self::fetchInt(
 				"SELECT COUNT(*) FROM email_outbox WHERE status = 'sent' AND sent_at IS NOT NULL AND sent_at >= DATE_SUB(NOW(), INTERVAL 1 DAY)"
 			),
-			'worker' => EmailQueueHeartbeat::getState(),
+			'worker' => self::getWorkerState(),
 		];
 	}
 
@@ -196,6 +198,37 @@ class EmailQueueAdminReadModel
 		}
 
 		return true;
+	}
+
+	/**
+	 * @return array<string, mixed>
+	 */
+	private static function getWorkerState(): array
+	{
+		$legacy_state = EmailQueueHeartbeat::getState();
+		$registry_state = RuntimeWorkerPauseControl::getScopeState(
+			EmailQueueWorker::WORKER_TYPE,
+			EmailQueueWorker::QUEUE_NAME,
+			self::getWorkerStaleAfterSeconds()
+		);
+
+		if (($registry_state['available'] ?? false) !== true) {
+			return $legacy_state;
+		}
+
+		return [
+			'last_seen_at' => $registry_state['last_seen_at'] ?? $legacy_state['last_seen_at'] ?? null,
+			'last_processed_at' => $legacy_state['last_processed_at'] ?? null,
+			'status' => (string) ($registry_state['status'] ?? $legacy_state['status'] ?? 'unavailable'),
+			'is_stale' => (bool) ($registry_state['is_stale'] ?? true),
+			'instances' => $registry_state['instances'] ?? [],
+			'active_pause_request' => $registry_state['active_pause_request'] ?? null,
+		];
+	}
+
+	private static function getWorkerStaleAfterSeconds(): int
+	{
+		return max(15, (int) ceil(max(1, (int) Config::EMAIL_QUEUE_WORKER_SLEEP_MS->value()) / 1000) * 20);
 	}
 
 	private static function tableExists(string $table_name): bool
