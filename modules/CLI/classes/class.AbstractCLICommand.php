@@ -34,11 +34,15 @@ abstract class AbstractCLICommand
 	}
 
 	/**
-	 * Risk level for web execution.
+	 * Risk level for web execution and read-only cutover gating.
 	 *
 	 * - 'safe': read-only, no confirmation needed
 	 * - 'build': file generation, light confirmation
 	 * - 'mutation': data/state change, confirmation required
+	 *
+	 * Commands that rely on this default are treated as unknown by cutover
+	 * gating. Read-only commands that must run during cutover should override
+	 * this method explicitly or be added to the cutover allowlist.
 	 */
 	public function getRiskLevel(): string
 	{

@@ -204,7 +204,7 @@ class RuntimeSiteCutoverGuard
 			return false;
 		}
 
-		if ($command->getRiskLevel() === 'safe') {
+		if ($command->getRiskLevel() === 'safe' && self::commandDeclaresRiskLevel($command)) {
 			return false;
 		}
 
@@ -213,6 +213,13 @@ class RuntimeSiteCutoverGuard
 		} catch (Throwable) {
 			return false;
 		}
+	}
+
+	private static function commandDeclaresRiskLevel(AbstractCLICommand $command): bool
+	{
+		$method = new ReflectionMethod($command, 'getRiskLevel');
+
+		return $method->getDeclaringClass()->getName() !== AbstractCLICommand::class;
 	}
 
 	/**
