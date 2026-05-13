@@ -47,7 +47,7 @@ class TestDatabaseSchemaSyncService
 		if ($drift_detected && !$dry_run) {
 			self::recreateSchema();
 			self::rebuildTestDatabaseHooks();
-			Fixtures::loadAll();
+			Fixtures::loadAll(self::getTestDsn());
 			$schema_rebuilt = true;
 			$fixtures_loaded = true;
 		}
@@ -56,7 +56,7 @@ class TestDatabaseSchemaSyncService
 			$fixtures_missing = !self::hasFixtureBaseline();
 
 			if ($fixtures_missing && !$dry_run) {
-				Fixtures::loadAll();
+				Fixtures::loadAll(self::getTestDsn());
 				$fixtures_loaded = true;
 			}
 		}
