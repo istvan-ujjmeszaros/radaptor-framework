@@ -253,6 +253,57 @@ class RuntimeWorkerPauseControl
 	/**
 	 * @return array<string, mixed>
 	 */
+	public static function resumeById(string $pause_request_id): array
+	{
+		if (!self::isAvailable()) {
+			return [
+				'available' => false,
+				'released' => 0,
+			];
+		}
+
+		$request = self::getPauseRequestById($pause_request_id);
+
+		if (!is_array($request)) {
+			return [
+				'available' => true,
+				'released' => 0,
+				'status' => 'not_found',
+				'pause_request_id' => $pause_request_id,
+			];
+		}
+
+		$stmt = DbHelper::prexecute(
+			"UPDATE `" . self::TABLE_REQUESTS . "`
+			SET `status` = ?, `released_at` = NOW()
+			WHERE `pause_request_id` = ? AND `status` IN (?, ?)",
+			[self::STATUS_RELEASED, $pause_request_id, self::STATUS_REQUESTED, self::STATUS_CONFIRMED]
+		);
+		$released = $stmt?->rowCount() ?? 0;
+
+		DbHelper::prexecute(
+			"UPDATE `" . RuntimeWorkerRegistry::TABLE_INSTANCES . "`
+			SET `state` = CASE WHEN `state` = ? THEN ? ELSE `state` END,
+				`confirmed_pause_request_id` = NULL,
+				`confirmed_pause_at` = NULL,
+				`last_seen_at` = NOW()
+			WHERE `confirmed_pause_request_id` = ?",
+			[RuntimeWorkerRegistry::STATE_PAUSED, RuntimeWorkerRegistry::STATE_IDLE, $pause_request_id]
+		);
+
+		return [
+			'available' => true,
+			'released' => $released,
+			'status' => $released > 0 ? self::STATUS_RELEASED : (string) $request['status'],
+			'pause_request_id' => $pause_request_id,
+			'worker_type' => (string) $request['worker_type'],
+			'queue_name' => (string) $request['queue_name'],
+		];
+	}
+
+	/**
+	 * @return array<string, mixed>
+	 */
 	public static function getScopeState(string $worker_type, string $queue_name, int $stale_after_seconds = 30): array
 	{
 		if (!self::isAvailable()) {

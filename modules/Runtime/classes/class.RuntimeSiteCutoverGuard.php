@@ -101,10 +101,11 @@ class RuntimeSiteCutoverGuard
 			];
 		}
 
+		$active_locks = self::getActiveSourceCutoverLocks();
 		$stmt = DbHelper::prexecute(
 			"UPDATE `" . self::TABLE_LOCKS . "`
-			SET `status` = ?, `released_at` = NOW(), `released_by_user_id` = ?, `release_note` = ?
-			WHERE `lock_type` = ? AND `status` = ?",
+				SET `status` = ?, `released_at` = NOW(), `released_by_user_id` = ?, `release_note` = ?
+				WHERE `lock_type` = ? AND `status` = ?",
 			[
 				self::STATUS_RELEASED,
 				self::getCurrentUserIdOrNull(),
@@ -116,8 +117,8 @@ class RuntimeSiteCutoverGuard
 		$released = $stmt?->rowCount() ?? 0;
 		$worker_release = null;
 
-		if ($resume_workers && class_exists(RuntimeWorkerPauseControl::class) && class_exists(EmailQueueWorker::class)) {
-			$worker_release = RuntimeWorkerPauseControl::resume(EmailQueueWorker::WORKER_TYPE, EmailQueueWorker::QUEUE_NAME);
+		if ($released > 0 && $resume_workers && class_exists(RuntimeWorkerPauseControl::class)) {
+			$worker_release = self::releaseWorkerPausesForLocks($active_locks);
 		}
 
 		return [
@@ -125,6 +126,47 @@ class RuntimeSiteCutoverGuard
 			'released' => $released,
 			'status' => self::STATUS_RELEASED,
 			'worker_pause_release' => $worker_release,
+		];
+	}
+
+	/**
+	 * @return array<string, mixed>
+	 */
+	public static function attachWorkerPauseRequest(string $lock_id, string $pause_request_id): array
+	{
+		if (!self::isAvailable()) {
+			return [
+				'available' => false,
+				'attached' => false,
+			];
+		}
+
+		$lock = self::getLockById($lock_id);
+
+		if (!is_array($lock) || (string) ($lock['status'] ?? '') !== self::STATUS_ACTIVE) {
+			return [
+				'available' => true,
+				'attached' => false,
+				'status' => 'lock_not_active',
+				'lock_id' => $lock_id,
+			];
+		}
+
+		$metadata = self::decodeMetadata($lock['metadata_json'] ?? null);
+		$metadata['worker_pause_request_id'] = $pause_request_id;
+
+		DbHelper::prexecute(
+			"UPDATE `" . self::TABLE_LOCKS . "`
+			SET `metadata_json` = ?
+			WHERE `lock_id` = ? AND `status` = ?",
+			[json_encode($metadata, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR), $lock_id, self::STATUS_ACTIVE]
+		);
+
+		return [
+			'available' => true,
+			'attached' => true,
+			'lock_id' => $lock_id,
+			'pause_request_id' => $pause_request_id,
 		];
 	}
 
@@ -252,6 +294,26 @@ class RuntimeSiteCutoverGuard
 	}
 
 	/**
+	 * @return list<array<string, mixed>>
+	 */
+	private static function getActiveSourceCutoverLocks(): array
+	{
+		if (!self::isAvailable()) {
+			return [];
+		}
+
+		$rows = DbHelper::fetchAll(
+			"SELECT *
+			FROM `" . self::TABLE_LOCKS . "`
+			WHERE `lock_type` = ? AND `status` = ?
+			ORDER BY `created_at` DESC",
+			[self::LOCK_TYPE_SITE_MIGRATION_SOURCE_READONLY, self::STATUS_ACTIVE]
+		);
+
+		return is_array($rows) ? $rows : [];
+	}
+
+	/**
 	 * @return array<string, mixed>|null
 	 */
 	private static function getLockById(string $lock_id): ?array
@@ -286,5 +348,56 @@ class RuntimeSiteCutoverGuard
 		} catch (Throwable) {
 			return null;
 		}
+	}
+
+	/**
+	 * @param list<array<string, mixed>> $locks
+	 * @return array<string, mixed>
+	 */
+	private static function releaseWorkerPausesForLocks(array $locks): array
+	{
+		$results = [];
+		$total_released = 0;
+
+		foreach ($locks as $lock) {
+			$metadata = self::decodeMetadata($lock['metadata_json'] ?? null);
+			$pause_request_id = (string) ($metadata['worker_pause_request_id'] ?? '');
+
+			if ($pause_request_id === '') {
+				continue;
+			}
+
+			$result = RuntimeWorkerPauseControl::resumeById($pause_request_id);
+			$results[] = [
+				'lock_id' => (string) ($lock['lock_id'] ?? ''),
+				'pause_request_id' => $pause_request_id,
+				'result' => $result,
+			];
+			$total_released += (int) ($result['released'] ?? 0);
+		}
+
+		return [
+			'available' => true,
+			'released' => $total_released,
+			'requests' => $results,
+		];
+	}
+
+	/**
+	 * @return array<string, mixed>
+	 */
+	private static function decodeMetadata(mixed $metadata_json): array
+	{
+		if (!is_string($metadata_json) || trim($metadata_json) === '') {
+			return [];
+		}
+
+		try {
+			$metadata = json_decode($metadata_json, true, 512, JSON_THROW_ON_ERROR);
+		} catch (Throwable) {
+			return [];
+		}
+
+		return is_array($metadata) ? $metadata : [];
 	}
 }
