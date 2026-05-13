@@ -104,6 +104,10 @@ message key, not a rendered translation snapshot. Releasing a cutover lock only 
 pause requests that were created for that cutover; pre-existing/manual pauses stay paused and must be
 released explicitly by the operator.
 
+Site snapshots must preserve `migrations` and `seeds` metadata. Without those rows, a restored site
+would treat historical migrations or bootstrap seeds as pending and could re-run non-idempotent
+schema/data changes.
+
 Runtime table existence checks intentionally cache only positive results. In long-running runtimes,
 missing tables are re-probed after migrations instead of being treated as absent until process
 restart. Cutover gate checks also fail open if the default database cannot be probed, so bootstrap,
