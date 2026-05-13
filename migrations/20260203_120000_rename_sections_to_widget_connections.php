@@ -35,8 +35,10 @@ class Migration_20260203_120000_rename_sections_to_widget_connections
 		$stmt = $pdo->query("SHOW TABLES LIKE 'webpage_section_connections'");
 
 		if ($stmt->rowCount() === 0) {
-			// Neither table exists - nothing to migrate
-			return;
+			throw new RuntimeException(
+				"Cannot rename webpage_section_connections to widget_connections because neither table exists. "
+				. 'The database schema is not initialized or is not a supported legacy Radaptor schema.'
+			);
 		}
 
 		// 1. Rename the table

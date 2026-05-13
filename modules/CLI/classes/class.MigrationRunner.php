@@ -10,6 +10,9 @@
  */
 class MigrationRunner
 {
+	private const string PREFLIGHT_MODULE = 'framework';
+	private const string PREFLIGHT_FILENAME = '__preflight__.php';
+
 	/**
 	 * Get the migration directories to scan.
 	 *
@@ -182,6 +185,118 @@ class MigrationRunner
 	}
 
 	/**
+	 * @param array<int, array{
+	 *     key: string,
+	 *     module: string,
+	 *     filename: string,
+	 *     filepath: string,
+	 *     hash: string,
+	 *     base_class_name: string,
+	 *     runtime_class_name: string
+	 * }>|null $pending
+	 * @return array{success: bool, message: string, pending_count: int}
+	 */
+	public static function checkPendingMigrations(?array $pending = null): array
+	{
+		$pending ??= self::getPendingMigrations();
+
+		if ($pending === []) {
+			return [
+				'success' => true,
+				'message' => 'No pending migrations.',
+				'pending_count' => 0,
+			];
+		}
+
+		try {
+			self::assertDatabaseReadyForPendingMigrations($pending);
+		} catch (Throwable $e) {
+			return [
+				'success' => false,
+				'message' => $e->getMessage(),
+				'pending_count' => count($pending),
+			];
+		}
+
+		return [
+			'success' => true,
+			'message' => 'Migration preflight passed.',
+			'pending_count' => count($pending),
+		];
+	}
+
+	/**
+	 * @param array<int, array{
+	 *     key: string,
+	 *     module: string,
+	 *     filename: string,
+	 *     filepath: string,
+	 *     hash: string,
+	 *     base_class_name: string,
+	 *     runtime_class_name: string
+	 * }>|null $pending
+	 * @return array{
+	 *     success: bool,
+	 *     message: string,
+	 *     pending_count: int,
+	 *     sandbox_database: string|null,
+	 *     migrations: array<int, array<string, mixed>>
+	 * }
+	 */
+	public static function provePendingMigrationsInSandbox(?array $pending = null): array
+	{
+		$pending ??= self::getPendingMigrations();
+		$preflight = self::checkPendingMigrations($pending);
+
+		if (!$preflight['success'] || $pending === []) {
+			return [
+				'success' => $preflight['success'],
+				'message' => $preflight['message'],
+				'pending_count' => $preflight['pending_count'],
+				'sandbox_database' => null,
+				'migrations' => [],
+			];
+		}
+
+		$source_dsn = Config::DB_DEFAULT_DSN->value();
+		$source_pdo = Db::instance();
+		$source_database = self::getCurrentDatabaseName($source_pdo);
+		$sandbox_database = self::buildSandboxDatabaseName($source_database);
+		$sandbox_dsn = self::rewriteDsnDatabaseName($source_dsn, $sandbox_database);
+		$original_pdo_instances = Db::$pdoInstances;
+		$original_env = getenv('DB_DEFAULT_DSN');
+		$original_env_exists = $original_env !== false;
+
+		$source_pdo->exec(
+			'CREATE DATABASE ' . self::quoteIdentifier($sandbox_database)
+				. ' CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci'
+		);
+
+		try {
+			self::cloneDatabaseForMigrationSandbox($source_pdo, $source_database, $sandbox_database, $sandbox_dsn);
+			self::setDefaultDsnForCurrentProcess($sandbox_dsn);
+			Db::$pdoInstances = [];
+
+			$results = self::runMigrations($pending, false, false, false);
+			$success = self::allMigrationResultsSucceeded($results);
+
+			return [
+				'success' => $success,
+				'message' => $success
+					? 'Sandbox migration proof passed.'
+					: 'Sandbox migration proof failed.',
+				'pending_count' => count($pending),
+				'sandbox_database' => $sandbox_database,
+				'migrations' => $results,
+			];
+		} finally {
+			self::restoreDefaultDsnForCurrentProcess($original_env, $original_env_exists);
+			Db::$pdoInstances = $original_pdo_instances;
+			$source_pdo->exec('DROP DATABASE IF EXISTS ' . self::quoteIdentifier($sandbox_database));
+		}
+	}
+
+	/**
 	 * @param list<string> $modules
 	 * @return array<int, array{
 	 *     key: string,
@@ -220,7 +335,7 @@ class MigrationRunner
 	 * @param string|null $module Optional explicit module id
 	 * @return array{success: bool, message: string, module: string, filename: string, description?: string}
 	 */
-	public static function runMigration(string $filepath, ?string $module = null): array
+	public static function runMigration(string $filepath, ?string $module = null, bool $run_preflight = true): array
 	{
 		$migration = self::buildMigrationDescriptor(
 			$module ?? self::detectModuleFromFilepath($filepath),
@@ -235,6 +350,14 @@ class MigrationRunner
 				'module' => $migration['module'],
 				'filename' => $migration['filename'],
 			];
+		}
+
+		if ($run_preflight) {
+			$preflight = self::checkPendingMigrations([$migration]);
+
+			if (!$preflight['success']) {
+				return self::buildPreflightFailure($preflight['message'], $migration);
+			}
 		}
 
 		try {
@@ -413,13 +536,25 @@ class MigrationRunner
 	 *     description?: string
 	 * }>
 	 */
-	private static function runMigrations(array $pending, bool $rebuild_schema = true): array
-	{
+	private static function runMigrations(
+		array $pending,
+		bool $rebuild_schema = true,
+		bool $write_migrations_file = true,
+		bool $run_preflight = true
+	): array {
+		if ($run_preflight) {
+			$preflight = self::checkPendingMigrations($pending);
+
+			if (!$preflight['success']) {
+				return [self::buildPreflightFailure($preflight['message'], $pending[0] ?? null)];
+			}
+		}
+
 		$results = [];
 		$any_success = false;
 
 		foreach ($pending as $migration) {
-			$result = self::runMigration($migration['filepath'], $migration['module']);
+			$result = self::runMigration($migration['filepath'], $migration['module'], false);
 			$results[] = $result;
 
 			if ($result['success']) {
@@ -431,7 +566,7 @@ class MigrationRunner
 			}
 		}
 
-		if ($any_success) {
+		if ($any_success && $write_migrations_file) {
 			self::writeMigrationsFile();
 
 			if ($rebuild_schema) {
@@ -626,6 +761,289 @@ class MigrationRunner
 		}
 
 		return $status;
+	}
+
+	/**
+	 * @param array<int, array{
+	 *     key: string,
+	 *     module: string,
+	 *     filename: string,
+	 *     filepath: string,
+	 *     hash: string,
+	 *     base_class_name: string,
+	 *     runtime_class_name: string
+	 * }> $pending
+	 */
+	private static function assertDatabaseReadyForPendingMigrations(array $pending): void
+	{
+		if ($pending === []) {
+			return;
+		}
+
+		$pdo = Db::instance();
+		$database = self::getCurrentDatabaseName($pdo);
+		$tables = self::getBaseTables($pdo, $database);
+		$app_tables = array_values(array_filter(
+			$tables,
+			static fn (string $table): bool => !in_array($table, [
+				'migrations',
+				'runtime_site_cutover_locks',
+				'runtime_worker_instances',
+				'runtime_worker_pause_requests',
+			], true)
+		));
+
+		if ($app_tables !== []) {
+			return;
+		}
+
+		throw new RuntimeException(
+			"Database schema is not initialized: '{$database}' contains no application tables outside the migrations metadata table. "
+			. 'Load the bootstrap schema or restore a site snapshot before running migrations. Refusing to mark migrations as applied against an empty schema.'
+		);
+	}
+
+	/**
+	 * @param array{
+	 *     module?: string,
+	 *     filename?: string
+	 * }|null $migration
+	 * @return array{success: bool, message: string, module: string, filename: string}
+	 */
+	private static function buildPreflightFailure(string $message, ?array $migration = null): array
+	{
+		return [
+			'success' => false,
+			'message' => 'Migration preflight failed: ' . $message,
+			'module' => (string) ($migration['module'] ?? self::PREFLIGHT_MODULE),
+			'filename' => (string) ($migration['filename'] ?? self::PREFLIGHT_FILENAME),
+		];
+	}
+
+	/**
+	 * @param array<int, array<string, mixed>> $results
+	 */
+	private static function allMigrationResultsSucceeded(array $results): bool
+	{
+		foreach ($results as $result) {
+			if (($result['success'] ?? false) !== true) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	private static function getCurrentDatabaseName(PDO $pdo): string
+	{
+		$stmt = $pdo->query('SELECT DATABASE()');
+		$database = $stmt instanceof PDOStatement ? $stmt->fetchColumn() : false;
+
+		if (!is_string($database) || $database === '') {
+			throw new RuntimeException('Unable to determine current database name.');
+		}
+
+		return $database;
+	}
+
+	/**
+	 * @return list<string>
+	 */
+	private static function getBaseTables(PDO $pdo, string $database): array
+	{
+		$stmt = $pdo->prepare(
+			"SELECT TABLE_NAME
+			 FROM INFORMATION_SCHEMA.TABLES
+			 WHERE TABLE_SCHEMA = ? AND TABLE_TYPE = 'BASE TABLE'
+			 ORDER BY TABLE_NAME"
+		);
+		$stmt->execute([$database]);
+
+		return array_values(array_map('strval', $stmt->fetchAll(PDO::FETCH_COLUMN)));
+	}
+
+	private static function buildSandboxDatabaseName(string $source_database): string
+	{
+		$suffix = bin2hex(random_bytes(4));
+		$name = $source_database . '_migration_sandbox_' . getmypid() . '_' . $suffix;
+
+		return substr($name, 0, 64);
+	}
+
+	private static function rewriteDsnDatabaseName(string $dsn, string $database): string
+	{
+		$parts = explode(';', $dsn);
+		$rewritten = false;
+
+		foreach ($parts as &$part) {
+			if (str_starts_with($part, 'dbname=')) {
+				$part = 'dbname=' . $database;
+				$rewritten = true;
+
+				break;
+			}
+		}
+		unset($part);
+
+		if (!$rewritten) {
+			throw new RuntimeException('Cannot build migration sandbox DSN because DB_DEFAULT_DSN does not contain dbname.');
+		}
+
+		return implode(';', $parts);
+	}
+
+	private static function cloneDatabaseForMigrationSandbox(
+		PDO $source_pdo,
+		string $source_database,
+		string $sandbox_database,
+		string $sandbox_dsn
+	): void {
+		$tables = self::getBaseTables($source_pdo, $source_database);
+		$create_order = self::sortTablesByForeignKeyDependencies($source_pdo, $source_database, $tables);
+		$sandbox_pdo = self::createRawPdoConnection($sandbox_dsn);
+		$sandbox_pdo->exec('SET FOREIGN_KEY_CHECKS = 0');
+
+		try {
+			foreach ($create_order as $table) {
+				$sandbox_pdo->exec(self::getCreateTableForSandbox($source_pdo, $table));
+			}
+
+			foreach ($tables as $table) {
+				$quoted_table = self::quoteIdentifier($table);
+				$source = self::quoteIdentifier($source_database) . '.' . $quoted_table;
+				$target = self::quoteIdentifier($sandbox_database) . '.' . $quoted_table;
+				$sandbox_pdo->exec("INSERT INTO {$target} SELECT * FROM {$source}");
+			}
+		} finally {
+			$sandbox_pdo->exec('SET FOREIGN_KEY_CHECKS = 1');
+		}
+	}
+
+	private static function getCreateTableForSandbox(PDO $source_pdo, string $table): string
+	{
+		$stmt = $source_pdo->query('SHOW CREATE TABLE ' . self::quoteIdentifier($table));
+		$row = $stmt instanceof PDOStatement ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
+		$create = is_array($row) ? (string) ($row['Create Table'] ?? '') : '';
+
+		if ($create === '') {
+			throw new RuntimeException("Unable to read CREATE TABLE for {$table}.");
+		}
+
+		return preg_replace(
+			'/^CREATE TABLE `?' . preg_quote($table, '/') . '`?/i',
+			'CREATE TABLE ' . self::quoteIdentifier($table),
+			$create,
+			1
+		) ?? $create;
+	}
+
+	/**
+	 * @param list<string> $tables
+	 * @return list<string>
+	 */
+	private static function sortTablesByForeignKeyDependencies(PDO $pdo, string $database, array $tables): array
+	{
+		$table_set = array_fill_keys($tables, true);
+		$dependencies = array_fill_keys($tables, []);
+		$stmt = $pdo->prepare(
+			"SELECT TABLE_NAME, REFERENCED_TABLE_NAME
+			 FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+			 WHERE TABLE_SCHEMA = ? AND REFERENCED_TABLE_NAME IS NOT NULL"
+		);
+		$stmt->execute([$database]);
+
+		foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+			$table = (string) ($row['TABLE_NAME'] ?? '');
+			$referenced_table = (string) ($row['REFERENCED_TABLE_NAME'] ?? '');
+
+			if ($table === '' || $referenced_table === '' || $table === $referenced_table) {
+				continue;
+			}
+
+			if (isset($table_set[$table], $table_set[$referenced_table])) {
+				$dependencies[$table][] = $referenced_table;
+			}
+		}
+
+		$sorted = [];
+		$visited = [];
+		$visiting = [];
+
+		foreach ($tables as $table) {
+			self::visitTableDependency($table, $dependencies, $visited, $visiting, $sorted);
+		}
+
+		return array_values(array_unique($sorted));
+	}
+
+	/**
+	 * @param array<string, list<string>> $dependencies
+	 * @param array<string, bool> $visited
+	 * @param array<string, bool> $visiting
+	 * @param list<string> $sorted
+	 */
+	private static function visitTableDependency(
+		string $table,
+		array $dependencies,
+		array &$visited,
+		array &$visiting,
+		array &$sorted
+	): void {
+		if (isset($visited[$table])) {
+			return;
+		}
+
+		if (isset($visiting[$table])) {
+			$sorted[] = $table;
+			$visited[$table] = true;
+
+			return;
+		}
+
+		$visiting[$table] = true;
+
+		foreach ($dependencies[$table] ?? [] as $dependency) {
+			self::visitTableDependency($dependency, $dependencies, $visited, $visiting, $sorted);
+		}
+
+		unset($visiting[$table]);
+		$visited[$table] = true;
+		$sorted[] = $table;
+	}
+
+	private static function setDefaultDsnForCurrentProcess(string $dsn): void
+	{
+		putenv('DB_DEFAULT_DSN=' . $dsn);
+		$_ENV['DB_DEFAULT_DSN'] = $dsn;
+		$_SERVER['DB_DEFAULT_DSN'] = $dsn;
+	}
+
+	private static function restoreDefaultDsnForCurrentProcess(string|false $value, bool $exists): void
+	{
+		if ($exists) {
+			self::setDefaultDsnForCurrentProcess((string) $value);
+
+			return;
+		}
+
+		putenv('DB_DEFAULT_DSN');
+		unset($_ENV['DB_DEFAULT_DSN'], $_SERVER['DB_DEFAULT_DSN']);
+	}
+
+	private static function quoteIdentifier(string $identifier): string
+	{
+		return '`' . str_replace('`', '``', $identifier) . '`';
+	}
+
+	private static function createRawPdoConnection(string $dsn): PDO
+	{
+		$pdo = new PDO($dsn);
+		$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+		$pdo->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
+		$pdo->exec('SET NAMES utf8mb4');
+		$pdo->exec("SET time_zone = '+00:00'");
+
+		return $pdo;
 	}
 
 	/**

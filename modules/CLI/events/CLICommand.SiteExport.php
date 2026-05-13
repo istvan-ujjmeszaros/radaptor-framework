@@ -68,7 +68,7 @@ class CLICommandSiteExport extends AbstractCLICommand
 			Kernel::abort('Snapshot profile must be disaster_recovery or site_migration.');
 		}
 
-		if ($profile === self::PROFILE_SITE_MIGRATION && $pause_source_workers === $skip_source_worker_pause) {
+		if ($profile === self::PROFILE_SITE_MIGRATION && !self::hasExactlyOneSourcePauseDecision($pause_source_workers, $skip_source_worker_pause)) {
 			Kernel::abort('Site migration export requires exactly one of --pause-source-workers or --skip-source-worker-pause.');
 		}
 
@@ -101,5 +101,11 @@ class CLICommandSiteExport extends AbstractCLICommand
 		echo "Site snapshot exported: {$payload['output']}\n";
 		echo "Profile: {$payload['profile']}\n";
 		echo "Uploaded files in manifest: {$payload['upload_count']}\n";
+	}
+
+	private static function hasExactlyOneSourcePauseDecision(bool $pause_source_workers, bool $skip_source_worker_pause): bool
+	{
+		return ($pause_source_workers && !$skip_source_worker_pause)
+			|| (!$pause_source_workers && $skip_source_worker_pause);
 	}
 }

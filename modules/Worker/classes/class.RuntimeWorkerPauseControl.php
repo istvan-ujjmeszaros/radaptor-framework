@@ -185,32 +185,11 @@ class RuntimeWorkerPauseControl
 			];
 		}
 
-		$active_workers = RuntimeWorkerRegistry::getActiveInstances($worker_type, $queue_name, $stale_after_seconds);
-		$stale_busy_workers = $allow_stale_workers
-			? []
-			: RuntimeWorkerRegistry::getStaleBusyInstances($worker_type, $queue_name, $stale_after_seconds);
-		$pending_workers = [];
-		$confirmed_workers = [];
-
-		foreach ($active_workers as $worker) {
-			if ((string) ($worker['confirmed_pause_request_id'] ?? '') === $pause_request_id) {
-				$confirmed_workers[] = $worker;
-
-				continue;
-			}
-
-			$pending_workers[] = $worker;
-		}
-
-		return [
-			'available' => true,
-			'confirmed' => $pending_workers === [] && $stale_busy_workers === [],
-			'pause_request_id' => $pause_request_id,
-			'pending_workers' => $pending_workers,
-			'confirmed_workers' => $confirmed_workers,
-			'stale_busy_workers' => $stale_busy_workers,
-			'active_worker_count' => count($active_workers),
-		];
+		return self::buildPauseConfirmationState(
+			RuntimeWorkerRegistry::listInstances($worker_type, $queue_name, $stale_after_seconds),
+			$pause_request_id,
+			$allow_stale_workers
+		);
 	}
 
 	/**
@@ -317,20 +296,14 @@ class RuntimeWorkerPauseControl
 		}
 
 		$instances = RuntimeWorkerRegistry::listInstances($worker_type, $queue_name, $stale_after_seconds);
-		$active_instances = RuntimeWorkerRegistry::getActiveInstances($worker_type, $queue_name, $stale_after_seconds);
 		$active_request = self::getActivePauseRequest($worker_type, $queue_name);
 		$last_seen_at = self::findLatestValue($instances, 'last_seen_at');
+		$active_instances = self::filterActiveInstances($instances);
 		$status = 'never_seen';
 		$is_stale = true;
 
 		if (is_array($active_request)) {
-			$confirmation = self::getPauseConfirmationState(
-				$worker_type,
-				$queue_name,
-				(string) $active_request['pause_request_id'],
-				false,
-				$stale_after_seconds
-			);
+			$confirmation = self::buildPauseConfirmationState($instances, (string) $active_request['pause_request_id'], false);
 			$status = ($confirmation['confirmed'] ?? false) === true ? 'paused' : 'pausing';
 			$is_stale = false;
 		} elseif ($active_instances !== []) {
@@ -369,6 +342,62 @@ class RuntimeWorkerPauseControl
 			WHERE `pause_request_id` = ? AND `status` IN (?, ?)",
 			[self::STATUS_CONFIRMED, $pause_request_id, self::STATUS_REQUESTED, self::STATUS_CONFIRMED]
 		);
+	}
+
+	/**
+	 * @param list<array<string, mixed>> $instances
+	 * @return array<string, mixed>
+	 */
+	private static function buildPauseConfirmationState(array $instances, string $pause_request_id, bool $allow_stale_workers): array
+	{
+		$active_workers = self::filterActiveInstances($instances);
+		$stale_busy_workers = $allow_stale_workers ? [] : self::filterStaleBusyInstances($instances);
+		$pending_workers = [];
+		$confirmed_workers = [];
+
+		foreach ($active_workers as $worker) {
+			if ((string) ($worker['confirmed_pause_request_id'] ?? '') === $pause_request_id) {
+				$confirmed_workers[] = $worker;
+
+				continue;
+			}
+
+			$pending_workers[] = $worker;
+		}
+
+		return [
+			'available' => true,
+			'confirmed' => $pending_workers === [] && $stale_busy_workers === [],
+			'pause_request_id' => $pause_request_id,
+			'pending_workers' => $pending_workers,
+			'confirmed_workers' => $confirmed_workers,
+			'stale_busy_workers' => $stale_busy_workers,
+			'active_worker_count' => count($active_workers),
+		];
+	}
+
+	/**
+	 * @param list<array<string, mixed>> $instances
+	 * @return list<array<string, mixed>>
+	 */
+	private static function filterActiveInstances(array $instances): array
+	{
+		return array_values(array_filter(
+			$instances,
+			static fn (array $row): bool => !($row['is_stale'] ?? true) && (string) ($row['state'] ?? '') !== RuntimeWorkerRegistry::STATE_STOPPING
+		));
+	}
+
+	/**
+	 * @param list<array<string, mixed>> $instances
+	 * @return list<array<string, mixed>>
+	 */
+	private static function filterStaleBusyInstances(array $instances): array
+	{
+		return array_values(array_filter(
+			$instances,
+			static fn (array $row): bool => ($row['is_stale'] ?? false) === true && (string) ($row['state'] ?? '') === RuntimeWorkerRegistry::STATE_BUSY
+		));
 	}
 
 	private static function isAvailable(): bool

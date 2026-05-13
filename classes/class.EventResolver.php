@@ -246,6 +246,7 @@ abstract class EventResolver implements iEvent
 
 	private static function _cutoverReadonlyResponse(): void
 	{
+		$title = RuntimeSiteCutoverGuard::readonlyTitle();
 		$message = RuntimeSiteCutoverGuard::readonlyMessage();
 
 		if (Request::wantsNonHtmlResponse()) {
@@ -256,6 +257,6 @@ abstract class EventResolver implements iEvent
 		}
 
 		http_response_code(423);
-		echo '<h1>423 Site is read-only</h1><p>' . e($message) . '</p>';
+		echo '<h1>423 ' . e($title) . '</h1><p>' . e($message) . '</p>';
 	}
 }

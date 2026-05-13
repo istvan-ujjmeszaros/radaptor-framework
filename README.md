@@ -61,6 +61,68 @@ seed file. If a package changes `source_text`, the audit uses the shipped source
 hiding required translation sync work. Enabled locales that are not shipped by a package are skipped
 for that package instead of being reported as missing seed files.
 
+## Migration Safety
+
+Package and app migrations are upgrade steps for an already initialized Radaptor database. They are
+not a replacement for the bootstrap schema or a site snapshot restore.
+
+`migrate:run` performs a preflight check before applying pending migrations. If the target database
+contains only migration metadata and no application tables, the command fails before running any
+migration and before marking anything as applied. This protects against broken container init flows
+where `radaptor_app` exists but the bootstrap schema was never loaded.
+
+Useful commands:
+
+```bash
+radaptor migrate:run --dry-run --json
+radaptor migrate:run --dry-run --sandbox --json
+radaptor migrate:run --json
+```
+
+`--dry-run` lists pending migrations and runs the same preflight without mutating the database.
+`--dry-run --sandbox` clones the current database into a temporary database, applies pending
+migrations there, reports the result, and drops the temporary database. Use the sandbox proof before
+running migrations on important development, staging, migration, or production-like snapshots.
+
+## Site Migration Cutover
+
+Site migration exports can coordinate with runtime workers before the snapshot is written. A
+`site_migration` export requires the operator to choose exactly one source-worker behavior:
+
+```bash
+radaptor site:export --output tmp/site-migration.json --uploads-backed-up --profile site_migration --pause-source-workers --json
+radaptor site:export --output tmp/site-migration.json --uploads-backed-up --profile site_migration --skip-source-worker-pause --json
+```
+
+When source workers are paused, workers confirm the pause through the runtime worker registry before
+export continues. The source instance is then locked into cutover read-only mode. Web mutations, MCP
+write tools, and mutating CLI commands are blocked until `site:cutover-release` is run with the
+required confirmation text. The read-only title/message are i18n keys; the lock table stores the
+message key, not a rendered translation snapshot.
+
+Runtime table existence checks intentionally cache only positive results. In long-running runtimes,
+missing tables are re-probed after migrations instead of being treated as absent until process
+restart.
+
+## Runtime Worker Pause Control
+
+Runtime workers register heartbeat/state rows in `runtime_worker_instances`. Pause requests live in
+`runtime_worker_pause_requests` and are confirmed when every active worker in the scope has observed
+the request. Stale workers are evaluated with a worker-specific stale timeout; the transactional
+email worker derives it from `EMAIL_QUEUE_WORKER_SLEEP_MS` so long sleep intervals do not create
+false pause timeouts.
+
+Useful commands:
+
+```bash
+radaptor emailqueue:pause --wait --json
+radaptor emailqueue:status --json
+radaptor emailqueue:resume --json
+radaptor worker:pause --type email_queue --queue transactional_email --wait --json
+radaptor worker:status --type email_queue --queue transactional_email --json
+radaptor worker:resume --type email_queue --queue transactional_email --json
+```
+
 ## License
 
 This package is distributed under the proprietary evaluation license in
