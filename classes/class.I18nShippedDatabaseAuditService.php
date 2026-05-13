@@ -61,7 +61,9 @@ class I18nShippedDatabaseAuditService
 				'issues' => [
 					[
 						'code' => 'shipped_i18n_database_audit_failed',
-						'message' => $exception->getMessage(),
+						'params' => [
+							'exception_class' => get_class($exception),
+						],
 					],
 				],
 			];
@@ -289,26 +291,26 @@ class I18nShippedDatabaseAuditService
 	private static function auditFile(string $file_path, string $expected_locale): array
 	{
 		if (!file_exists($file_path)) {
-			return self::emptyFileResult($expected_locale, $file_path, ["Missing seed file: {$file_path}"]);
+			return self::emptyFileResult($expected_locale, $file_path, [
+				self::error('seed_file_missing', ['file' => $file_path]),
+			]);
 		}
 
 		$csv = file_get_contents($file_path);
 
 		if ($csv === false) {
-			return self::emptyFileResult($expected_locale, $file_path, ["Unable to read seed file: {$file_path}"]);
+			return self::emptyFileResult($expected_locale, $file_path, [
+				self::error('seed_file_unreadable', ['file' => $file_path]),
+			]);
 		}
 
-		try {
-			$rows = self::parseSeedRows($csv, $expected_locale);
-		} catch (InvalidArgumentException $exception) {
-			return self::emptyFileResult(
-				$expected_locale,
-				$file_path,
-				array_values(array_filter(explode("\n", $exception->getMessage())))
-			);
+		$parsed = self::parseSeedRows($csv, $expected_locale);
+
+		if ($parsed['errors'] !== []) {
+			return self::emptyFileResult($expected_locale, $file_path, $parsed['errors']);
 		}
 
-		return self::compareSeedRowsToDatabase($rows, $expected_locale, $file_path);
+		return self::compareSeedRowsToDatabase($parsed['rows'], $expected_locale, $file_path);
 	}
 
 	/**
@@ -331,7 +333,7 @@ class I18nShippedDatabaseAuditService
 	}
 
 	/**
-	 * @return list<array<string, string|int>>
+	 * @return array{rows: list<array<string, string|int>>, errors: list<array<string, mixed>>}
 	 */
 	private static function parseSeedRows(string $csv, string $expected_locale): array
 	{
@@ -343,7 +345,10 @@ class I18nShippedDatabaseAuditService
 		$handle = fopen('php://temp', 'r+');
 
 		if ($handle === false) {
-			throw new InvalidArgumentException('Unable to allocate CSV parser buffer');
+			return [
+				'rows' => [],
+				'errors' => [self::error('csv_parser_buffer_unavailable')],
+			];
 		}
 
 		fwrite($handle, $csv);
@@ -353,7 +358,10 @@ class I18nShippedDatabaseAuditService
 		if ($headers === false) {
 			fclose($handle);
 
-			throw new InvalidArgumentException('CSV is empty or unreadable');
+			return [
+				'rows' => [],
+				'errors' => [self::error('csv_empty')],
+			];
 		}
 
 		$headers = CsvHelper::normalizeHeaderRow(array_map('strval', $headers));
@@ -366,7 +374,13 @@ class I18nShippedDatabaseAuditService
 		if ($errors !== []) {
 			fclose($handle);
 
-			throw new InvalidArgumentException(implode("\n", $errors));
+			return [
+				'rows' => [],
+				'errors' => array_map(
+					static fn (string $error): array => self::error('csv_header_invalid', ['detail' => $error]),
+					$errors
+				),
+			];
 		}
 
 		while (($raw_row = fgetcsv($handle, 0, ',', '"', '')) !== false) {
@@ -392,13 +406,20 @@ class I18nShippedDatabaseAuditService
 			$locale = LocaleService::tryCanonicalize($raw_locale);
 
 			if ($locale === null || !LocaleRegistry::isKnownLocale($locale)) {
-				$errors[] = "Line {$line_number}: locale '{$raw_locale}' is not a supported standard locale";
+				$errors[] = self::error('locale_not_supported', [
+					'line' => $line_number,
+					'raw_locale' => $raw_locale,
+				]);
 
 				continue;
 			}
 
 			if ($locale !== $expected_locale) {
-				$errors[] = "Line {$line_number}: expected locale '{$expected_locale}', found '{$locale}'";
+				$errors[] = self::error('locale_mismatch', [
+					'line' => $line_number,
+					'expected_locale' => $expected_locale,
+					'actual_locale' => $locale,
+				]);
 
 				continue;
 			}
@@ -411,10 +432,16 @@ class I18nShippedDatabaseAuditService
 		fclose($handle);
 
 		if ($errors !== []) {
-			throw new InvalidArgumentException(implode("\n", $errors));
+			return [
+				'rows' => [],
+				'errors' => $errors,
+			];
 		}
 
-		return $rows;
+		return [
+			'rows' => $rows,
+			'errors' => [],
+		];
 	}
 
 	/**
@@ -443,7 +470,10 @@ class I18nShippedDatabaseAuditService
 			$expected_text = (string) ($row['expected_text'] ?? '');
 
 			if ($domain === '' || $key === '' || $locale === '') {
-				$errors[] = "Line {$line}: domain, key and locale are required";
+				$errors[] = self::error('required_columns_missing', [
+					'line' => $line,
+					'columns' => ['domain', 'key', 'locale'],
+				]);
 				$skipped++;
 
 				continue;
@@ -462,7 +492,12 @@ class I18nShippedDatabaseAuditService
 				$source_text = trim((string) ($row['source_text'] ?? ''));
 
 				if ($source_text === '') {
-					$errors[] = "Line {$line}: Source message not found for domain='{$domain}', key='{$key}', context='{$context}'";
+					$errors[] = self::error('source_message_missing', [
+						'line' => $line,
+						'domain' => $domain,
+						'key' => $key,
+						'context' => $context,
+					]);
 					$skipped++;
 
 					continue;
@@ -772,10 +807,7 @@ class I18nShippedDatabaseAuditService
 				$inserted = (int) ($file['inserted'] ?? 0);
 				$updated = (int) ($file['updated'] ?? 0);
 				$conflicts = (int) ($file['conflicts'] ?? 0);
-				$errors = array_values(array_filter(
-					(array) ($file['errors'] ?? []),
-					static fn (mixed $error): bool => trim((string) $error) !== ''
-				));
+				$errors = self::normalizeErrors((array) ($file['errors'] ?? []));
 
 				if ($inserted <= 0 && $updated <= 0 && $conflicts <= 0 && $errors === []) {
 					continue;
@@ -800,6 +832,50 @@ class I18nShippedDatabaseAuditService
 		}
 
 		return $issues;
+	}
+
+	/**
+	 * @param list<mixed> $errors
+	 * @return list<array<string, mixed>>
+	 */
+	private static function normalizeErrors(array $errors): array
+	{
+		$normalized = [];
+
+		foreach ($errors as $error) {
+			if (is_array($error)) {
+				$code = (string) ($error['code'] ?? '');
+
+				if ($code !== '') {
+					$normalized[] = [
+						'code' => $code,
+						'params' => is_array($error['params'] ?? null) ? $error['params'] : [],
+					];
+				}
+
+				continue;
+			}
+
+			$error = trim((string) $error);
+
+			if ($error !== '') {
+				$normalized[] = self::error('legacy_error', ['message' => $error]);
+			}
+		}
+
+		return $normalized;
+	}
+
+	/**
+	 * @param array<string, mixed> $params
+	 * @return array{code: string, params: array<string, mixed>}
+	 */
+	private static function error(string $code, array $params = []): array
+	{
+		return [
+			'code' => 'shipped_i18n_' . $code,
+			'params' => $params,
+		];
 	}
 
 	/**

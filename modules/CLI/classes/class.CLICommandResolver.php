@@ -57,6 +57,22 @@ class CLICommandResolver
 		return null;
 	}
 
+	public static function getCommandSlugFromArgv(): ?string
+	{
+		$argv = self::getArgv();
+		$slug = trim((string) ($argv[1] ?? ''));
+
+		if ($slug === '' || $slug === 'help' || str_starts_with($slug, '--')) {
+			return null;
+		}
+
+		if (substr_count($slug, ':') > 1) {
+			return null;
+		}
+
+		return $slug;
+	}
+
 	/**
 	 * Render CLI help text for either the full command catalog or one command.
 	 */
@@ -210,6 +226,7 @@ class CLICommandResolver
 	 */
 	public static function dispatch(): void
 	{
+		self::defineCommandRuntimeFlags();
 		CLIOutput::beginCommandLogSession();
 
 		if (self::isHelpRequest()) {
@@ -239,6 +256,13 @@ class CLICommandResolver
 		}
 
 		$command->run();
+	}
+
+	private static function defineCommandRuntimeFlags(): void
+	{
+		if (self::getCommandSlugFromArgv() === 'i18n:doctor' && !defined('RADAPTOR_DOCTOR_SAFE')) {
+			define('RADAPTOR_DOCTOR_SAFE', true);
+		}
 	}
 
 	/**

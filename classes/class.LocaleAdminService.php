@@ -213,36 +213,11 @@ final class LocaleAdminService
 
 	private static function tableExists(string $table): bool
 	{
-		try {
-			$stmt = Db::instance()->prepare(
-				"SELECT 1
-				FROM information_schema.TABLES
-				WHERE TABLE_SCHEMA = DATABASE()
-					AND TABLE_NAME = ?"
-			);
-			$stmt->execute([$table]);
-
-			return (bool) $stmt->fetchColumn();
-		} catch (Throwable) {
-			return false;
-		}
+		return DbSchemaHelper::tableExists($table);
 	}
 
 	private static function columnExists(string $table, string $column): bool
 	{
-		if (!self::tableExists($table)) {
-			return false;
-		}
-
-		$stmt = Db::instance()->prepare(
-			"SELECT 1
-			FROM information_schema.COLUMNS
-			WHERE TABLE_SCHEMA = DATABASE()
-				AND TABLE_NAME = ?
-				AND COLUMN_NAME = ?"
-		);
-		$stmt->execute([$table, $column]);
-
-		return (bool) $stmt->fetchColumn();
+		return DbSchemaHelper::columnExists($table, $column);
 	}
 }

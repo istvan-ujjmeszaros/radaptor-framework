@@ -197,10 +197,7 @@ class I18nRuntime
 			}
 		}
 
-		$locales = array_keys($locales);
-		sort($locales);
-
-		return $locales;
+		return array_keys($locales);
 	}
 
 	private static function _format(string $text, array $params, string $locale): string

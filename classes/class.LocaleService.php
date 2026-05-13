@@ -133,9 +133,13 @@ final class LocaleService
 
 	private static function isDoctorSafeBootstrap(): bool
 	{
+		if (defined('RADAPTOR_DOCTOR_SAFE') && (bool) constant('RADAPTOR_DOCTOR_SAFE')) {
+			return true;
+		}
+
 		return defined('RADAPTOR_CLI')
-			&& class_exists(EventResolver::class)
-			&& EventResolver::tryGetEventnameFromCommandline() === 'I18nDoctor';
+			&& class_exists(CLICommandResolver::class)
+			&& CLICommandResolver::getCommandSlugFromArgv() === 'i18n:doctor';
 	}
 
 	/**
@@ -143,7 +147,7 @@ final class LocaleService
 	 */
 	public static function enabledForUserChoice(): array
 	{
-		return self::loadLocales("WHERE `is_enabled` = 1 ORDER BY `sort_order`, `locale`");
+		return self::loadLocales(true);
 	}
 
 	/**
@@ -166,12 +170,11 @@ final class LocaleService
 	 */
 	public static function allForExistingContentEditing(?string $currentLocale = null): array
 	{
-		$locales = self::loadLocales('ORDER BY `sort_order`, `locale`');
+		$locales = self::loadLocales(false);
 		$current = $currentLocale !== null ? self::tryCanonicalize($currentLocale) : null;
 
 		if ($current !== null && !in_array($current, $locales, true)) {
 			$locales[] = $current;
-			sort($locales);
 		}
 
 		return $locales;
@@ -182,7 +185,7 @@ final class LocaleService
 	 */
 	public static function allForI18nMaintenance(): array
 	{
-		return self::loadLocales('ORDER BY `sort_order`, `locale`');
+		return self::loadLocales(false);
 	}
 
 	/**
@@ -215,16 +218,23 @@ final class LocaleService
 	/**
 	 * @return list<string>
 	 */
-	private static function loadLocales(string $suffix): array
+	private static function loadLocales(bool $enabled_only): array
 	{
 		try {
 			$pdo = Db::instance();
 
-			if ($pdo->query("SHOW TABLES LIKE 'locales'")->rowCount() === 0) {
+			if (!DbSchemaHelper::tableExists('locales', $pdo)) {
 				return I18nRuntime::getAvailableLocaleCodes();
 			}
 
-			$rows = $pdo->query("SELECT `locale` FROM `locales` {$suffix}")->fetchAll(PDO::FETCH_ASSOC);
+			$sql = "SELECT `locale` FROM `locales`";
+
+			if ($enabled_only) {
+				$sql .= " WHERE `is_enabled` = 1";
+			}
+
+			$sql .= " ORDER BY `sort_order`, `locale`";
+			$rows = $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
 			$locales = [];
 			$seen = [];
 

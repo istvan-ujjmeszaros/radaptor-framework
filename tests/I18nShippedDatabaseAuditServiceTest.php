@@ -5,6 +5,7 @@ declare(strict_types=1);
 use PHPUnit\Framework\TestCase;
 
 require_once __DIR__ . '/../classes/class.LocaleService.php';
+require_once __DIR__ . '/../classes/enum.CsvImportMode.php';
 require_once __DIR__ . '/../classes/class.I18nShippedDatabaseAuditService.php';
 
 final class I18nShippedDatabaseAuditServiceTest extends TestCase
@@ -164,5 +165,27 @@ final class I18nShippedDatabaseAuditServiceTest extends TestCase
 		$this->assertSame(['de-DE'], $result['sync_locales']);
 		$this->assertSame('radaptor i18n:sync-shipped --locale de-DE', $result['suggested_command']);
 		$this->assertSame('shipped_i18n_seed_import_error', $result['issues'][0]['code'] ?? null);
+		$this->assertSame('shipped_i18n_legacy_error', $result['issues'][0]['errors'][0]['code'] ?? null);
+	}
+
+	public function testMissingSeedFilesUseStructuredErrorPayloads(): void
+	{
+		$temp_dir = sys_get_temp_dir() . '/radaptor-i18n-audit-' . bin2hex(random_bytes(6));
+		mkdir($temp_dir);
+
+		try {
+			$result = I18nShippedDatabaseAuditService::auditTargets([[
+				'group_type' => 'core',
+				'group_id' => 'test',
+				'input_dir' => $temp_dir,
+			]], ['en-US']);
+		} finally {
+			rmdir($temp_dir);
+		}
+
+		$this->assertSame('error', $result['status']);
+		$this->assertSame('shipped_i18n_seed_import_error', $result['issues'][0]['code'] ?? null);
+		$this->assertSame('shipped_i18n_seed_file_missing', $result['issues'][0]['errors'][0]['code'] ?? null);
+		$this->assertSame($temp_dir . '/en-US.csv', $result['issues'][0]['errors'][0]['params']['file'] ?? null);
 	}
 }
