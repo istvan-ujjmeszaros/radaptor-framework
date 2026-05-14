@@ -82,12 +82,14 @@ final class LocaleAdminService
 
 	public static function setEnabled(string $locale, bool $enabled): string
 	{
-		$locale = self::ensureLocale($locale, $enabled);
+		$locale = LocaleService::canonicalize($locale);
 		$default_locale = LocaleService::getDefaultLocale();
 
 		if (!$enabled && $locale === $default_locale) {
 			throw new RuntimeException('APP_DEFAULT_LOCALE cannot be disabled.');
 		}
+
+		$locale = self::ensureLocale($locale, $enabled);
 
 		$stmt = Db::instance()->prepare("UPDATE `locales` SET `is_enabled` = ? WHERE `locale` = ?");
 		$stmt->execute([$enabled ? 1 : 0, $locale]);
