@@ -6,8 +6,6 @@ use PHPUnit\Framework\TestCase;
 
 final class LocaleAdminServiceTest extends TestCase
 {
-	private const string TEST_LOCALE = 'de-DE';
-	private const string TEST_LOCALE_SECONDARY = 'fr-FR';
 	private const string FAKE_DEFAULT_LOCALE = 'zz-ZZ';
 
 	private static bool $_runtime_bootstrapped = false;
@@ -49,24 +47,28 @@ final class LocaleAdminServiceTest extends TestCase
 
 	public function testSetEnabledTogglesIsEnabledColumn(): void
 	{
-		LocaleAdminService::ensureLocale(self::TEST_LOCALE, true);
+		$locale = $this->getNonDefaultTestLocale();
 
-		LocaleAdminService::setEnabled(self::TEST_LOCALE, false);
+		LocaleAdminService::ensureLocale($locale, true);
 
-		$this->assertSame(0, $this->fetchIsEnabled(self::TEST_LOCALE));
+		LocaleAdminService::setEnabled($locale, false);
 
-		LocaleAdminService::setEnabled(self::TEST_LOCALE, true);
+		$this->assertSame(0, $this->fetchIsEnabled($locale));
 
-		$this->assertSame(1, $this->fetchIsEnabled(self::TEST_LOCALE));
+		LocaleAdminService::setEnabled($locale, true);
+
+		$this->assertSame(1, $this->fetchIsEnabled($locale));
 	}
 
 	public function testEnsureLocaleIsIdempotent(): void
 	{
-		LocaleAdminService::ensureLocale(self::TEST_LOCALE_SECONDARY, true);
-		$first = $this->fetchRow(self::TEST_LOCALE_SECONDARY);
+		$locale = $this->getNonDefaultTestLocale(1);
 
-		LocaleAdminService::ensureLocale(self::TEST_LOCALE_SECONDARY, true);
-		$second = $this->fetchRow(self::TEST_LOCALE_SECONDARY);
+		LocaleAdminService::ensureLocale($locale, true);
+		$first = $this->fetchRow($locale);
+
+		LocaleAdminService::ensureLocale($locale, true);
+		$second = $this->fetchRow($locale);
 
 		$this->assertNotNull($first);
 		$this->assertNotNull($second);
@@ -166,6 +168,33 @@ final class LocaleAdminServiceTest extends TestCase
 		}
 
 		$this->_original_app_default_locale_env = null;
+	}
+
+	private function getNonDefaultTestLocale(int $offset = 0): string
+	{
+		$default = LocaleService::getDefaultLocale();
+		$candidates = [
+			'de-DE',
+			'fr-FR',
+			'es-ES',
+			'it-IT',
+			'pt-BR',
+			'pl-PL',
+			'ja-JP',
+			'ko-KR',
+			'ru-RU',
+			'zh-Hans-CN',
+		];
+		$locales = array_values(array_filter(
+			$candidates,
+			static fn (string $locale): bool => $locale !== $default
+		));
+
+		if (!isset($locales[$offset])) {
+			$this->fail('Unable to select a non-default test locale.');
+		}
+
+		return $locales[$offset];
 	}
 
 	private static function bootstrapConsumerRuntime(): void
