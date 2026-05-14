@@ -1,43 +1,43 @@
-domain,key,context,locale,source_text,expected_text,human_reviewed,text
-browser_event_docs,title,,hu-HU,"Browser Event API Docs","Böngészőesemény API dokumentáció",0,"Böngészőesemény API dokumentáció"
-browser_event_docs,fallback_title,,hu-HU,"Browser Event Docs","Böngészőesemény dokumentáció",0,"Böngészőesemény dokumentáció"
-browser_event_docs,unknown_event,,hu-HU,"Unknown event","Ismeretlen esemény",0,"Ismeretlen esemény"
-browser_event_docs,lead,,hu-HU,"Curated manual for important browser events. Total documented events: {total}","Válogatott kézikönyv a fontos böngészőeseményekhez. Dokumentált események száma: {total}",0,"Válogatott kézikönyv a fontos böngészőeseményekhez. Dokumentált események száma: {total}"
-browser_event_docs,empty_prefix,,hu-HU,"No browser event docs were generated yet. Run","Még nem készült böngészőesemény dokumentáció. Futtasd",0,"Még nem készült böngészőesemény dokumentáció. Futtasd"
-browser_event_docs,back_to_index,,hu-HU,"Back to Browser Event API Docs","Vissza a böngészőesemény API dokumentációhoz",0,"Vissza a böngészőesemény API dokumentációhoz"
-browser_event_docs,col.name,,hu-HU,Name,Név,0,Név
-browser_event_docs,col.route,,hu-HU,Route,Útvonal,0,Útvonal
-browser_event_docs,col.slug,,hu-HU,Slug,Slug,0,Slug
-browser_event_docs,col.summary,,hu-HU,Summary,Összefoglaló,0,Összefoglaló
-browser_event_docs,section.description,,hu-HU,Description,Leírás,0,Leírás
-browser_event_docs,section.identity,,hu-HU,Identity,Azonosítás,0,Azonosítás
-browser_event_docs,identity.slug,,hu-HU,Slug,Slug,0,Slug
-browser_event_docs,identity.event_name,,hu-HU,"Event Name",Eseménynév,0,Eseménynév
-browser_event_docs,identity.browser_route,,hu-HU,"Browser Route","Böngésző útvonal",0,"Böngésző útvonal"
-browser_event_docs,identity.class,,hu-HU,Class,Osztály,0,Osztály
-browser_event_docs,section.authorization,,hu-HU,Authorization,Jogosultság,0,Jogosultság
-browser_event_docs,authorization.visibility,,hu-HU,Visibility,Láthatóság,0,Láthatóság
-browser_event_docs,authorization.description,,hu-HU,Description,Leírás,0,Leírás
-browser_event_docs,section.request_response,,hu-HU,"Request / Response","Kérés / válasz",0,"Kérés / válasz"
-browser_event_docs,request.method,,hu-HU,Method,Metódus,0,Metódus
-browser_event_docs,response.kind,,hu-HU,"Response Kind","Válasz típusa",0,"Válasz típusa"
-browser_event_docs,response.content_type,,hu-HU,"Content Type",Tartalomtípus,0,Tartalomtípus
-browser_event_docs,response.description,,hu-HU,"Response Description","Válasz leírása",0,"Válasz leírása"
-browser_event_docs,section.invocation,,hu-HU,"How to Call This","Meghívás módja",0,"Meghívás módja"
-browser_event_docs,invocation.url_php,,hu-HU,"PHP URL Helper","PHP URL helper",0,"PHP URL helper"
-browser_event_docs,invocation.template_helper,,hu-HU,"Template Helper","Sablon helper",0,"Sablon helper"
-browser_event_docs,invocation.ajax_helper,,hu-HU,"AJAX Helper","AJAX Helper",0,"AJAX Helper"
-browser_event_docs,invocation.ajax_helper_raw,,hu-HU,"AJAX Helper Raw","AJAX helper nyersen",0,"AJAX helper nyersen"
-browser_event_docs,section.parameters,,hu-HU,Parameters,Paraméterek,0,Paraméterek
-browser_event_docs,parameters.empty,,hu-HU,"No parameters documented.","Nincs dokumentált paraméter.",0,"Nincs dokumentált paraméter."
-browser_event_docs,parameter.name,,hu-HU,Name,Név,0,Név
-browser_event_docs,parameter.source,,hu-HU,Source,Forrás,0,Forrás
-browser_event_docs,parameter.type,,hu-HU,Type,Típus,0,Típus
-browser_event_docs,parameter.required,,hu-HU,Required,Kötelező,0,Kötelező
-browser_event_docs,parameter.description,,hu-HU,Description,Leírás,0,Leírás
-browser_event_docs,required_yes,,hu-HU,yes,igen,0,igen
-browser_event_docs,required_no,,hu-HU,no,nem,0,nem
-browser_event_docs,section.notes,,hu-HU,Notes,Megjegyzések,0,Megjegyzések
-browser_event_docs,section.side_effects,,hu-HU,"Side Effects",Mellékhatások,0,Mellékhatások
-runtime.site_cutover,readonly_title,,hu-HU,"Site is read-only","Az oldal csak olvasható",0,"Az oldal csak olvasható"
-runtime.site_cutover,readonly_message,,hu-HU,"This site instance is locked read-only after a site migration export. Use the new site instance for further work, or explicitly release the cutover lock if you understand that the previous migration export may become inconsistent.","Ez a webhelypéldány egy webhely-költöztetési export után csak olvasható módba lett zárva. A további munkához használd az új webhelypéldányt, vagy oldd fel kifejezetten a cutover zárat, ha érted, hogy a korábbi költöztetési export inkonzisztenssé válhat.",0,"Ez a webhelypéldány egy webhely-költöztetési export után csak olvasható módba lett zárva. A további munkához használd az új webhelypéldányt, vagy oldd fel kifejezetten a cutover zárat, ha érted, hogy a korábbi költöztetési export inkonzisztenssé válhat."
+domain,key,context,locale,source_text,expected_text,human_reviewed,allow_source_match,text
+browser_event_docs,title,,hu-HU,"Browser Event API Docs","Böngészőesemény API dokumentáció",0,0,"Böngészőesemény API dokumentáció"
+browser_event_docs,fallback_title,,hu-HU,"Browser Event Docs","Böngészőesemény dokumentáció",0,0,"Böngészőesemény dokumentáció"
+browser_event_docs,unknown_event,,hu-HU,"Unknown event","Ismeretlen esemény",0,0,"Ismeretlen esemény"
+browser_event_docs,lead,,hu-HU,"Curated manual for important browser events. Total documented events: {total}","Válogatott kézikönyv a fontos böngészőeseményekhez. Dokumentált események száma: {total}",0,0,"Válogatott kézikönyv a fontos böngészőeseményekhez. Dokumentált események száma: {total}"
+browser_event_docs,empty_prefix,,hu-HU,"No browser event docs were generated yet. Run","Még nem készült böngészőesemény dokumentáció. Futtasd",0,0,"Még nem készült böngészőesemény dokumentáció. Futtasd"
+browser_event_docs,back_to_index,,hu-HU,"Back to Browser Event API Docs","Vissza a böngészőesemény API dokumentációhoz",0,0,"Vissza a böngészőesemény API dokumentációhoz"
+browser_event_docs,col.name,,hu-HU,Name,Név,0,0,Név
+browser_event_docs,col.route,,hu-HU,Route,Útvonal,0,0,Útvonal
+browser_event_docs,col.slug,,hu-HU,Slug,Slug,0,1,Slug
+browser_event_docs,col.summary,,hu-HU,Summary,Összefoglaló,0,0,Összefoglaló
+browser_event_docs,section.description,,hu-HU,Description,Leírás,0,0,Leírás
+browser_event_docs,section.identity,,hu-HU,Identity,Azonosítás,0,0,Azonosítás
+browser_event_docs,identity.slug,,hu-HU,Slug,Slug,0,1,Slug
+browser_event_docs,identity.event_name,,hu-HU,"Event Name",Eseménynév,0,0,Eseménynév
+browser_event_docs,identity.browser_route,,hu-HU,"Browser Route","Böngésző útvonal",0,0,"Böngésző útvonal"
+browser_event_docs,identity.class,,hu-HU,Class,Osztály,0,0,Osztály
+browser_event_docs,section.authorization,,hu-HU,Authorization,Jogosultság,0,0,Jogosultság
+browser_event_docs,authorization.visibility,,hu-HU,Visibility,Láthatóság,0,0,Láthatóság
+browser_event_docs,authorization.description,,hu-HU,Description,Leírás,0,0,Leírás
+browser_event_docs,section.request_response,,hu-HU,"Request / Response","Kérés / válasz",0,0,"Kérés / válasz"
+browser_event_docs,request.method,,hu-HU,Method,Metódus,0,0,Metódus
+browser_event_docs,response.kind,,hu-HU,"Response Kind","Válasz típusa",0,0,"Válasz típusa"
+browser_event_docs,response.content_type,,hu-HU,"Content Type",Tartalomtípus,0,0,Tartalomtípus
+browser_event_docs,response.description,,hu-HU,"Response Description","Válasz leírása",0,0,"Válasz leírása"
+browser_event_docs,section.invocation,,hu-HU,"How to Call This","Meghívás módja",0,0,"Meghívás módja"
+browser_event_docs,invocation.url_php,,hu-HU,"PHP URL Helper","PHP URL helper",0,0,"PHP URL helper"
+browser_event_docs,invocation.template_helper,,hu-HU,"Template Helper","Sablon helper",0,0,"Sablon helper"
+browser_event_docs,invocation.ajax_helper,,hu-HU,"AJAX Helper","AJAX Helper",0,1,"AJAX Helper"
+browser_event_docs,invocation.ajax_helper_raw,,hu-HU,"AJAX Helper Raw","AJAX helper nyersen",0,0,"AJAX helper nyersen"
+browser_event_docs,section.parameters,,hu-HU,Parameters,Paraméterek,0,0,Paraméterek
+browser_event_docs,parameters.empty,,hu-HU,"No parameters documented.","Nincs dokumentált paraméter.",0,0,"Nincs dokumentált paraméter."
+browser_event_docs,parameter.name,,hu-HU,Name,Név,0,0,Név
+browser_event_docs,parameter.source,,hu-HU,Source,Forrás,0,0,Forrás
+browser_event_docs,parameter.type,,hu-HU,Type,Típus,0,0,Típus
+browser_event_docs,parameter.required,,hu-HU,Required,Kötelező,0,0,Kötelező
+browser_event_docs,parameter.description,,hu-HU,Description,Leírás,0,0,Leírás
+browser_event_docs,required_yes,,hu-HU,yes,igen,0,0,igen
+browser_event_docs,required_no,,hu-HU,no,nem,0,0,nem
+browser_event_docs,section.notes,,hu-HU,Notes,Megjegyzések,0,0,Megjegyzések
+browser_event_docs,section.side_effects,,hu-HU,"Side Effects",Mellékhatások,0,0,Mellékhatások
+runtime.site_cutover,readonly_title,,hu-HU,"Site is read-only","Az oldal csak olvasható",0,0,"Az oldal csak olvasható"
+runtime.site_cutover,readonly_message,,hu-HU,"This site instance is locked read-only after a site migration export. Use the new site instance for further work, or explicitly release the cutover lock if you understand that the previous migration export may become inconsistent.","Ez a webhelypéldány egy webhely-költöztetési export után csak olvasható módba lett zárva. A további munkához használd az új webhelypéldányt, vagy oldd fel kifejezetten a cutover zárat, ha érted, hogy a korábbi költöztetési export inkonzisztenssé válhat.",0,0,"Ez a webhelypéldány egy webhely-költöztetési export után csak olvasható módba lett zárva. A további munkához használd az új webhelypéldányt, vagy oldd fel kifejezetten a cutover zárat, ha érted, hogy a korábbi költöztetési export inkonzisztenssé válhat."

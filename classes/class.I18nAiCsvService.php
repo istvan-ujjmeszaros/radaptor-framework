@@ -4,16 +4,7 @@ declare(strict_types=1);
 
 class I18nAiCsvService
 {
-	private const array NORMALIZED_HEADER = [
-		'domain',
-		'key',
-		'context',
-		'locale',
-		'source_text',
-		'expected_text',
-		'human_reviewed',
-		'text',
-	];
+	private const array NORMALIZED_HEADER = I18nCsvSchema::NORMALIZED_HEADER;
 
 	/**
 	 * @param array{
@@ -69,6 +60,7 @@ class I18nAiCsvService
 				m.source_text,
 				COALESCE(t.text, '') AS expected_text,
 				'0' AS human_reviewed,
+				CASE WHEN COALESCE(t.allow_source_match, 0) = 1 THEN '1' ELSE '0' END AS allow_source_match,
 				COALESCE(t.text, '') AS text
 			FROM i18n_messages m
 			LEFT JOIN i18n_translations t
@@ -431,7 +423,8 @@ class I18nAiCsvService
 				m.source_hash,
 				t.locale,
 				t.text AS translation_text,
-				t.human_reviewed
+				t.human_reviewed,
+				t.allow_source_match
 			FROM i18n_messages m
 			LEFT JOIN i18n_translations t
 				ON t.domain = m.domain

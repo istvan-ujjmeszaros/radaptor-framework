@@ -1,43 +1,43 @@
-domain,key,context,locale,source_text,expected_text,human_reviewed,text
-browser_event_docs,title,,zh-Hans-CN,"Browser Event API Docs","浏览器事件 API 文档",0,"浏览器事件 API 文档"
-browser_event_docs,fallback_title,,zh-Hans-CN,"Browser Event Docs",浏览器事件文档,0,浏览器事件文档
-browser_event_docs,unknown_event,,zh-Hans-CN,"Unknown event",未知事件,0,未知事件
-browser_event_docs,lead,,zh-Hans-CN,"Curated manual for important browser events. Total documented events: {total}",重要浏览器事件的精选手册。已记录事件总数：{total},0,重要浏览器事件的精选手册。已记录事件总数：{total}
-browser_event_docs,empty_prefix,,zh-Hans-CN,"No browser event docs were generated yet. Run",尚未生成浏览器事件文档。运行,0,尚未生成浏览器事件文档。运行
-browser_event_docs,back_to_index,,zh-Hans-CN,"Back to Browser Event API Docs","返回浏览器事件 API 文档",0,"返回浏览器事件 API 文档"
-browser_event_docs,col.name,,zh-Hans-CN,Name,名称,0,名称
-browser_event_docs,col.route,,zh-Hans-CN,Route,路由,0,路由
-browser_event_docs,col.slug,,zh-Hans-CN,Slug,Slug,0,Slug
-browser_event_docs,col.summary,,zh-Hans-CN,Summary,摘要,0,摘要
-browser_event_docs,section.description,,zh-Hans-CN,Description,描述,0,描述
-browser_event_docs,section.identity,,zh-Hans-CN,Identity,身份,0,身份
-browser_event_docs,identity.slug,,zh-Hans-CN,Slug,Slug,0,Slug
-browser_event_docs,identity.event_name,,zh-Hans-CN,"Event Name",事件名称,0,事件名称
-browser_event_docs,identity.browser_route,,zh-Hans-CN,"Browser Route",浏览器路由,0,浏览器路由
-browser_event_docs,identity.class,,zh-Hans-CN,Class,类,0,类
-browser_event_docs,section.authorization,,zh-Hans-CN,Authorization,授权,0,授权
-browser_event_docs,authorization.visibility,,zh-Hans-CN,Visibility,可见性,0,可见性
-browser_event_docs,authorization.description,,zh-Hans-CN,Description,描述,0,描述
-browser_event_docs,section.request_response,,zh-Hans-CN,"Request / Response","请求 / 响应",0,"请求 / 响应"
-browser_event_docs,request.method,,zh-Hans-CN,Method,方法,0,方法
-browser_event_docs,response.kind,,zh-Hans-CN,"Response Kind",响应类型,0,响应类型
-browser_event_docs,response.content_type,,zh-Hans-CN,"Content Type",内容类型,0,内容类型
-browser_event_docs,response.description,,zh-Hans-CN,"Response Description",响应描述,0,响应描述
-browser_event_docs,section.invocation,,zh-Hans-CN,"How to Call This",如何调用,0,如何调用
-browser_event_docs,invocation.url_php,,zh-Hans-CN,"PHP URL Helper","PHP URL 辅助函数",0,"PHP URL 辅助函数"
-browser_event_docs,invocation.template_helper,,zh-Hans-CN,"Template Helper",模板辅助函数,0,模板辅助函数
-browser_event_docs,invocation.ajax_helper,,zh-Hans-CN,"AJAX Helper","AJAX Helper",0,"AJAX Helper"
-browser_event_docs,invocation.ajax_helper_raw,,zh-Hans-CN,"AJAX Helper Raw","AJAX 辅助函数原始",0,"AJAX 辅助函数原始"
-browser_event_docs,section.parameters,,zh-Hans-CN,Parameters,参数,0,参数
-browser_event_docs,parameters.empty,,zh-Hans-CN,"No parameters documented.",没有记录参数。,0,没有记录参数。
-browser_event_docs,parameter.name,,zh-Hans-CN,Name,名称,0,名称
-browser_event_docs,parameter.source,,zh-Hans-CN,Source,来源,0,来源
-browser_event_docs,parameter.type,,zh-Hans-CN,Type,类型,0,类型
-browser_event_docs,parameter.required,,zh-Hans-CN,Required,必填,0,必填
-browser_event_docs,parameter.description,,zh-Hans-CN,Description,描述,0,描述
-browser_event_docs,required_yes,,zh-Hans-CN,yes,是,0,是
-browser_event_docs,required_no,,zh-Hans-CN,no,否,0,否
-browser_event_docs,section.notes,,zh-Hans-CN,Notes,备注,0,备注
-browser_event_docs,section.side_effects,,zh-Hans-CN,"Side Effects",副作用,0,副作用
-runtime.site_cutover,readonly_title,,zh-Hans-CN,"Site is read-only","Site is read-only",0,"Site is read-only"
-runtime.site_cutover,readonly_message,,zh-Hans-CN,"This site instance is locked read-only after a site migration export. Use the new site instance for further work, or explicitly release the cutover lock if you understand that the previous migration export may become inconsistent.","This site instance is locked read-only after a site migration export. Use the new site instance for further work, or explicitly release the cutover lock if you understand that the previous migration export may become inconsistent.",0,"This site instance is locked read-only after a site migration export. Use the new site instance for further work, or explicitly release the cutover lock if you understand that the previous migration export may become inconsistent."
+domain,key,context,locale,source_text,expected_text,human_reviewed,allow_source_match,text
+browser_event_docs,title,,zh-Hans-CN,"Browser Event API Docs","浏览器事件 API 文档",0,0,"浏览器事件 API 文档"
+browser_event_docs,fallback_title,,zh-Hans-CN,"Browser Event Docs",浏览器事件文档,0,0,浏览器事件文档
+browser_event_docs,unknown_event,,zh-Hans-CN,"Unknown event",未知事件,0,0,未知事件
+browser_event_docs,lead,,zh-Hans-CN,"Curated manual for important browser events. Total documented events: {total}",重要浏览器事件的精选手册。已记录事件总数：{total},0,0,重要浏览器事件的精选手册。已记录事件总数：{total}
+browser_event_docs,empty_prefix,,zh-Hans-CN,"No browser event docs were generated yet. Run",尚未生成浏览器事件文档。运行,0,0,尚未生成浏览器事件文档。运行
+browser_event_docs,back_to_index,,zh-Hans-CN,"Back to Browser Event API Docs","返回浏览器事件 API 文档",0,0,"返回浏览器事件 API 文档"
+browser_event_docs,col.name,,zh-Hans-CN,Name,名称,0,0,名称
+browser_event_docs,col.route,,zh-Hans-CN,Route,路由,0,0,路由
+browser_event_docs,col.slug,,zh-Hans-CN,Slug,Slug,0,1,Slug
+browser_event_docs,col.summary,,zh-Hans-CN,Summary,摘要,0,0,摘要
+browser_event_docs,section.description,,zh-Hans-CN,Description,描述,0,0,描述
+browser_event_docs,section.identity,,zh-Hans-CN,Identity,身份,0,0,身份
+browser_event_docs,identity.slug,,zh-Hans-CN,Slug,Slug,0,1,Slug
+browser_event_docs,identity.event_name,,zh-Hans-CN,"Event Name",事件名称,0,0,事件名称
+browser_event_docs,identity.browser_route,,zh-Hans-CN,"Browser Route",浏览器路由,0,0,浏览器路由
+browser_event_docs,identity.class,,zh-Hans-CN,Class,类,0,0,类
+browser_event_docs,section.authorization,,zh-Hans-CN,Authorization,授权,0,0,授权
+browser_event_docs,authorization.visibility,,zh-Hans-CN,Visibility,可见性,0,0,可见性
+browser_event_docs,authorization.description,,zh-Hans-CN,Description,描述,0,0,描述
+browser_event_docs,section.request_response,,zh-Hans-CN,"Request / Response","请求 / 响应",0,0,"请求 / 响应"
+browser_event_docs,request.method,,zh-Hans-CN,Method,方法,0,0,方法
+browser_event_docs,response.kind,,zh-Hans-CN,"Response Kind",响应类型,0,0,响应类型
+browser_event_docs,response.content_type,,zh-Hans-CN,"Content Type",内容类型,0,0,内容类型
+browser_event_docs,response.description,,zh-Hans-CN,"Response Description",响应描述,0,0,响应描述
+browser_event_docs,section.invocation,,zh-Hans-CN,"How to Call This",如何调用,0,0,如何调用
+browser_event_docs,invocation.url_php,,zh-Hans-CN,"PHP URL Helper","PHP URL 辅助函数",0,0,"PHP URL 辅助函数"
+browser_event_docs,invocation.template_helper,,zh-Hans-CN,"Template Helper",模板辅助函数,0,0,模板辅助函数
+browser_event_docs,invocation.ajax_helper,,zh-Hans-CN,"AJAX Helper","AJAX Helper",0,1,"AJAX Helper"
+browser_event_docs,invocation.ajax_helper_raw,,zh-Hans-CN,"AJAX Helper Raw","AJAX 辅助函数原始",0,0,"AJAX 辅助函数原始"
+browser_event_docs,section.parameters,,zh-Hans-CN,Parameters,参数,0,0,参数
+browser_event_docs,parameters.empty,,zh-Hans-CN,"No parameters documented.",没有记录参数。,0,0,没有记录参数。
+browser_event_docs,parameter.name,,zh-Hans-CN,Name,名称,0,0,名称
+browser_event_docs,parameter.source,,zh-Hans-CN,Source,来源,0,0,来源
+browser_event_docs,parameter.type,,zh-Hans-CN,Type,类型,0,0,类型
+browser_event_docs,parameter.required,,zh-Hans-CN,Required,必填,0,0,必填
+browser_event_docs,parameter.description,,zh-Hans-CN,Description,描述,0,0,描述
+browser_event_docs,required_yes,,zh-Hans-CN,yes,是,0,0,是
+browser_event_docs,required_no,,zh-Hans-CN,no,否,0,0,否
+browser_event_docs,section.notes,,zh-Hans-CN,Notes,备注,0,0,备注
+browser_event_docs,section.side_effects,,zh-Hans-CN,"Side Effects",副作用,0,0,副作用
+runtime.site_cutover,readonly_title,,zh-Hans-CN,"Site is read-only","Site is read-only",0,1,"Site is read-only"
+runtime.site_cutover,readonly_message,,zh-Hans-CN,"This site instance is locked read-only after a site migration export. Use the new site instance for further work, or explicitly release the cutover lock if you understand that the previous migration export may become inconsistent.","This site instance is locked read-only after a site migration export. Use the new site instance for further work, or explicitly release the cutover lock if you understand that the previous migration export may become inconsistent.",0,1,"This site instance is locked read-only after a site migration export. Use the new site instance for further work, or explicitly release the cutover lock if you understand that the previous migration export may become inconsistent."
