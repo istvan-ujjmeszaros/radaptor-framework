@@ -494,6 +494,7 @@ class I18nShippedDatabaseAuditService
 			$message_key = self::buildMessageKey($domain, $key, $context);
 			$message = $existing_messages[$message_key] ?? null;
 			$source_hash = self::resolveSourceHashForSeedRow($row, $message);
+			$source_text = self::resolveSourceTextForSeedRow($row, $message);
 
 			if ($source_hash === null) {
 				$errors[] = self::error('source_message_missing', [
@@ -510,6 +511,7 @@ class I18nShippedDatabaseAuditService
 			$natural_key = self::buildTranslationKey($domain, $key, $context, $locale);
 			$existing = $existing_translations[$natural_key] ?? null;
 			$existing_human_reviewed = self::normalizeHumanReviewed($existing['human_reviewed'] ?? 0);
+			$existing_allow_source_match = self::normalizeAllowSourceMatch($existing['allow_source_match'] ?? 0);
 
 			if (
 				$existing !== null
@@ -524,6 +526,13 @@ class I18nShippedDatabaseAuditService
 			}
 
 			$target_human_reviewed = self::resolveImportedHumanReviewed($existing, $row['human_reviewed'] ?? '');
+			$target_allow_source_match = self::resolveImportedAllowSourceMatch(
+				$existing,
+				$row['allow_source_match'] ?? '',
+				$locale,
+				$source_text,
+				$text
+			);
 
 			if ($existing === null) {
 				$inserted++;
@@ -534,6 +543,7 @@ class I18nShippedDatabaseAuditService
 
 			$unchanged = (string) ($existing['text'] ?? '') === $text
 				&& $existing_human_reviewed === $target_human_reviewed
+				&& $existing_allow_source_match === $target_allow_source_match
 				&& (string) ($existing['source_hash_snapshot'] ?? '') === $source_hash;
 
 			if ($unchanged) {
@@ -582,6 +592,21 @@ class I18nShippedDatabaseAuditService
 	}
 
 	/**
+	 * @param array<string, string|int> $row
+	 * @param array<string, mixed>|null $message
+	 */
+	private static function resolveSourceTextForSeedRow(array $row, ?array $message): string
+	{
+		$source_text = trim((string) ($row['source_text'] ?? ''));
+
+		if ($source_text !== '') {
+			return $source_text;
+		}
+
+		return $message !== null ? (string) ($message['source_text'] ?? '') : '';
+	}
+
+	/**
 	 * @param list<array<string, string|int>> $rows
 	 * @return array<string, array<string, mixed>>
 	 */
@@ -597,7 +622,7 @@ class I18nShippedDatabaseAuditService
 		$domain_placeholders = implode(', ', array_fill(0, count($domains), '?'));
 		$locale_placeholders = implode(', ', array_fill(0, count($locales), '?'));
 		$stmt = Db::instance()->prepare(
-			"SELECT domain, `key`, context, locale, `text`, human_reviewed, source_hash_snapshot
+			"SELECT domain, `key`, context, locale, `text`, human_reviewed, allow_source_match, source_hash_snapshot
 			FROM i18n_translations
 			WHERE domain IN ({$domain_placeholders})
 				AND locale IN ({$locale_placeholders})"
@@ -631,7 +656,7 @@ class I18nShippedDatabaseAuditService
 
 		$placeholders = implode(', ', array_fill(0, count($domains), '?'));
 		$stmt = Db::instance()->prepare(
-			"SELECT domain, `key`, context, source_hash
+			"SELECT domain, `key`, context, source_text, source_hash
 			FROM i18n_messages
 			WHERE domain IN ({$placeholders})"
 		);
@@ -736,6 +761,27 @@ class I18nShippedDatabaseAuditService
 		}
 
 		return $requested;
+	}
+
+	/**
+	 * @param array<string, mixed>|null $existing
+	 */
+	private static function resolveImportedAllowSourceMatch(
+		?array $existing,
+		mixed $requested_allow_source_match,
+		string $locale,
+		string $source_text,
+		string $text
+	): bool {
+		$requested = I18nCsvSchema::normalizeImportedBoolean($requested_allow_source_match);
+		$target = $requested ?? ($existing !== null && self::normalizeAllowSourceMatch($existing['allow_source_match'] ?? 0));
+
+		return $target && I18nCsvSchema::isEligibleSourceMatch($locale, $source_text, $text);
+	}
+
+	private static function normalizeAllowSourceMatch(mixed $value): bool
+	{
+		return I18nCsvSchema::normalizeBoolean($value);
 	}
 
 	private static function normalizeHumanReviewed(mixed $value): bool

@@ -127,7 +127,7 @@ class Migration_20260508_090000_bcp47_locale_registry
 
 		$columns = ['domain', 'key', 'context', 'locale'];
 
-		foreach (['text', 'human_reviewed', 'source_hash_snapshot'] as $column) {
+		foreach (['text', 'human_reviewed', 'allow_source_match', 'source_hash_snapshot'] as $column) {
 			if ($this->columnExists($pdo, 'i18n_translations', $column)) {
 				$columns[] = $column;
 			}

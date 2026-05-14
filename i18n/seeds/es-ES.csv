@@ -1,43 +1,43 @@
-domain,key,context,locale,source_text,expected_text,human_reviewed,text
-browser_event_docs,title,,es-ES,"Browser Event API Docs","Documentación de la API de eventos del navegador",0,"Documentación de la API de eventos del navegador"
-browser_event_docs,fallback_title,,es-ES,"Browser Event Docs","Documentación de eventos del navegador",0,"Documentación de eventos del navegador"
-browser_event_docs,unknown_event,,es-ES,"Unknown event","Evento desconocido",0,"Evento desconocido"
-browser_event_docs,lead,,es-ES,"Curated manual for important browser events. Total documented events: {total}","Manual curado de eventos importantes del navegador. Total de eventos documentados: {total}",0,"Manual curado de eventos importantes del navegador. Total de eventos documentados: {total}"
-browser_event_docs,empty_prefix,,es-ES,"No browser event docs were generated yet. Run","Todavía no se generó documentación de eventos del navegador. Ejecuta",0,"Todavía no se generó documentación de eventos del navegador. Ejecuta"
-browser_event_docs,back_to_index,,es-ES,"Back to Browser Event API Docs","Volver a la documentación de la API de eventos del navegador",0,"Volver a la documentación de la API de eventos del navegador"
-browser_event_docs,col.name,,es-ES,Name,Nombre,0,Nombre
-browser_event_docs,col.route,,es-ES,Route,Ruta,0,Ruta
-browser_event_docs,col.slug,,es-ES,Slug,Slug,0,Slug
-browser_event_docs,col.summary,,es-ES,Summary,Resumen,0,Resumen
-browser_event_docs,section.description,,es-ES,Description,Descripción,0,Descripción
-browser_event_docs,section.identity,,es-ES,Identity,Identidad,0,Identidad
-browser_event_docs,identity.slug,,es-ES,Slug,Slug,0,Slug
-browser_event_docs,identity.event_name,,es-ES,"Event Name","Nombre del evento",0,"Nombre del evento"
-browser_event_docs,identity.browser_route,,es-ES,"Browser Route","Ruta del navegador",0,"Ruta del navegador"
-browser_event_docs,identity.class,,es-ES,Class,Clase,0,Clase
-browser_event_docs,section.authorization,,es-ES,Authorization,Autorización,0,Autorización
-browser_event_docs,authorization.visibility,,es-ES,Visibility,Visibilidad,0,Visibilidad
-browser_event_docs,authorization.description,,es-ES,Description,Descripción,0,Descripción
-browser_event_docs,section.request_response,,es-ES,"Request / Response","Solicitud / respuesta",0,"Solicitud / respuesta"
-browser_event_docs,request.method,,es-ES,Method,Método,0,Método
-browser_event_docs,response.kind,,es-ES,"Response Kind","Tipo de respuesta",0,"Tipo de respuesta"
-browser_event_docs,response.content_type,,es-ES,"Content Type","Tipo de contenido",0,"Tipo de contenido"
-browser_event_docs,response.description,,es-ES,"Response Description","Descripción de la respuesta",0,"Descripción de la respuesta"
-browser_event_docs,section.invocation,,es-ES,"How to Call This","Cómo llamar esto",0,"Cómo llamar esto"
-browser_event_docs,invocation.url_php,,es-ES,"PHP URL Helper","Helper de URL PHP",0,"Helper de URL PHP"
-browser_event_docs,invocation.template_helper,,es-ES,"Template Helper","Helper de plantilla",0,"Helper de plantilla"
-browser_event_docs,invocation.ajax_helper,,es-ES,"AJAX Helper","AJAX Helper",0,"AJAX Helper"
-browser_event_docs,invocation.ajax_helper_raw,,es-ES,"AJAX Helper Raw","AJAX Helper sin procesar",0,"AJAX Helper sin procesar"
-browser_event_docs,section.parameters,,es-ES,Parameters,Parámetros,0,Parámetros
-browser_event_docs,parameters.empty,,es-ES,"No parameters documented.","No hay parámetros documentados.",0,"No hay parámetros documentados."
-browser_event_docs,parameter.name,,es-ES,Name,Nombre,0,Nombre
-browser_event_docs,parameter.source,,es-ES,Source,Origen,0,Origen
-browser_event_docs,parameter.type,,es-ES,Type,Tipo,0,Tipo
-browser_event_docs,parameter.required,,es-ES,Required,Obligatorio,0,Obligatorio
-browser_event_docs,parameter.description,,es-ES,Description,Descripción,0,Descripción
-browser_event_docs,required_yes,,es-ES,yes,sí,0,sí
-browser_event_docs,required_no,,es-ES,no,no,0,no
-browser_event_docs,section.notes,,es-ES,Notes,Notas,0,Notas
-browser_event_docs,section.side_effects,,es-ES,"Side Effects","Efectos secundarios",0,"Efectos secundarios"
-runtime.site_cutover,readonly_title,,es-ES,"Site is read-only","Site is read-only",0,"Site is read-only"
-runtime.site_cutover,readonly_message,,es-ES,"This site instance is locked read-only after a site migration export. Use the new site instance for further work, or explicitly release the cutover lock if you understand that the previous migration export may become inconsistent.","This site instance is locked read-only after a site migration export. Use the new site instance for further work, or explicitly release the cutover lock if you understand that the previous migration export may become inconsistent.",0,"This site instance is locked read-only after a site migration export. Use the new site instance for further work, or explicitly release the cutover lock if you understand that the previous migration export may become inconsistent."
+domain,key,context,locale,source_text,expected_text,human_reviewed,allow_source_match,text
+browser_event_docs,title,,es-ES,"Browser Event API Docs","Documentación de la API de eventos del navegador",0,0,"Documentación de la API de eventos del navegador"
+browser_event_docs,fallback_title,,es-ES,"Browser Event Docs","Documentación de eventos del navegador",0,0,"Documentación de eventos del navegador"
+browser_event_docs,unknown_event,,es-ES,"Unknown event","Evento desconocido",0,0,"Evento desconocido"
+browser_event_docs,lead,,es-ES,"Curated manual for important browser events. Total documented events: {total}","Manual curado de eventos importantes del navegador. Total de eventos documentados: {total}",0,0,"Manual curado de eventos importantes del navegador. Total de eventos documentados: {total}"
+browser_event_docs,empty_prefix,,es-ES,"No browser event docs were generated yet. Run","Todavía no se generó documentación de eventos del navegador. Ejecuta",0,0,"Todavía no se generó documentación de eventos del navegador. Ejecuta"
+browser_event_docs,back_to_index,,es-ES,"Back to Browser Event API Docs","Volver a la documentación de la API de eventos del navegador",0,0,"Volver a la documentación de la API de eventos del navegador"
+browser_event_docs,col.name,,es-ES,Name,Nombre,0,0,Nombre
+browser_event_docs,col.route,,es-ES,Route,Ruta,0,0,Ruta
+browser_event_docs,col.slug,,es-ES,Slug,Slug,0,1,Slug
+browser_event_docs,col.summary,,es-ES,Summary,Resumen,0,0,Resumen
+browser_event_docs,section.description,,es-ES,Description,Descripción,0,0,Descripción
+browser_event_docs,section.identity,,es-ES,Identity,Identidad,0,0,Identidad
+browser_event_docs,identity.slug,,es-ES,Slug,Slug,0,1,Slug
+browser_event_docs,identity.event_name,,es-ES,"Event Name","Nombre del evento",0,0,"Nombre del evento"
+browser_event_docs,identity.browser_route,,es-ES,"Browser Route","Ruta del navegador",0,0,"Ruta del navegador"
+browser_event_docs,identity.class,,es-ES,Class,Clase,0,0,Clase
+browser_event_docs,section.authorization,,es-ES,Authorization,Autorización,0,0,Autorización
+browser_event_docs,authorization.visibility,,es-ES,Visibility,Visibilidad,0,0,Visibilidad
+browser_event_docs,authorization.description,,es-ES,Description,Descripción,0,0,Descripción
+browser_event_docs,section.request_response,,es-ES,"Request / Response","Solicitud / respuesta",0,0,"Solicitud / respuesta"
+browser_event_docs,request.method,,es-ES,Method,Método,0,0,Método
+browser_event_docs,response.kind,,es-ES,"Response Kind","Tipo de respuesta",0,0,"Tipo de respuesta"
+browser_event_docs,response.content_type,,es-ES,"Content Type","Tipo de contenido",0,0,"Tipo de contenido"
+browser_event_docs,response.description,,es-ES,"Response Description","Descripción de la respuesta",0,0,"Descripción de la respuesta"
+browser_event_docs,section.invocation,,es-ES,"How to Call This","Cómo llamar esto",0,0,"Cómo llamar esto"
+browser_event_docs,invocation.url_php,,es-ES,"PHP URL Helper","Helper de URL PHP",0,0,"Helper de URL PHP"
+browser_event_docs,invocation.template_helper,,es-ES,"Template Helper","Helper de plantilla",0,0,"Helper de plantilla"
+browser_event_docs,invocation.ajax_helper,,es-ES,"AJAX Helper","AJAX Helper",0,1,"AJAX Helper"
+browser_event_docs,invocation.ajax_helper_raw,,es-ES,"AJAX Helper Raw","AJAX Helper sin procesar",0,0,"AJAX Helper sin procesar"
+browser_event_docs,section.parameters,,es-ES,Parameters,Parámetros,0,0,Parámetros
+browser_event_docs,parameters.empty,,es-ES,"No parameters documented.","No hay parámetros documentados.",0,0,"No hay parámetros documentados."
+browser_event_docs,parameter.name,,es-ES,Name,Nombre,0,0,Nombre
+browser_event_docs,parameter.source,,es-ES,Source,Origen,0,0,Origen
+browser_event_docs,parameter.type,,es-ES,Type,Tipo,0,0,Tipo
+browser_event_docs,parameter.required,,es-ES,Required,Obligatorio,0,0,Obligatorio
+browser_event_docs,parameter.description,,es-ES,Description,Descripción,0,0,Descripción
+browser_event_docs,required_yes,,es-ES,yes,sí,0,0,sí
+browser_event_docs,required_no,,es-ES,no,no,0,1,no
+browser_event_docs,section.notes,,es-ES,Notes,Notas,0,0,Notas
+browser_event_docs,section.side_effects,,es-ES,"Side Effects","Efectos secundarios",0,0,"Efectos secundarios"
+runtime.site_cutover,readonly_title,,es-ES,"Site is read-only","Site is read-only",0,1,"Site is read-only"
+runtime.site_cutover,readonly_message,,es-ES,"This site instance is locked read-only after a site migration export. Use the new site instance for further work, or explicitly release the cutover lock if you understand that the previous migration export may become inconsistent.","This site instance is locked read-only after a site migration export. Use the new site instance for further work, or explicitly release the cutover lock if you understand that the previous migration export may become inconsistent.",0,1,"This site instance is locked read-only after a site migration export. Use the new site instance for further work, or explicitly release the cutover lock if you understand that the previous migration export may become inconsistent."

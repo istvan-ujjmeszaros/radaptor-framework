@@ -6,6 +6,7 @@ use PHPUnit\Framework\TestCase;
 
 require_once __DIR__ . '/../classes/class.LocaleService.php';
 require_once __DIR__ . '/../classes/enum.CsvImportMode.php';
+require_once __DIR__ . '/../classes/class.I18nCsvSchema.php';
 require_once __DIR__ . '/../classes/class.I18nShippedDatabaseAuditService.php';
 
 final class I18nShippedDatabaseAuditServiceTest extends TestCase
@@ -205,5 +206,15 @@ final class I18nShippedDatabaseAuditServiceTest extends TestCase
 			$method->invoke(null, ['source_text' => ''], $existing_message)
 		);
 		$this->assertNull($method->invoke(null, ['source_text' => ''], null));
+	}
+
+	public function testImportedAllowSourceMatchNormalizesAgainstIncomingText(): void
+	{
+		$method = new ReflectionMethod(I18nShippedDatabaseAuditService::class, 'resolveImportedAllowSourceMatch');
+
+		$this->assertTrue($method->invoke(null, null, '1', 'hu-HU', 'Locales', 'Locales'));
+		$this->assertFalse($method->invoke(null, null, '1', 'hu-HU', 'Locales', 'Locale-ok'));
+		$this->assertFalse($method->invoke(null, ['allow_source_match' => 1], '', 'hu-HU', 'Locales', 'Locale-ok'));
+		$this->assertTrue($method->invoke(null, ['allow_source_match' => 1], '', 'hu-HU', 'Locales', 'Locales'));
 	}
 }

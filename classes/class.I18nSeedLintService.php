@@ -4,42 +4,7 @@ declare(strict_types=1);
 
 class I18nSeedLintService
 {
-	private const array EXPECTED_HEADER = [
-		'domain',
-		'key',
-		'context',
-		'locale',
-		'source_text',
-		'expected_text',
-		'human_reviewed',
-		'text',
-	];
-
-	private const array SAME_AS_SOURCE_ALLOWLIST = [
-		'API',
-		'CLI',
-		'CSS',
-		'CSV',
-		'DB',
-		'HTML',
-		'HTTP',
-		'HTTPS',
-		'ID',
-		'IP',
-		'JSON',
-		'MCP',
-		'PHP',
-		'SEO',
-		'SQL',
-		'TM',
-		'UID',
-		'URL',
-		'XML',
-	];
-
-	private const array SAME_AS_SOURCE_PREFIX_ALLOWLIST = [
-		'Claude Desktop',
-	];
+	private const array EXPECTED_HEADER = I18nCsvSchema::NORMALIZED_HEADER;
 
 	/**
 	 * @param list<array<string, mixed>>|null $targets
@@ -254,11 +219,22 @@ class I18nSeedLintService
 				$issues[] = self::issue('error', 'domain_out_of_scope', $file, $line, "Domain '{$domain}' is not registered for this seed target.");
 			}
 
-			if (
-				($data['locale'] ?? '') !== 'en-US'
-				&& self::looksLikeUntranslatedSource((string) ($data['source_text'] ?? ''), (string) ($data['text'] ?? ''))
-			) {
-				$issues[] = self::issue('warning', 'text_matches_source', $file, $line, 'Non-source locale text matches source_text and may be an English placeholder.');
+			$allow_source_match = self::parseStrictBoolean((string) ($data['allow_source_match'] ?? ''));
+			$is_source_locale = I18nCsvSchema::isSourceLocale((string) ($data['locale'] ?? ''));
+			$is_source_match = I18nCsvSchema::isEligibleSourceMatch(
+				(string) ($data['locale'] ?? ''),
+				(string) ($data['source_text'] ?? ''),
+				(string) ($data['text'] ?? '')
+			);
+
+			if ($allow_source_match === null) {
+				$issues[] = self::issue('error', 'invalid_allow_source_match', $file, $line, "Column 'allow_source_match' must be 0 or 1.");
+			} elseif ($allow_source_match && $is_source_locale) {
+				$issues[] = self::issue('error', 'source_locale_allow_source_match', $file, $line, 'Source locale rows must not set allow_source_match.');
+			} elseif ($allow_source_match && !$is_source_match) {
+				$issues[] = self::issue('error', 'allow_source_match_stale', $file, $line, 'allow_source_match is set but text no longer matches source_text.');
+			} elseif (!$allow_source_match && $is_source_match) {
+				$issues[] = self::issue('warning', 'source_match_not_allowed', $file, $line, 'Non-source locale text matches source_text without allow_source_match.');
 			}
 
 			$natural_key = implode("\0", [
@@ -314,32 +290,15 @@ class I18nSeedLintService
 		return $normalized;
 	}
 
-	private static function looksLikeUntranslatedSource(string $source_text, string $text): bool
+	private static function parseStrictBoolean(string $value): ?bool
 	{
-		$source_text = trim($source_text);
-		$text = trim($text);
+		$value = trim($value);
 
-		if ($source_text === '' || $text === '' || $source_text !== $text) {
-			return false;
-		}
-
-		if (in_array($text, self::SAME_AS_SOURCE_ALLOWLIST, true)) {
-			return false;
-		}
-
-		foreach (self::SAME_AS_SOURCE_PREFIX_ALLOWLIST as $prefix) {
-			if (str_starts_with($text, $prefix)) {
-				return false;
-			}
-		}
-
-		if (preg_match('/^\d+(?:\s+(?:minute|minutes|hour|hours|day|days|week|weeks|month|months|year|years))?$/i', $text) === 1) {
-			return false;
-		}
-
-		preg_match_all('/[A-Za-z]{3,}/', $text, $words);
-
-		return count($words[0] ?? []) >= 3;
+		return match ($value) {
+			'0' => false,
+			'1' => true,
+			default => null,
+		};
 	}
 
 	/**
