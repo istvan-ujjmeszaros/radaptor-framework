@@ -221,10 +221,12 @@ class I18nSeedLintService
 
 			$allow_source_match = self::parseStrictBoolean((string) ($data['allow_source_match'] ?? ''));
 			$is_source_locale = I18nCsvSchema::isSourceLocale((string) ($data['locale'] ?? ''));
+			$source_text_for_match = (string) ($row[$indexes['source_text']] ?? '');
+			$text_for_match = (string) ($row[$indexes['text']] ?? '');
 			$is_source_match = I18nCsvSchema::isEligibleSourceMatch(
 				(string) ($data['locale'] ?? ''),
-				(string) ($data['source_text'] ?? ''),
-				(string) ($data['text'] ?? '')
+				$source_text_for_match,
+				$text_for_match
 			);
 
 			if ($allow_source_match === null) {

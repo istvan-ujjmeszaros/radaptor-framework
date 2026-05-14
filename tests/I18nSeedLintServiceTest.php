@@ -81,6 +81,36 @@ final class I18nSeedLintServiceTest extends TestCase
 		$this->assertContains('source_locale_allow_source_match', $this->issueCodes($result));
 	}
 
+	public function testInvalidAllowSourceMatchValueIsAnError(): void
+	{
+		$this->writeSeed('en-US', [
+			['admin', 'menu.locales', '', 'en-US', 'Locales', 'Locales', '0', '0', 'Locales'],
+		]);
+		$this->writeSeed('hu-HU', [
+			['admin', 'menu.locales', '', 'hu-HU', 'Locales', 'Locales', '0', 'yes', 'Locales'],
+		]);
+
+		$result = $this->lint();
+
+		$this->assertSame('error', $result['status']);
+		$this->assertContains('invalid_allow_source_match', $this->issueCodes($result));
+	}
+
+	public function testAllowSourceMatchRequiresExactWhitespaceSensitiveTextMatch(): void
+	{
+		$this->writeSeed('en-US', [
+			['admin', 'menu.locales', '', 'en-US', 'Locales', 'Locales', '0', '0', 'Locales'],
+		]);
+		$this->writeSeed('hu-HU', [
+			['admin', 'menu.locales', '', 'hu-HU', 'Locales', ' Locales ', '0', '1', ' Locales '],
+		]);
+
+		$result = $this->lint();
+
+		$this->assertSame('error', $result['status']);
+		$this->assertContains('allow_source_match_stale', $this->issueCodes($result));
+	}
+
 	/**
 	 * @param list<list<string>> $rows
 	 */

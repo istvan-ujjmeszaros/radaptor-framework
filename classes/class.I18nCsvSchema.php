@@ -31,10 +31,7 @@ final class I18nCsvSchema
 			return false;
 		}
 
-		$sourceText = trim($sourceText);
-		$text = trim($text);
-
-		return $sourceText !== '' && $text !== '' && $sourceText === $text;
+		return trim($sourceText) !== '' && trim($text) !== '' && $sourceText === $text;
 	}
 
 	public static function normalizeBoolean(mixed $value): bool
@@ -52,6 +49,9 @@ final class I18nCsvSchema
 		return in_array($value, ['1', 'true', 'yes', 'on'], true);
 	}
 
+	/**
+	 * CSV imports accept common truthy forms; seed lint remains stricter and only accepts 0/1.
+	 */
 	public static function normalizeImportedBoolean(mixed $value): ?bool
 	{
 		$value = trim((string) $value);
