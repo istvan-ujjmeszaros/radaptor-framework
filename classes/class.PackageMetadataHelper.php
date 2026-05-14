@@ -56,7 +56,8 @@ class PackageMetadataHelper
 	 *     assets: array{
 	 *         public: list<array{source: string, target: string}>
 	 *     },
-	 *     dist_exclude: list<string>
+	 *     dist_exclude: list<string>,
+	 *     deprecated_layouts: array<string, string>
 	 * }
 	 */
 	public static function loadFromSourcePath(string $source_path): array
@@ -107,7 +108,56 @@ class PackageMetadataHelper
 			static fn (string $value): bool => $value !== ''
 		));
 
+		$result['deprecated_layouts'] = self::normalizeDeprecatedLayoutsMetadata(
+			$metadata['deprecated_layouts'] ?? [],
+			$metadata_path,
+			$result['package']
+		);
+
 		return $result;
+	}
+
+	/**
+	 * @return array<string, string>
+	 */
+	private static function normalizeDeprecatedLayoutsMetadata(mixed $deprecated_layouts, string $metadata_path, string $package): array
+	{
+		if ($deprecated_layouts === null || $deprecated_layouts === []) {
+			return [];
+		}
+
+		if (!is_array($deprecated_layouts)) {
+			throw new RuntimeException("Package metadata '{$package}' deprecated_layouts must be an object: {$metadata_path}");
+		}
+
+		$normalized = [];
+
+		foreach ($deprecated_layouts as $old_layout => $new_layout) {
+			if (!is_string($old_layout) || trim($old_layout) === '') {
+				throw new RuntimeException("Package metadata '{$package}' deprecated_layouts has a non-string or empty key: {$metadata_path}");
+			}
+
+			if (!is_string($new_layout) || trim($new_layout) === '') {
+				throw new RuntimeException("Package metadata '{$package}' deprecated_layouts['{$old_layout}'] must be a non-empty string: {$metadata_path}");
+			}
+
+			$old_trimmed = trim($old_layout);
+			$new_trimmed = trim($new_layout);
+
+			if ($old_trimmed === $new_trimmed) {
+				throw new RuntimeException("Package metadata '{$package}' deprecated_layouts['{$old_trimmed}'] cannot map to itself: {$metadata_path}");
+			}
+
+			if (isset($normalized[$old_trimmed])) {
+				throw new RuntimeException("Package metadata '{$package}' deprecated_layouts has duplicate key '{$old_trimmed}': {$metadata_path}");
+			}
+
+			$normalized[$old_trimmed] = $new_trimmed;
+		}
+
+		ksort($normalized);
+
+		return $normalized;
 	}
 
 	/**

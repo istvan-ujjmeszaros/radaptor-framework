@@ -3,7 +3,7 @@
 /**
  * Refresh radaptor.local.lock.json from committed lock state and active local overrides.
  *
- * Usage: radaptor local-lock:refresh [--include-demo-seeds] [--rerun-demo-seeds] [--skip-seeds] [--dry-run] [--json] [--ignore-local-overrides]
+ * Usage: radaptor local-lock:refresh [--include-demo-seeds] [--rerun-demo-seeds] [--skip-seeds] [--dry-run] [--json] [--ignore-local-overrides] [--apply-layout-renames | --abort-on-layout-renames]
  */
 class CLICommandLocalLockRefresh extends AbstractCLICommand
 {
@@ -17,12 +17,21 @@ class CLICommandLocalLockRefresh extends AbstractCLICommand
 		return <<<'DOC'
 			Refresh radaptor.local.lock.json from committed lock state and active local overrides.
 
-			Usage: radaptor local-lock:refresh [--include-demo-seeds] [--rerun-demo-seeds] [--skip-seeds] [--dry-run] [--json] [--ignore-local-overrides]
+			Usage: radaptor local-lock:refresh [--include-demo-seeds] [--rerun-demo-seeds] [--skip-seeds] [--dry-run] [--json] [--ignore-local-overrides] [--apply-layout-renames | --abort-on-layout-renames]
+
+			Layout renames:
+			  Like install/update, the refresh detects deprecated_layouts declarations in
+			  incoming package metadata and gates content mutation on a user decision.
+			    --apply-layout-renames    apply pending renames non-interactively
+			    --abort-on-layout-renames refuse renames non-interactively (exits with error)
+			  In CI / non-TTY mode with neither flag set, the command aborts with exit 1.
 
 			Examples:
 			  radaptor local-lock:refresh
 			  radaptor local-lock:refresh --dry-run
 			  radaptor local-lock:refresh --json
+			  radaptor local-lock:refresh --apply-layout-renames
+			  radaptor local-lock:refresh --abort-on-layout-renames
 			DOC;
 	}
 
@@ -34,9 +43,45 @@ class CLICommandLocalLockRefresh extends AbstractCLICommand
 		$rerun_demo_seeds = Request::hasArg('rerun-demo-seeds');
 		$skip_seeds = Request::hasArg('skip-seeds');
 		$ignore_local_overrides = Request::hasArg('ignore-local-overrides');
+		$apply_layout_renames = Request::hasArg('apply-layout-renames');
+		$abort_layout_renames = Request::hasArg('abort-on-layout-renames');
 		$prompt = (!$json && SeedCliPromptHelper::isInteractive())
 			? static fn (array $demo_seeds): bool => SeedCliPromptHelper::confirmDemoSeedRerun($demo_seeds)
 			: null;
+
+		if ($apply_layout_renames && $abort_layout_renames) {
+			$message = '--apply-layout-renames and --abort-on-layout-renames are mutually exclusive.';
+
+			if ($json) {
+				echo json_encode(['status' => 'error', 'message' => $message], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
+
+				exit(1);
+			}
+
+			echo "{$message}\n";
+
+			exit(1);
+		}
+
+		$layout_decision = static function (array $pending, array $rename_metadata) use ($apply_layout_renames, $abort_layout_renames, $json): ?bool {
+			if ($abort_layout_renames) {
+				return false;
+			}
+
+			if ($apply_layout_renames) {
+				return true;
+			}
+
+			if ($json) {
+				return null;
+			}
+
+			if (SeedCliPromptHelper::isInteractive()) {
+				return SeedCliPromptHelper::confirmLayoutRenames($pending, $rename_metadata);
+			}
+
+			return null;
+		};
 
 		try {
 			$result = PackageInstallService::refreshLocalLock(
@@ -45,7 +90,8 @@ class CLICommandLocalLockRefresh extends AbstractCLICommand
 				$rerun_demo_seeds,
 				$skip_seeds,
 				$prompt,
-				$ignore_local_overrides
+				$ignore_local_overrides,
+				$layout_decision
 			);
 		} catch (Throwable $e) {
 			if ($json) {
@@ -54,12 +100,12 @@ class CLICommandLocalLockRefresh extends AbstractCLICommand
 					'message' => $e->getMessage(),
 				], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
 
-				return;
+				exit(1);
 			}
 
 			echo "Local lock refresh failed: {$e->getMessage()}\n";
 
-			return;
+			exit(1);
 		}
 
 		$status = $this->determineStatus($result);
