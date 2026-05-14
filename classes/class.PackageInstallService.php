@@ -15,7 +15,8 @@ class PackageInstallService
 		bool $rerun_demo_seeds = false,
 		bool $skip_seeds = false,
 		?callable $confirm_demo_rerun = null,
-		bool $ignore_local_overrides = false
+		bool $ignore_local_overrides = false,
+		?callable $layout_rename_decision = null
 	): array {
 		return self::syncUsingEffectiveDocuments(
 			false,
@@ -24,7 +25,9 @@ class PackageInstallService
 			$rerun_demo_seeds,
 			$skip_seeds,
 			$confirm_demo_rerun,
-			$ignore_local_overrides
+			$ignore_local_overrides,
+			false,
+			$layout_rename_decision
 		);
 	}
 
@@ -37,7 +40,8 @@ class PackageInstallService
 		bool $rerun_demo_seeds = false,
 		bool $skip_seeds = false,
 		?callable $confirm_demo_rerun = null,
-		bool $ignore_local_overrides = false
+		bool $ignore_local_overrides = false,
+		?callable $layout_rename_decision = null
 	): array {
 		return self::syncUsingEffectiveDocuments(
 			true,
@@ -46,7 +50,9 @@ class PackageInstallService
 			$rerun_demo_seeds,
 			$skip_seeds,
 			$confirm_demo_rerun,
-			$ignore_local_overrides
+			$ignore_local_overrides,
+			false,
+			$layout_rename_decision
 		);
 	}
 
@@ -59,7 +65,8 @@ class PackageInstallService
 		bool $rerun_demo_seeds = false,
 		bool $skip_seeds = false,
 		?callable $confirm_demo_rerun = null,
-		bool $ignore_local_overrides = false
+		bool $ignore_local_overrides = false,
+		?callable $layout_rename_decision = null
 	): array {
 		return self::syncUsingEffectiveDocuments(
 			false,
@@ -69,7 +76,8 @@ class PackageInstallService
 			$skip_seeds,
 			$confirm_demo_rerun,
 			$ignore_local_overrides,
-			true
+			true,
+			$layout_rename_decision
 		);
 	}
 
@@ -84,7 +92,8 @@ class PackageInstallService
 		bool $skip_seeds,
 		?callable $confirm_demo_rerun,
 		bool $ignore_local_overrides = false,
-		bool $refresh_local_lock = false
+		bool $refresh_local_lock = false,
+		?callable $layout_rename_decision = null
 	): array {
 		$manifest = PackageLocalOverrideHelper::loadEffectiveManifest($ignore_local_overrides);
 		$local_override_active = PackageLocalOverrideHelper::isLocalOverrideActive($ignore_local_overrides);
@@ -116,7 +125,8 @@ class PackageInstallService
 			$include_demo_seeds,
 			$rerun_demo_seeds,
 			$skip_seeds,
-			$confirm_demo_rerun
+			$confirm_demo_rerun,
+			$layout_rename_decision
 		);
 	}
 
@@ -156,7 +166,8 @@ class PackageInstallService
 		bool $include_demo_seeds = false,
 		bool $rerun_demo_seeds = false,
 		bool $skip_seeds = false,
-		?callable $confirm_demo_rerun = null
+		?callable $confirm_demo_rerun = null,
+		?callable $layout_rename_decision = null
 	): array {
 		return self::syncResolvedState(
 			PackageManifest::loadFromPath($manifest_path),
@@ -172,7 +183,8 @@ class PackageInstallService
 			$include_demo_seeds,
 			$rerun_demo_seeds,
 			$skip_seeds,
-			$confirm_demo_rerun
+			$confirm_demo_rerun,
+			$layout_rename_decision
 		);
 	}
 
@@ -220,7 +232,8 @@ class PackageInstallService
 		bool $include_demo_seeds = false,
 		bool $rerun_demo_seeds = false,
 		bool $skip_seeds = false,
-		?callable $confirm_demo_rerun = null
+		?callable $confirm_demo_rerun = null,
+		?callable $layout_rename_decision = null
 	): array {
 		$current_lock = file_exists($read_lock_path)
 			? PackageLockfile::loadFromPath($read_lock_path)
@@ -253,10 +266,19 @@ class PackageInstallService
 		$assets_built = false;
 		$assets = null;
 
+		$layout_reconciliation = null;
+
 		if (!$dry_run) {
 			self::removeStaleRegistryDirectories($current_lock['packages'], $next_lock['packages']);
 			self::installRegistryPackages($current_lock['packages'], $next_lock['packages']);
 			self::refreshInstalledPackageDiscoveryState();
+
+			$layout_reconciliation = self::reconcileLayoutRenames(
+				$next_lock['packages'],
+				dirname($write_lock_path),
+				false,
+				$layout_rename_decision
+			);
 
 			if ($plugin_manifest_path !== null && $plugin_lock_path !== null) {
 				PackageBridgeHelper::writePluginManifest($plugin_manifest_path, $next_lock['packages']);
@@ -372,6 +394,17 @@ class PackageInstallService
 			}
 		}
 
+		if ($dry_run) {
+			// In dry-run mode the registry is not installed yet, so only dev-source packages
+			// will surface deprecated_layouts declarations. This is informational only.
+			$layout_reconciliation = self::reconcileLayoutRenames(
+				$next_lock['packages'],
+				dirname($write_lock_path),
+				true,
+				$layout_rename_decision
+			);
+		}
+
 		return [
 			'mode' => $update ? 'update' : 'install',
 			'dry_run' => $dry_run,
@@ -392,6 +425,112 @@ class PackageInstallService
 			'seeds' => $seeds,
 			'assets_built' => $assets_built,
 			'assets' => $assets,
+			'layout_reconciliation' => $layout_reconciliation,
+		];
+	}
+
+	/**
+	 * @param array<string, array<string, mixed>> $next_lock_packages
+	 * @return array{
+	 *     status: string,
+	 *     renames: array<string, string>,
+	 *     declared_by: array<string, array{new_layout: string, package: string, version: string}>,
+	 *     pending: array{webpages: list<array<string, mixed>>, theme_settings: list<array<string, mixed>>, has_changes: bool}|null,
+	 *     applied: array{webpages_updated: int, theme_settings_renamed: int, theme_settings_dropped: int}|null
+	 * }
+	 */
+	private static function reconcileLayoutRenames(
+		array $next_lock_packages,
+		string $lock_base_dir,
+		bool $dry_run,
+		?callable $layout_rename_decision
+	): array {
+		$source_paths = [];
+
+		foreach ($next_lock_packages as $package_key => $locked_package) {
+			$stored_path = (string) ($locked_package['resolved']['path'] ?? '');
+
+			if ($stored_path === '') {
+				continue;
+			}
+
+			$absolute = self::resolveStoredPath($stored_path, $lock_base_dir);
+
+			if (!is_dir($absolute)) {
+				continue;
+			}
+
+			$source_paths[$package_key] = $absolute;
+		}
+
+		$rename_metadata = LayoutRenameRegistry::buildFromSourcePaths($source_paths);
+
+		if ($rename_metadata === []) {
+			return [
+				'status' => 'no_renames_declared',
+				'renames' => [],
+				'declared_by' => [],
+				'pending' => null,
+				'applied' => null,
+			];
+		}
+
+		$available_layouts = LayoutRenameRegistry::collectAvailableLayouts($source_paths);
+		$target_errors = LayoutRenameRegistry::validateTargets($rename_metadata, $available_layouts);
+
+		if ($target_errors !== []) {
+			throw new RuntimeException(
+				"Layout rename target validation failed:\n  - " . implode("\n  - ", $target_errors)
+			);
+		}
+
+		$renames = LayoutRenameRegistry::extractRenameMap($rename_metadata);
+		$pending = LayoutReconciliationService::collectPending($renames);
+
+		if (!$pending['has_changes']) {
+			return [
+				'status' => 'nothing_to_apply',
+				'renames' => $renames,
+				'declared_by' => $rename_metadata,
+				'pending' => $pending,
+				'applied' => null,
+			];
+		}
+
+		if ($dry_run) {
+			return [
+				'status' => 'pending_dry_run',
+				'renames' => $renames,
+				'declared_by' => $rename_metadata,
+				'pending' => $pending,
+				'applied' => null,
+			];
+		}
+
+		$decision = $layout_rename_decision === null
+			? null
+			: ($layout_rename_decision)($pending, $rename_metadata);
+
+		if ($decision === null) {
+			throw new RuntimeException(
+				"Layout renames pending. In non-interactive mode, pass --apply-layout-renames or --abort-on-layout-renames explicitly."
+			);
+		}
+
+		if ($decision === false) {
+			throw new RuntimeException(
+				"Layout reconciliation declined. Resolve the pending renames or pass --apply-layout-renames to retry."
+			);
+		}
+
+		$applied = LayoutReconciliationService::apply($pending, $rename_metadata);
+
+		return [
+			'status' => 'applied',
+			'renames' => $renames,
+			'declared_by' => $rename_metadata,
+			'pending' => $pending,
+			'applied' => $applied,
 		];
 	}
 
