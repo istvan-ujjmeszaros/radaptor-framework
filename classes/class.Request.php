@@ -100,6 +100,23 @@ class Request
 		return strtoupper((string) $method);
 	}
 
+	public static function header(string $name): ?string
+	{
+		$server = [];
+
+		try {
+			$server = RequestContextHolder::current()->SERVER;
+		} catch (Throwable) {
+			$server = [];
+		}
+
+		if (empty($server)) {
+			$server = $_SERVER;
+		}
+
+		return self::serverHeaderValue($server, $name);
+	}
+
 	public static function wantsNonHtmlResponse(): bool
 	{
 		$ctx = RequestContextHolder::current();
@@ -144,7 +161,83 @@ class Request
 	 */
 	private static function serverHeader(array $server, string $key): string
 	{
-		return strtolower(trim((string) ($server[$key] ?? $server[strtolower($key)] ?? '')));
+		return strtolower(self::serverHeaderValue($server, $key) ?? '');
+	}
+
+	/**
+	 * @param array<string, mixed> $server
+	 */
+	private static function serverHeaderValue(array $server, string $name): ?string
+	{
+		foreach (self::serverHeaderKeyCandidates($name) as $key) {
+			$value = self::getServerValue($server, $key);
+
+			if ($value !== null) {
+				return self::normalizeHeaderValue($value);
+			}
+		}
+
+		$candidates = array_fill_keys(self::serverHeaderKeyCandidates($name), true);
+
+		foreach ($server as $key => $value) {
+			$normalized_key = strtoupper(str_replace('-', '_', (string)$key));
+
+			if (isset($candidates[$normalized_key])) {
+				return self::normalizeHeaderValue($value);
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * @return list<string>
+	 */
+	private static function serverHeaderKeyCandidates(string $name): array
+	{
+		$normalized = strtoupper(str_replace('-', '_', trim($name)));
+
+		if ($normalized === 'CONTENT_TYPE' || $normalized === 'CONTENT_LENGTH') {
+			return [
+				$normalized,
+				'HTTP_' . $normalized,
+			];
+		}
+
+		if ($normalized === 'HTTP_CONTENT_TYPE' || $normalized === 'HTTP_CONTENT_LENGTH') {
+			return [
+				$normalized,
+				substr($normalized, 5),
+			];
+		}
+
+		if (str_starts_with($normalized, 'HTTP_')) {
+			return [$normalized];
+		}
+
+		return [
+			'HTTP_' . $normalized,
+			$normalized,
+		];
+	}
+
+	private static function normalizeHeaderValue(mixed $value): ?string
+	{
+		if (is_array($value)) {
+			foreach ($value as $item) {
+				if (is_scalar($item)) {
+					return trim((string)$item);
+				}
+			}
+
+			return null;
+		}
+
+		if (!is_scalar($value)) {
+			return null;
+		}
+
+		return trim((string)$value);
 	}
 
 	/**

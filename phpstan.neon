@@ -7,11 +7,16 @@ parameters:
 		- classes/class.EventResolver.php
 		- classes/class.Kernel.php
 		- classes/class.Request.php
+		- classes/class.RequestContext.php
+		- classes/class.DebugSessionState.php
+		- classes/class.DebugSession.php
+		- classes/class.DebugMessage.php
 		- classes/class.PackageInstallService.php
 		- classes/class.PackageRegistryClient.php
 		- classes/class.PackageMetadataHelper.php
 		- classes/entities/class.iEntity.php
 		- classes/entities/class.SQLEntity.php
+		- modules/PersistentCache/persistent_cache_reader.php
 	scanFiles:
 		- classes/phpstan/class.NonHtmlResponseHeaderDetectionRule.php
 	tmpDir: /app/tmp/phpstan-framework
