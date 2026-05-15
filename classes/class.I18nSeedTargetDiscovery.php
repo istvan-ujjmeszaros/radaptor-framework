@@ -160,14 +160,9 @@ class I18nSeedTargetDiscovery
 
 		self::addRoot($roots, $seen, DEPLOY_ROOT . 'app', 'app', 'app', 'app');
 
-		foreach (PackagePathHelper::getActivePackageRoots(['core', 'theme', 'plugin']) as $root) {
+		foreach (PackagePathHelper::getActivePackageRoots(['core', 'theme']) as $root) {
 			$description = self::describePackageRoot($root);
 			self::addRoot($roots, $seen, $root, $description['type'], $description['id'], $description['source']);
-		}
-
-		foreach (self::discoverLockedPluginRoots(PluginLockfile::getPath()) as $root) {
-			$description = self::describePackageRoot($root);
-			self::addRoot($roots, $seen, $root, 'plugin', $description['id'], 'plugin-lock');
 		}
 
 		if ($all_packages) {
@@ -180,32 +175,6 @@ class I18nSeedTargetDiscovery
 		usort($roots, static fn (array $left, array $right): int => $left['path'] <=> $right['path']);
 
 		return $roots;
-	}
-
-	/**
-	 * @return list<string>
-	 */
-	public static function discoverLockedPluginRoots(string $lock_path): array
-	{
-		if (!is_file($lock_path)) {
-			return [];
-		}
-
-		$lock = PluginLockfile::loadFromPath($lock_path);
-		$base_dir = dirname($lock_path);
-		$roots = [];
-
-		foreach ($lock['plugins'] as $plugin) {
-			$plugin_path = self::resolveLockedPluginPath($plugin, $base_dir);
-
-			if ($plugin_path !== null && is_dir($plugin_path)) {
-				$roots[] = self::normalizePath($plugin_path);
-			}
-		}
-
-		sort($roots);
-
-		return array_values(array_unique($roots));
 	}
 
 	/**
@@ -297,13 +266,6 @@ class I18nSeedTargetDiscovery
 			$roots = [...$roots, ...self::listNestedPackageDirectories($collection_parent_dir)];
 		}
 
-		foreach ([
-			DEPLOY_ROOT . 'plugins/dev',
-			DEPLOY_ROOT . 'plugins/registry',
-		] as $collection_dir) {
-			$roots = [...$roots, ...self::listImmediateDirectories($collection_dir)];
-		}
-
 		if (is_string($workspace_root) && $workspace_root !== '') {
 			$roots = [...$roots, ...self::listNestedPackageDirectories($workspace_root . '/packages-dev')];
 		}
@@ -337,11 +299,7 @@ class I18nSeedTargetDiscovery
 
 		$storage_path = PackagePathHelper::toStoragePath($root);
 
-		if (str_starts_with($storage_path, 'plugins/dev/') || str_starts_with($storage_path, 'plugins/registry/')) {
-			$type = 'plugin';
-			$id = basename($root);
-			$source = str_contains($storage_path, '/dev/') ? 'plugin-dev' : 'plugin-registry';
-		} elseif (str_contains($storage_path, 'packages/dev/core/')) {
+		if (str_contains($storage_path, 'packages/dev/core/')) {
 			$type = 'core';
 			$source = 'package-dev';
 		} elseif (str_contains($storage_path, 'packages/dev/themes/')) {
@@ -368,30 +326,6 @@ class I18nSeedTargetDiscovery
 			'id' => $id,
 			'source' => $source,
 		];
-	}
-
-	/**
-	 * @param array<string, mixed> $plugin
-	 */
-	private static function resolveLockedPluginPath(array $plugin, string $base_dir): ?string
-	{
-		$resolved = $plugin['resolved'] ?? null;
-
-		if (!is_array($resolved)) {
-			return null;
-		}
-
-		$path = $resolved['path'] ?? null;
-
-		if (!is_string($path) || trim($path) === '') {
-			return null;
-		}
-
-		if (str_starts_with($path, '/')) {
-			return rtrim($path, '/');
-		}
-
-		return rtrim($base_dir . '/' . ltrim($path, '/'), '/');
 	}
 
 	private static function componentIdFromSeedPath(string $relative_to_root): string

@@ -9,7 +9,7 @@
  *
  * Examples:
  *   radaptor webpage:delete /learn/hello-world/ --apply
- *   radaptor webpage:delete --widget HelloWorldPluginDemo --dry-run
+ *   radaptor webpage:delete --widget ExampleWidget --dry-run
  *   radaptor webpage:delete /learn/ --dry-run --json
  */
 class CLICommandWebpageDelete extends AbstractCLICommand
@@ -30,7 +30,7 @@ class CLICommandWebpageDelete extends AbstractCLICommand
 
 			Examples:
 			  radaptor webpage:delete /learn/hello-world/ --apply
-			  radaptor webpage:delete --widget HelloWorldPluginDemo --dry-run
+			  radaptor webpage:delete --widget ExampleWidget --dry-run
 			  radaptor webpage:delete /learn/ --dry-run --json
 			DOC;
 	}

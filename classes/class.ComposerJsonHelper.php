@@ -104,6 +104,6 @@ class ComposerJsonHelper
 	 */
 	public static function normalizeRequire(mixed $require, string $context = 'composer.json require'): array
 	{
-		return PluginDependencyHelper::normalizeDependencies($require, "{$context}");
+		return PackageDependencyHelper::normalizeDependencies($require, "{$context}");
 	}
 }

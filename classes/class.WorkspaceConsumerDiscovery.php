@@ -71,7 +71,7 @@ class WorkspaceConsumerDiscovery
 				continue;
 			}
 
-			if (is_dir($normalized . '/packages-dev') && is_dir($normalized . '/radaptor_plugin_registry')) {
+			if (is_dir($normalized . '/packages-dev') && is_dir($normalized . '/radaptor_package_registry')) {
 				return $normalized;
 			}
 		}

@@ -6,14 +6,12 @@ class PackageTypeHelper
 	private const array SECTION_TO_TYPE = [
 		'core' => 'core',
 		'themes' => 'theme',
-		'plugins' => 'plugin',
 	];
 
 	/** @var array<string, string> */
 	private const array TYPE_TO_SECTION = [
 		'core' => 'core',
 		'theme' => 'themes',
-		'plugin' => 'plugins',
 	];
 
 	public static function normalizeId(mixed $id, string $context = 'Package'): string
@@ -76,7 +74,6 @@ class PackageTypeHelper
 		return match ($type) {
 			'core' => "packages/{$source_type}/core/{$id}",
 			'theme' => "packages/{$source_type}/themes/{$id}",
-			'plugin' => "plugins/{$source_type}/{$id}",
 			default => throw new RuntimeException("Package '{$type}:{$id}' uses unsupported type '{$type}'."),
 		};
 	}

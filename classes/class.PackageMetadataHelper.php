@@ -6,7 +6,7 @@ class PackageMetadataHelper
 	{
 		$metadata_path = rtrim($source_path, '/') . '/.registry-package.json';
 		$metadata = self::loadRawDocumentFromPath($metadata_path);
-		$metadata['version'] = PluginVersionHelper::normalizeVersion($version);
+		$metadata['version'] = PackageVersionHelper::normalizeVersion($version);
 		$json = json_encode($metadata, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
 		$result = file_put_contents($metadata_path, $json . "\n", LOCK_EX);
 
@@ -57,7 +57,11 @@ class PackageMetadataHelper
 	 *         public: list<array{source: string, target: string}>
 	 *     },
 	 *     dist_exclude: list<string>,
-	 *     deprecated_layouts: array<string, string>
+	 *     deprecated_layouts: array<string, string>,
+	 *     tag_contexts: array<string, array{
+	 *         context: string,
+	 *         label: string|null
+	 *     }>
 	 * }
 	 */
 	public static function loadFromSourcePath(string $source_path): array
@@ -79,7 +83,7 @@ class PackageMetadataHelper
 
 		$result['type'] = PackageTypeHelper::normalizeType($result['type'], 'Package metadata');
 		$result['id'] = PackageTypeHelper::normalizeId($result['id'], 'Package metadata');
-		$result['version'] = PluginVersionHelper::normalizeVersion($result['version']);
+		$result['version'] = PackageVersionHelper::normalizeVersion($result['version']);
 		$result['dependencies'] = PackageDependencyHelper::normalizeDependencies(
 			$metadata['dependencies'] ?? [],
 			"Package metadata '{$result['package']}'"
@@ -113,8 +117,73 @@ class PackageMetadataHelper
 			$metadata_path,
 			$result['package']
 		);
+		$result['tag_contexts'] = self::normalizeTagContextsMetadata(
+			$metadata['tag_contexts'] ?? [],
+			$metadata_path,
+			$result['package'],
+			$result['id']
+		);
 
 		return $result;
+	}
+
+	/**
+	 * @return array<string, array{
+	 *     context: string,
+	 *     label: string|null
+	 * }>
+	 */
+	public static function normalizeTagContextsMetadata(mixed $tag_contexts, string $metadata_path, string $package, string $package_id): array
+	{
+		if ($tag_contexts === null || $tag_contexts === []) {
+			return [];
+		}
+
+		if (!is_array($tag_contexts)) {
+			throw new RuntimeException("Package metadata '{$package}' tag_contexts must be an object or array: {$metadata_path}");
+		}
+
+		$package_id = PackageTypeHelper::normalizeId($package_id, "Package metadata '{$package}' tag_contexts owner");
+		$normalized = [];
+
+		foreach ($tag_contexts as $key => $value) {
+			if (is_int($key)) {
+				if (!is_string($value) || trim($value) === '') {
+					throw new RuntimeException("Package metadata '{$package}' tag_contexts[{$key}] must be a non-empty string: {$metadata_path}");
+				}
+
+				$local_context = trim($value);
+				$metadata = [];
+			} else {
+				$local_context = trim((string) $key);
+				$metadata = is_array($value) ? $value : [];
+			}
+
+			$local_context = PackageTypeHelper::normalizeId(
+				$local_context,
+				"Package metadata '{$package}' tag_context"
+			);
+			$context = $package_id . '_' . $local_context;
+
+			if (strlen($context) > 64) {
+				throw new RuntimeException("Package metadata '{$package}' tag context '{$context}' exceeds 64 characters: {$metadata_path}");
+			}
+
+			if (isset($normalized[$local_context])) {
+				throw new RuntimeException("Package metadata '{$package}' tag_contexts has duplicate context '{$local_context}': {$metadata_path}");
+			}
+
+			$label = $metadata['label'] ?? null;
+			$label = is_string($label) && trim($label) !== '' ? trim($label) : null;
+			$normalized[$local_context] = [
+				'context' => $context,
+				'label' => $label,
+			];
+		}
+
+		ksort($normalized);
+
+		return $normalized;
 	}
 
 	/**

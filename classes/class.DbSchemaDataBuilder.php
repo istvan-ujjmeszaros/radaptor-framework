@@ -29,7 +29,7 @@ class DbSchemaDataBuilder
 	 * @param array<string> $dsn_array
 	 * @return array<string, array<string, array<string, mixed>>>
 	 */
-	public static function buildSchemaArray(array $dsn_array, bool $run_plugin_hooks = false): array
+	public static function buildSchemaArray(array $dsn_array): array
 	{
 		$schema_array = [];
 
@@ -37,10 +37,6 @@ class DbSchemaDataBuilder
 			$db_data = self::buildSchemaDataForDsn($dsn);
 			$clean_dsn = Db::redactDSNUserAndPassword($dsn);
 			$schema_array[$clean_dsn] = self::convertStructsToArrays($db_data);
-
-			if ($run_plugin_hooks) {
-				PluginLifecycleManager::runAfterBuildDb($dsn, $db_data);
-			}
 		}
 
 		return $schema_array;
