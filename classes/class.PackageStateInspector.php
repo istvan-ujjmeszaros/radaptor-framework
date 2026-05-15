@@ -391,7 +391,7 @@ class PackageStateInspector
 			return 'unknown';
 		}
 
-		return PackageVersionHelper::compare($version, $latest) < 0 ? 'behind' : 'up-to-date';
+		return PluginVersionHelper::compare($version, $latest) < 0 ? 'behind' : 'up-to-date';
 	}
 
 	/**

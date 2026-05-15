@@ -37,7 +37,6 @@ class PackageRegistryClient
 	 *     assets: array{
 	 *         public: list<array{source: string, target: string}>
 	 *     },
-	 *     tag_contexts: array<string, array{context: string, label: string|null}>,
 	 *     dist: array{
 	 *         type: string,
 	 *         url: string,
@@ -90,12 +89,6 @@ class PackageRegistryClient
 			$package,
 			$version
 		);
-		$tag_contexts = PackageMetadataHelper::normalizeTagContextsMetadata(
-			$version_entry['tag_contexts'] ?? [],
-			"registry '{$registry['name']}' package '{$package}' version '{$version}'",
-			$package,
-			$id
-		);
 
 		if (!is_array($dist)) {
 			throw new RuntimeException("Registry package '{$package}' version '{$version}' is missing dist metadata.");
@@ -127,7 +120,6 @@ class PackageRegistryClient
 			'dependencies' => $dependencies,
 			'composer_require' => $composer_require,
 			'assets' => $assets,
-			'tag_contexts' => $tag_contexts,
 			'dist' => [
 				'type' => $dist_type,
 				'url' => self::resolveUrl($catalog['registry_url'], $dist_url),
@@ -154,7 +146,7 @@ class PackageRegistryClient
 				return $latest;
 			}
 
-			$selected = PackageVersionHelper::selectBestMatchingVersion(array_keys($versions));
+			$selected = PluginVersionHelper::selectBestMatchingVersion(array_keys($versions));
 
 			if ($selected !== null) {
 				return $selected;
@@ -163,7 +155,7 @@ class PackageRegistryClient
 			throw new RuntimeException('Registry package does not define a usable version.');
 		}
 
-		$selected = PackageVersionHelper::selectBestMatchingVersion(array_keys($versions), trim($requested_version));
+		$selected = PluginVersionHelper::selectBestMatchingVersion(array_keys($versions), trim($requested_version));
 
 		if ($selected === null) {
 			throw new RuntimeException(
@@ -362,15 +354,19 @@ class PackageRegistryClient
 		$roots = [
 			self::normalizePath(sys_get_temp_dir()),
 			self::normalizePath(DEPLOY_ROOT . 'tmp'),
-			self::normalizePath($workspace_root . '/radaptor_package_registry'),
-			self::normalizePath($workspace_root . '/radaptor-package-registry'),
-			self::normalizePath('/workspace/radaptor_package_registry'),
-			self::normalizePath('/workspace/radaptor-package-registry'),
+			self::normalizePath($workspace_root . '/radaptor_plugin_registry'),
+			self::normalizePath($workspace_root . '/radaptor-plugin-registry'),
+			self::normalizePath('/workspace/radaptor_plugin_registry'),
+			self::normalizePath('/workspace/radaptor-plugin-registry'),
 		];
 
-		$env_root = getenv('RADAPTOR_PACKAGE_REGISTRY_ROOT');
+		foreach (['RADAPTOR_PACKAGE_REGISTRY_ROOT', 'RADAPTOR_PLUGIN_REGISTRY_ROOT'] as $env_name) {
+			$env_root = getenv($env_name);
 
-		if (is_string($env_root) && trim($env_root) !== '') {
+			if (!is_string($env_root) || trim($env_root) === '') {
+				continue;
+			}
+
 			$roots[] = self::normalizePath(trim($env_root));
 		}
 

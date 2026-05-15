@@ -121,7 +121,7 @@ class PackageDependencyHelper
 
 				$dependency_version = self::extractResolvedVersion($packages[$dependency_key]);
 
-				if ($dependency_version === null || !PackageVersionHelper::matches($dependency_version, $constraint)) {
+				if ($dependency_version === null || !PluginVersionHelper::matches($dependency_version, $constraint)) {
 					$mismatches[$package_key][$dependency_package] = [
 						'constraint' => $constraint,
 						'resolved_version' => $dependency_version,

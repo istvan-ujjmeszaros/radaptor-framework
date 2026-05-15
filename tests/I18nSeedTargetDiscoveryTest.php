@@ -17,6 +17,8 @@ require_once __DIR__ . '/../classes/class.PackageManifest.php';
 require_once __DIR__ . '/../classes/class.PackageLocalOverrideHelper.php';
 require_once __DIR__ . '/../classes/class.PackageLockfile.php';
 require_once __DIR__ . '/../classes/class.PackagePathHelper.php';
+require_once __DIR__ . '/../classes/class.PluginIdHelper.php';
+require_once __DIR__ . '/../classes/class.PluginLockfile.php';
 require_once __DIR__ . '/../classes/class.WorkspaceConsumerDiscovery.php';
 require_once __DIR__ . '/../classes/class.I18nSeedTargetDiscovery.php';
 
@@ -36,6 +38,9 @@ final class I18nSeedTargetDiscoveryTest extends TestCase
 		self::createPackage($root . '/packages/registry/themes/inactive-theme', 'theme', 'inactive-theme');
 		self::createPackage($root . '/packages/dev/core/dev-core', 'core', 'dev-core');
 		self::createPackage($root . '/packages/dev/themes/dev-theme', 'theme', 'dev-theme');
+		self::mkdir($root . '/plugins/dev/locked-plugin/i18n/seeds');
+		self::mkdir($root . '/plugins/dev/inactive-plugin/i18n/seeds');
+		self::mkdir($root . '/plugins/registry/registry-only-plugin/i18n/seeds');
 		self::mkdir($root . '/packages/registry/core/inactive-core/vendor/ignored/i18n/seeds');
 
 		file_put_contents($root . '/radaptor.json', json_encode([
@@ -57,6 +62,19 @@ final class I18nSeedTargetDiscoveryTest extends TestCase
 				],
 			],
 		], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
+
+		file_put_contents($root . '/plugins.lock.json', json_encode([
+			'lockfile_version' => 1,
+			'plugins' => [
+				'locked-plugin' => [
+					'plugin_id' => 'locked-plugin',
+					'resolved' => [
+						'type' => 'dev',
+						'path' => 'plugins/dev/locked-plugin',
+					],
+				],
+			],
+		], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
 	}
 
 	public static function tearDownAfterClass(): void
@@ -68,7 +86,7 @@ final class I18nSeedTargetDiscoveryTest extends TestCase
 		}
 	}
 
-	public function testActiveDiscoveryExcludesUnreferencedPackages(): void
+	public function testActiveDiscoveryExcludesUnreferencedPackagesAndPlugins(): void
 	{
 		$this->skipWhenDeployRootIsAlreadyDefined();
 
@@ -79,10 +97,13 @@ final class I18nSeedTargetDiscoveryTest extends TestCase
 
 		$this->assertContains('app', $groupIds);
 		$this->assertContains('active-core', $groupIds);
+		$this->assertContains('locked-plugin', $groupIds);
 		$this->assertNotContains('inactive-core', $groupIds);
 		$this->assertNotContains('inactive-theme', $groupIds);
 		$this->assertNotContains('dev-core', $groupIds);
 		$this->assertNotContains('dev-theme', $groupIds);
+		$this->assertNotContains('inactive-plugin', $groupIds);
+		$this->assertNotContains('registry-only-plugin', $groupIds);
 	}
 
 	public function testAllPackagesDiscoveryIsAuditOnlyScope(): void
@@ -97,10 +118,13 @@ final class I18nSeedTargetDiscoveryTest extends TestCase
 
 		$this->assertContains('app', $groupIds);
 		$this->assertContains('active-core', $groupIds);
+		$this->assertContains('locked-plugin', $groupIds);
 		$this->assertContains('inactive-core', $groupIds);
 		$this->assertContains('inactive-theme', $groupIds);
 		$this->assertContains('dev-core', $groupIds);
 		$this->assertContains('dev-theme', $groupIds);
+		$this->assertContains('inactive-plugin', $groupIds);
+		$this->assertContains('registry-only-plugin', $groupIds);
 		$this->assertNotContains('ignored', $groupIds);
 	}
 

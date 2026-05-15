@@ -139,7 +139,8 @@ class PackageAssetsBuilder
 		foreach ($packages as $package_key => $package) {
 			$type = $package['type'] ?? null;
 
-			// Only core/theme packages can declare managed public asset mounts.
+			// Phase 1 only manages public asset mounts for core/theme packages.
+			// Plugin assets still flow through the legacy plugin runtime for now.
 			if (!in_array($type, ['core', 'theme'], true)) {
 				continue;
 			}

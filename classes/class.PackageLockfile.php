@@ -41,6 +41,7 @@ class PackageLockfile
 		$sections = [
 			'core' => [],
 			'themes' => [],
+			'plugins' => [],
 		];
 
 		foreach (($lockfile['packages'] ?? []) as $package_key => $package) {
@@ -84,7 +85,6 @@ class PackageLockfile
 			'resolved',
 			'composer',
 			'assets',
-			'tag_contexts',
 			'dependencies',
 			'auto_installed',
 			'required_by',
@@ -122,14 +122,6 @@ class PackageLockfile
 
 			if ($assets['public'] !== []) {
 				$export['assets'] = $assets;
-			}
-		}
-
-		if (isset($package['tag_contexts']) && is_array($package['tag_contexts'])) {
-			$tag_contexts = self::normalizeTagContexts($package['tag_contexts'], $type, $id);
-
-			if ($tag_contexts !== []) {
-				$export['tag_contexts'] = $tag_contexts;
 			}
 		}
 
@@ -214,9 +206,7 @@ class PackageLockfile
 		$data = self::decodeJsonFile($path);
 		$packages = [];
 
-		self::assertNoRemovedSection($data, 'plugins', 'Package lockfile');
-
-		foreach (['core', 'themes'] as $section) {
+		foreach (['core', 'themes', 'plugins'] as $section) {
 			foreach (($data[$section] ?? []) as $id => $package) {
 				if (!is_array($package)) {
 					continue;
@@ -235,16 +225,6 @@ class PackageLockfile
 			'path' => $path,
 			'base_dir' => $base_dir,
 		];
-	}
-
-	/**
-	 * @param array<string, mixed> $data
-	 */
-	private static function assertNoRemovedSection(array $data, string $section, string $context): void
-	{
-		if (array_key_exists($section, $data)) {
-			throw new RuntimeException("{$context} no longer supports the legacy {$section} section.");
-		}
 	}
 
 	/**
@@ -294,10 +274,6 @@ class PackageLockfile
 
 		if (isset($package['assets']) && is_array($package['assets'])) {
 			$normalized['assets'] = self::normalizeAssets($package['assets'], $type, $id);
-		}
-
-		if (isset($package['tag_contexts']) && is_array($package['tag_contexts'])) {
-			$normalized['tag_contexts'] = self::normalizeTagContexts($package['tag_contexts'], $type, $id);
 		}
 
 		return $normalized;
@@ -362,19 +338,6 @@ class PackageLockfile
 		return [
 			'public' => $normalized,
 		];
-	}
-
-	/**
-	 * @return array<string, array{context: string, label: string|null}>
-	 */
-	private static function normalizeTagContexts(array $tag_contexts, string $type, string $id): array
-	{
-		return PackageMetadataHelper::normalizeTagContextsMetadata(
-			$tag_contexts,
-			"package lockfile '{$type}:{$id}'",
-			"{$type}:{$id}",
-			$id
-		);
 	}
 
 	/**

@@ -15,7 +15,7 @@ class CLICommandBuildAll extends AbstractCLICommand
 			Usage: radaptor build:all
 
 			Runs: config, db, template renderers, templates, widgets, theme data,
-			layouts, forms, import/export datasets, roles, autoloader,
+			layouts, forms, plugins, import/export datasets, roles, autoloader,
 			browser event docs.
 			DOC;
 	}
@@ -50,6 +50,7 @@ class CLICommandBuildAll extends AbstractCLICommand
 			CLICommandBuildAssets::class,
 			CLICommandBuildLayouts::class,
 			CLICommandBuildForms::class,
+			CLICommandBuildPlugins::class,
 			CLICommandBuildImportExportDatasets::class,
 			CLICommandBuildRoles::class,
 			CLICommandBuildAutoloader::class,

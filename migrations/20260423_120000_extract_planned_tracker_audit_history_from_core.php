@@ -14,7 +14,7 @@ class Migration_20260423_120000_extract_planned_tracker_audit_history_from_core
 		// Intentionally empty.
 		//
 		// Package migrations must not delete app-authored CMS content. Tracker
-		// cleanup now belongs to explicit app maintenance tooling, not to
+		// cleanup now belongs to explicit app/plugin maintenance tooling, not to
 		// framework migrate:run.
 	}
 }

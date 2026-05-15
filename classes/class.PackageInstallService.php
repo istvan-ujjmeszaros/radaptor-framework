@@ -117,6 +117,10 @@ class PackageInstallService
 			$write_lock_path,
 			$update,
 			$dry_run,
+			PluginManifest::getPath(),
+			PluginLockfile::getPath(),
+			ComposerJsonHelper::getPath(),
+			PluginComposerLockfile::getPath(),
 			PackageAssetsBuilder::getStatePath(),
 			$include_demo_seeds,
 			$rerun_demo_seeds,
@@ -136,6 +140,8 @@ class PackageInstallService
 	 *     packages_removed: int,
 	 *     removed_package_keys: string[],
 	 *     packages: array<int, array<string, mixed>>,
+	 *     plugin_bridge_written: bool,
+	 *     plugin_sync: array<string, mixed>|null,
 	 *     package_migrations_ran: bool,
 	 *     package_migrations: array<int, array<string, mixed>>|null,
 	 *     shipped_i18n_audit: array<string, mixed>|null,
@@ -152,6 +158,10 @@ class PackageInstallService
 		string $lock_path,
 		bool $update = false,
 		bool $dry_run = false,
+		?string $plugin_manifest_path = null,
+		?string $plugin_lock_path = null,
+		?string $composer_json_path = null,
+		?string $plugin_composer_lock_path = null,
 		?string $assets_state_path = null,
 		bool $include_demo_seeds = false,
 		bool $rerun_demo_seeds = false,
@@ -165,6 +175,10 @@ class PackageInstallService
 			$lock_path,
 			$update,
 			$dry_run,
+			$plugin_manifest_path,
+			$plugin_lock_path,
+			$composer_json_path,
+			$plugin_composer_lock_path,
 			$assets_state_path,
 			$include_demo_seeds,
 			$rerun_demo_seeds,
@@ -191,6 +205,8 @@ class PackageInstallService
 	 *     packages_removed: int,
 	 *     removed_package_keys: string[],
 	 *     packages: array<int, array<string, mixed>>,
+	 *     plugin_bridge_written: bool,
+	 *     plugin_sync: array<string, mixed>|null,
 	 *     package_migrations_ran: bool,
 	 *     package_migrations: array<int, array<string, mixed>>|null,
 	 *     shipped_i18n_audit: array<string, mixed>|null,
@@ -208,6 +224,10 @@ class PackageInstallService
 		string $write_lock_path,
 		bool $update = false,
 		bool $dry_run = false,
+		?string $plugin_manifest_path = null,
+		?string $plugin_lock_path = null,
+		?string $composer_json_path = null,
+		?string $plugin_composer_lock_path = null,
 		?string $assets_state_path = null,
 		bool $include_demo_seeds = false,
 		bool $rerun_demo_seeds = false,
@@ -234,6 +254,8 @@ class PackageInstallService
 		$must_initialize_target_lock = $read_lock_path !== $write_lock_path && !file_exists($write_lock_path);
 		$lockfile_changed = $current_export !== $next_export || $must_initialize_target_lock;
 		$lockfile_written = false;
+		$plugin_bridge_written = false;
+		$plugin_sync = null;
 		$package_migrations_ran = false;
 		$package_migrations = null;
 		$shipped_i18n_audit = null;
@@ -257,6 +279,19 @@ class PackageInstallService
 				false,
 				$layout_rename_decision
 			);
+
+			if ($plugin_manifest_path !== null && $plugin_lock_path !== null) {
+				PackageBridgeHelper::writePluginManifest($plugin_manifest_path, $next_lock['packages']);
+				$plugin_bridge_written = true;
+				$plugin_sync = PluginSyncService::syncPaths(
+					$plugin_manifest_path,
+					$plugin_lock_path,
+					false,
+					$composer_json_path,
+					$plugin_composer_lock_path,
+					run_plugin_migrations: false
+				);
+			}
 
 			if ($assets_state_path !== null) {
 				$temp_lock_path = self::writeTempLockfile($next_lock, dirname($write_lock_path));
@@ -314,6 +349,22 @@ class PackageInstallService
 			PackagePathHelper::reset();
 			PackageThemeScanHelper::reset();
 		} else {
+			if ($plugin_manifest_path !== null && $plugin_lock_path !== null) {
+				$temp_plugin_manifest_path = self::writeTempPluginManifest($next_lock['packages'], dirname($plugin_manifest_path));
+
+				try {
+					$plugin_sync = PluginSyncService::syncPaths(
+						$temp_plugin_manifest_path,
+						$plugin_lock_path,
+						true,
+						$composer_json_path,
+						$plugin_composer_lock_path
+					);
+				} finally {
+					self::removeTempFile($temp_plugin_manifest_path);
+				}
+			}
+
 			if ($assets_state_path !== null) {
 				$temp_lock_path = self::writeTempLockfile($next_lock, dirname($write_lock_path));
 
@@ -363,6 +414,8 @@ class PackageInstallService
 			'packages_removed' => count($next['removed_package_keys']),
 			'removed_package_keys' => $next['removed_package_keys'],
 			'packages' => array_values($next['package_summaries']),
+			'plugin_bridge_written' => $plugin_bridge_written,
+			'plugin_sync' => $plugin_sync,
 			'package_migrations_ran' => $package_migrations_ran,
 			'package_migrations' => $package_migrations,
 			'shipped_i18n_audit' => $shipped_i18n_audit,
@@ -1049,7 +1102,6 @@ class PackageInstallService
 				'require' => $metadata['composer']['require'],
 			],
 			'assets' => $metadata['assets'],
-			'tag_contexts' => $metadata['tag_contexts'],
 		];
 	}
 
@@ -1116,7 +1168,6 @@ class PackageInstallService
 				'require' => $resolved_package['composer_require'],
 			],
 			'assets' => $resolved_package['assets'],
-			'tag_contexts' => $resolved_package['tag_contexts'],
 		];
 	}
 
@@ -1155,7 +1206,7 @@ class PackageInstallService
 			return $manifest_constraint;
 		}
 
-		if ($manifest_constraint !== null && !PackageVersionHelper::matches($current_version, $manifest_constraint)) {
+		if ($manifest_constraint !== null && !PluginVersionHelper::matches($current_version, $manifest_constraint)) {
 			return $manifest_constraint;
 		}
 
@@ -1215,7 +1266,7 @@ class PackageInstallService
 				}
 
 				$processed_requests[$package_name] = $signature;
-				$constraint = PackageVersionHelper::combineConstraints($request['constraints']);
+				$constraint = PluginVersionHelper::combineConstraints($request['constraints']);
 				$current_locked_package = self::findCurrentLockedDependency($current_lock_packages, $package_name);
 				$request_version = self::determineAutoInstalledRequestedVersion($current_locked_package, $constraint, $update);
 				$resolved_package = self::resolveDependencyFromCandidates($request['registries'], $package_name, $request_version);
@@ -1373,7 +1424,7 @@ class PackageInstallService
 			return $constraint !== '' ? $constraint : null;
 		}
 
-		if ($constraint !== '' && !PackageVersionHelper::matches($current_version, $constraint)) {
+		if ($constraint !== '' && !PluginVersionHelper::matches($current_version, $constraint)) {
 			return $constraint;
 		}
 
@@ -1394,7 +1445,6 @@ class PackageInstallService
 	 *     assets: array{
 	 *         public: list<array{source: string, target: string}>
 	 *     },
-	 *     tag_contexts: array<string, array{context: string, label: string|null}>,
 	 *     dist: array{
 	 *         type: string,
 	 *         url: string,
@@ -1416,7 +1466,7 @@ class PackageInstallService
 				continue;
 			}
 
-			if ($best === null || PackageVersionHelper::compare($resolved['version'], $best['version']) > 0) {
+			if ($best === null || PluginVersionHelper::compare($resolved['version'], $best['version']) > 0) {
 				$best = $resolved;
 			}
 		}
@@ -1480,6 +1530,10 @@ class PackageInstallService
 		$cleanup_targets = [];
 
 		foreach ($current_lock_packages as $package_key => $current_locked_package) {
+			if (($current_locked_package['type'] ?? null) === 'plugin') {
+				continue;
+			}
+
 			$current_source = is_array($current_locked_package['source'] ?? null) ? $current_locked_package['source'] : [];
 			$current_resolved = is_array($current_locked_package['resolved'] ?? null) ? $current_locked_package['resolved'] : [];
 			$current_type = $current_resolved['type'] ?? $current_source['type'] ?? null;
@@ -1521,6 +1575,10 @@ class PackageInstallService
 		}
 
 		foreach ($next_lock_packages as $package_key => $next_locked_package) {
+			if (($next_locked_package['type'] ?? null) === 'plugin') {
+				continue;
+			}
+
 			$next_source = is_array($next_locked_package['source'] ?? null) ? $next_locked_package['source'] : [];
 			$next_resolved = is_array($next_locked_package['resolved'] ?? null) ? $next_locked_package['resolved'] : [];
 			$next_type = $next_resolved['type'] ?? $next_source['type'] ?? null;
@@ -1555,6 +1613,10 @@ class PackageInstallService
 	private static function installRegistryPackages(array $current_lock_packages, array $next_lock_packages): void
 	{
 		foreach ($next_lock_packages as $package_key => $next_locked_package) {
+			if (($next_locked_package['type'] ?? null) === 'plugin') {
+				continue;
+			}
+
 			$resolved = is_array($next_locked_package['resolved'] ?? null) ? $next_locked_package['resolved'] : [];
 
 			if (($resolved['type'] ?? null) !== 'registry') {
@@ -1770,6 +1832,15 @@ class PackageInstallService
 		}
 
 		throw new RuntimeException("Registry package archive does not expose exactly one .registry-package.json at its root: {$extract_path}");
+	}
+
+	private static function writeTempPluginManifest(array $packages, string $base_dir): string
+	{
+		$temp_path = self::createScopedTempFile($base_dir, '.radaptor-plugin-manifest-');
+
+		PackageBridgeHelper::writePluginManifest($temp_path, $packages);
+
+		return $temp_path;
 	}
 
 	private static function writeTempLockfile(array $lockfile, string $base_dir): string

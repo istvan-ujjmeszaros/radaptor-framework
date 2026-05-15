@@ -22,7 +22,7 @@ class CLICommandInstall extends AbstractCLICommand
 			Layout renames:
 			  Incoming packages may declare deprecated_layouts in .registry-package.json
 			  (e.g. admin_nomenu -> admin_login). After refreshing the registry packages on
-			  disk and BEFORE lockfile-write, asset-build, migrations, and
+			  disk and BEFORE lockfile-write, asset-build, plugin-bridge, migrations, and
 			  seeds, install/update detects affected webpages and _theme_settings mappings
 			  and either prompts (TTY) or requires one of:
 			    --apply-layout-renames    apply pending renames non-interactively
@@ -136,6 +136,11 @@ class CLICommandInstall extends AbstractCLICommand
 		echo "{$prefix}Removed packages: {$result['packages_removed']}\n";
 		echo "{$prefix}Lockfile changed: " . ($result['lockfile_changed'] ? 'yes' : 'no') . "\n";
 		echo "{$prefix}Lockfile written: " . ($result['lockfile_written'] ? 'yes' : 'no') . "\n";
+		echo "{$prefix}Plugin bridge written: " . ($result['plugin_bridge_written'] ? 'yes' : 'no') . "\n";
+
+		if (is_array($result['plugin_sync'] ?? null)) {
+			echo "{$prefix}Plugin runtime sync: yes\n";
+		}
 
 		if (($result['package_migrations_ran'] ?? false) === true) {
 			$package_migrations = is_array($result['package_migrations'] ?? null) ? $result['package_migrations'] : [];
@@ -191,6 +196,10 @@ class CLICommandInstall extends AbstractCLICommand
 			return 'error';
 		}
 
+		if ($this->hasFailedPluginSync($result['plugin_sync'] ?? null)) {
+			return 'error';
+		}
+
 		if ($this->hasFailedShippedI18n($result['shipped_i18n_audit'] ?? null, $result['shipped_i18n_sync'] ?? null)) {
 			return 'error';
 		}
@@ -218,6 +227,22 @@ class CLICommandInstall extends AbstractCLICommand
 		}
 
 		return false;
+	}
+
+	/**
+	 * @param array<string, mixed>|null $result
+	 */
+	private function hasFailedPluginSync(?array $result): bool
+	{
+		if (!is_array($result)) {
+			return false;
+		}
+
+		if ($this->hasFailedMigration($result['plugin_migrations'] ?? null)) {
+			return true;
+		}
+
+		return ($result['i18n_seed_sync']['has_errors'] ?? false) === true;
 	}
 
 	/**

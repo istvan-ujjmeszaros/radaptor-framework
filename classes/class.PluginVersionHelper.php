@@ -1,13 +1,13 @@
 <?php
 
-class PackageVersionHelper
+class PluginVersionHelper
 {
 	public static function normalizeVersion(string $version): string
 	{
 		$version = trim($version);
 
 		if (!preg_match('/^(?<core>\d+(?:\.\d+){0,2})(?<prerelease>-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/', $version, $matches)) {
-			throw new RuntimeException("Unsupported package version format '{$version}'. Use semver-style versions like 1.2.3 or 1.2.3-alpha.1.");
+			throw new RuntimeException("Unsupported plugin version format '{$version}'. Use semver-style versions like 1.2.3 or 1.2.3-alpha.1.");
 		}
 
 		$parts = array_map('intval', explode('.', $matches['core']));
@@ -173,14 +173,14 @@ class PackageVersionHelper
 			}
 
 			if (!preg_match('/^\d+$/', $part)) {
-				throw new RuntimeException("Unsupported package version constraint '{$version}'.");
+				throw new RuntimeException("Unsupported plugin version constraint '{$version}'.");
 			}
 
 			$normalized_parts[] = (int) $part;
 		}
 
 		if ($wildcard_index === null) {
-			throw new RuntimeException("Unsupported package version constraint '{$version}'.");
+			throw new RuntimeException("Unsupported plugin version constraint '{$version}'.");
 		}
 
 		while (count($normalized_parts) < 3) {

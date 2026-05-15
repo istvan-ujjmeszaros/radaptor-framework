@@ -141,8 +141,10 @@ class PackagePathHelper
 		$relative = self::toStoragePath($normalized_path);
 
 		return match (true) {
+			str_starts_with($relative, 'plugins/dev/'),
 			str_starts_with($relative, 'packages/dev/core/'),
 			str_starts_with($relative, 'packages/dev/themes/') => 30,
+			str_starts_with($relative, 'plugins/registry/'),
 			str_starts_with($relative, 'packages/registry/core/'),
 			str_starts_with($relative, 'packages/registry/themes/') => 20,
 			default => 10,
@@ -335,7 +337,11 @@ class PackagePathHelper
 	 */
 	private static function getDefaultFallbackSourceTypes(string $type): array
 	{
-		PackageTypeHelper::normalizeType($type, 'Package');
+		$type = PackageTypeHelper::normalizeType($type, 'Package');
+
+		if ($type === 'plugin') {
+			return ['dev', 'registry'];
+		}
 
 		return ['registry'];
 	}
@@ -362,7 +368,7 @@ class PackagePathHelper
 	{
 		$relative = self::toStoragePath($path);
 
-		return preg_match('#^packages/(dev|registry)/(core|themes)/[^/]+(?:/|$)#', $relative) === 1;
+		return preg_match('#^(plugins/(dev|registry)/[^/]+|packages/(dev|registry)/(core|themes)/[^/]+)(?:/|$)#', $relative) === 1;
 	}
 
 	private static function isPathInside(string $path, string $root): bool

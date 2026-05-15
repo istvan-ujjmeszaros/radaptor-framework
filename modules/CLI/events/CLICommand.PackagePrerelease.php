@@ -4,7 +4,7 @@
  * Release a first-party core/theme package as a new immutable prerelease version.
  *
  * Usage:
- *   radaptor package:prerelease <package-key> [--channel alpha|beta|rc] [--registry-root /path/to/radaptor_package_registry] [--dry-run] [--json]
+ *   radaptor package:prerelease <package-key> [--channel alpha|beta|rc] [--registry-root /path/to/radaptor_plugin_registry] [--dry-run] [--json]
  */
 class CLICommandPackagePrerelease extends AbstractCLICommand
 {
@@ -19,7 +19,7 @@ class CLICommandPackagePrerelease extends AbstractCLICommand
 			Release a first-party core/theme package as a new immutable prerelease version.
 
 			Usage:
-			  radaptor package:prerelease <package-key> [--channel alpha|beta|rc] [--registry-root /path/to/radaptor_package_registry] [--dry-run] [--json]
+			  radaptor package:prerelease <package-key> [--channel alpha|beta|rc] [--registry-root /path/to/radaptor_plugin_registry] [--dry-run] [--json]
 
 			Examples:
 			  radaptor package:prerelease core:framework --channel alpha
@@ -33,7 +33,7 @@ class CLICommandPackagePrerelease extends AbstractCLICommand
 
 	public function run(): void
 	{
-		$usage = 'Usage: radaptor package:prerelease <package-key> [--channel alpha|beta|rc] [--registry-root /path/to/radaptor_package_registry] [--dry-run] [--json]';
+		$usage = 'Usage: radaptor package:prerelease <package-key> [--channel alpha|beta|rc] [--registry-root /path/to/radaptor_plugin_registry] [--dry-run] [--json]';
 		$package_key = CLIOptionHelper::getMainArgOrAbort($usage);
 		$json = CLIOptionHelper::isJson();
 		$dry_run = Request::hasArg('dry-run');

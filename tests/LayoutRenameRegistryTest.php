@@ -5,7 +5,7 @@ declare(strict_types=1);
 use PHPUnit\Framework\TestCase;
 
 require_once __DIR__ . '/../classes/class.PackageTypeHelper.php';
-require_once __DIR__ . '/../classes/class.PackageVersionHelper.php';
+require_once __DIR__ . '/../classes/class.PluginVersionHelper.php';
 require_once __DIR__ . '/../classes/class.PackageDependencyHelper.php';
 require_once __DIR__ . '/../classes/class.PackageMetadataHelper.php';
 require_once __DIR__ . '/../classes/class.LayoutRenameRegistry.php';

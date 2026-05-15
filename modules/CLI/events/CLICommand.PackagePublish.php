@@ -4,7 +4,7 @@
  * Publish a first-party core/theme package checkout directly into the local package registry.
  *
  * Usage:
- *   radaptor package:publish <package-key> [--registry-root /path/to/radaptor_package_registry] [--json]
+ *   radaptor package:publish <package-key> [--registry-root /path/to/radaptor_plugin_registry] [--json]
  */
 class CLICommandPackagePublish extends AbstractCLICommand
 {
@@ -19,7 +19,7 @@ class CLICommandPackagePublish extends AbstractCLICommand
 			Publish a first-party core/theme package checkout directly into the local package registry.
 
 			Usage:
-			  radaptor package:publish <package-key> [--registry-root /path/to/radaptor_package_registry] [--json]
+			  radaptor package:publish <package-key> [--registry-root /path/to/radaptor_plugin_registry] [--json]
 
 			Examples:
 			  radaptor package:publish core:framework
@@ -29,7 +29,7 @@ class CLICommandPackagePublish extends AbstractCLICommand
 
 	public function run(): void
 	{
-		$usage = 'Usage: radaptor package:publish <package-key> [--registry-root /path/to/radaptor_package_registry] [--json]';
+		$usage = 'Usage: radaptor package:publish <package-key> [--registry-root /path/to/radaptor_plugin_registry] [--json]';
 		$package_key = CLIOptionHelper::getMainArgOrAbort($usage);
 		$json = CLIOptionHelper::isJson();
 		$registry_root = CLIOptionHelper::getOption('registry-root');

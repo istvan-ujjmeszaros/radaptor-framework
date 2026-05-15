@@ -24,8 +24,7 @@ class LocalPackageRegistryBuilder
 	 *     assets: array{
 	 *         public: list<array{source: string, target: string}>
 	 *     },
-	 *     dist_exclude: list<string>,
-	 *     tag_contexts: array<string, array{context: string, label: string|null}>
+	 *     dist_exclude: list<string>
 	 * } $metadata
 	 * @param list<string> $tracked_files
 	 * @return array{
@@ -101,7 +100,6 @@ class LocalPackageRegistryBuilder
 			'assets' => [
 				'public' => $metadata['assets']['public'],
 			],
-			'tag_contexts' => $metadata['tag_contexts'],
 			'dist' => [
 				'type' => 'zip',
 				'url' => $archive['url'],
@@ -219,7 +217,7 @@ class LocalPackageRegistryBuilder
 	private static function buildPackageArchive(string $registry_root, string $package_root, array $metadata, array $tracked_files): array
 	{
 		$package_slug = str_replace('/', '-', $metadata['package']);
-		$archive_relative_path = 'packages/' . $package_slug . '/' . $metadata['version'] . '/package.zip';
+		$archive_relative_path = 'packages/' . $package_slug . '/' . $metadata['version'] . '/plugin.zip';
 		$archive_path = $registry_root . '/' . $archive_relative_path;
 		$archive_dir = dirname($archive_path);
 
@@ -281,7 +279,7 @@ class LocalPackageRegistryBuilder
 				}
 
 				$current_url = $dist['url'];
-				$target_url = 'packages/' . str_replace('/', '-', (string) $package_name) . '/' . $version . '/package.zip';
+				$target_url = 'packages/' . str_replace('/', '-', (string) $package_name) . '/' . $version . '/plugin.zip';
 
 				if ($current_url === $target_url) {
 					continue;
@@ -357,12 +355,12 @@ class LocalPackageRegistryBuilder
 			return false;
 		}
 
-		return PackageVersionHelper::compare($new_version, $current_latest) >= 0;
+		return PluginVersionHelper::compare($new_version, $current_latest) >= 0;
 	}
 
 	private static function isPrereleaseVersion(string $version): bool
 	{
-		return str_contains(PackageVersionHelper::normalizeVersion($version), '-');
+		return str_contains(PluginVersionHelper::normalizeVersion($version), '-');
 	}
 
 	/**

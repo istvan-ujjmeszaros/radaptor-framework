@@ -37,11 +37,11 @@ class PackageModuleHelper
 			return self::buildModule($type, $id);
 		}
 
-		throw new RuntimeException("Requested module '{$module}' is not supported. Use 'framework', 'app', or '<type>:<id>'.");
+		return self::buildModule('plugin', $module);
 	}
 
 	public static function isPackageModule(string $module): bool
 	{
-		return preg_match('/^(core|theme):[a-z0-9][a-z0-9_-]*$/', trim($module)) === 1;
+		return preg_match('/^(core|theme|plugin):[a-z0-9][a-z0-9_-]*$/', trim($module)) === 1;
 	}
 }

@@ -48,6 +48,7 @@ class CLICommandBuildAutoloader extends AbstractCLICommand
 		$classIndex['WidgetList'] = ApplicationConfig::GENERATED_WIDGETS_FILE;
 		$classIndex['ThemeList'] = ApplicationConfig::GENERATED_THEME_DATA_FILE;
 		$classIndex['FormList'] = ApplicationConfig::GENERATED_FORMS_FILE;
+		$classIndex['PluginList'] = ApplicationConfig::GENERATED_PLUGINS_FILE;
 		$classIndex['ImportExportDatasetList'] = ApplicationConfig::GENERATED_IMPORT_EXPORT_DATASETS_FILE;
 		$classIndex['RoleList'] = ApplicationConfig::GENERATED_ROLES_FILE;
 

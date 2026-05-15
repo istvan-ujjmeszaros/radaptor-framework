@@ -87,14 +87,14 @@ class PackageReleaseVersionHelper
 
 	private static function incrementPatch(string $base_version): string
 	{
-		[$major, $minor, $patch] = array_map('intval', explode('.', PackageVersionHelper::normalizeVersion($base_version)));
+		[$major, $minor, $patch] = array_map('intval', explode('.', PluginVersionHelper::normalizeVersion($base_version)));
 
 		return "{$major}.{$minor}." . ($patch + 1);
 	}
 
 	private static function buildPrereleaseVersion(string $base_version, string $channel, int $sequence): string
 	{
-		return PackageVersionHelper::normalizeVersion($base_version . '-' . $channel . '.' . $sequence);
+		return PluginVersionHelper::normalizeVersion($base_version . '-' . $channel . '.' . $sequence);
 	}
 
 	/**
@@ -108,7 +108,7 @@ class PackageReleaseVersionHelper
 	 */
 	private static function parseVersion(string $version): array
 	{
-		$normalized = PackageVersionHelper::normalizeVersion($version);
+		$normalized = PluginVersionHelper::normalizeVersion($version);
 
 		if (preg_match('/^(?<base>\d+\.\d+\.\d+)-(?<channel>alpha|beta|rc)\.(?<sequence>\d+)$/', $normalized, $matches) === 1) {
 			return [
