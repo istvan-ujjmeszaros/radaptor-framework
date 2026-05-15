@@ -5,7 +5,7 @@
  *
  * Migrations are discovered from deterministic package-aware sources:
  * - framework migrations
- * - installed core/theme/plugin package migrations
+ * - installed core/theme package migrations
  * - app migrations
  */
 class MigrationRunner
@@ -659,7 +659,6 @@ class MigrationRunner
 	{
 		$dirs = [];
 		$seen_modules = [];
-		$installed_plugin_ids = self::getInstalledPluginIds();
 
 		if (is_file(PackageLockfile::getPath())) {
 			$lock = PackageLockfile::load();
@@ -698,8 +697,6 @@ class MigrationRunner
 			['type' => 'core', 'path' => DEPLOY_ROOT . 'packages/registry/core'],
 			['type' => 'theme', 'path' => DEPLOY_ROOT . 'packages/dev/themes'],
 			['type' => 'theme', 'path' => DEPLOY_ROOT . 'packages/registry/themes'],
-			['type' => 'plugin', 'path' => DEPLOY_ROOT . 'plugins/dev'],
-			['type' => 'plugin', 'path' => DEPLOY_ROOT . 'plugins/registry'],
 		] as $package_root) {
 			if (!is_dir($package_root['path'])) {
 				continue;
@@ -721,10 +718,6 @@ class MigrationRunner
 					continue;
 				}
 
-				if ($type === 'plugin' && is_array($installed_plugin_ids) && !in_array($id, $installed_plugin_ids, true)) {
-					continue;
-				}
-
 				$module = PackageModuleHelper::buildModule($type, $id);
 
 				if (isset($seen_modules[$module])) {
@@ -740,33 +733,6 @@ class MigrationRunner
 		}
 
 		return $dirs;
-	}
-
-	/**
-	 * @return list<string>|null
-	 */
-	private static function getInstalledPluginIds(): ?array
-	{
-		$lock_path = PluginLockfile::getPath();
-
-		if (!is_file($lock_path)) {
-			return null;
-		}
-
-		try {
-			$lock = PluginLockfile::loadFromPath($lock_path);
-		} catch (Throwable) {
-			return null;
-		}
-
-		$plugin_ids = array_map(
-			static fn (string $plugin_id): string => PluginIdHelper::normalize($plugin_id, 'Installed plugin'),
-			array_keys($lock['plugins'] ?? [])
-		);
-		$plugin_ids = array_values(array_unique($plugin_ids));
-		sort($plugin_ids);
-
-		return $plugin_ids;
 	}
 
 	public static function writeMigrationsFile(): void
@@ -1303,15 +1269,11 @@ class MigrationRunner
 			return 2;
 		}
 
-		if (str_starts_with($module, 'plugin:')) {
+		if ($module === 'app') {
 			return 3;
 		}
 
-		if ($module === 'app') {
-			return 4;
-		}
-
-		return 5;
+		return 4;
 	}
 
 	private static function extractTimestampPrefix(string $filename): string
@@ -1358,10 +1320,6 @@ class MigrationRunner
 
 		if (preg_match('#/packages/(?:dev|registry)/themes/([^/]+)/migrations/#', $normalized, $matches) === 1) {
 			return PackageModuleHelper::buildModule('theme', $matches[1]);
-		}
-
-		if (preg_match('#/plugins/(?:dev|registry)/([^/]+)/migrations/#', $normalized, $matches) === 1) {
-			return PackageModuleHelper::buildModule('plugin', $matches[1]);
 		}
 
 		if (str_contains($normalized, '/app/migrations/')) {
@@ -1470,19 +1428,6 @@ class MigrationRunner
 	): string {
 		$current_module = trim($current_module);
 		$known_modules = $known_modules_by_filename[$filename] ?? [];
-
-		if (
-			$current_module !== ''
-			&& !str_contains($current_module, ':')
-			&& $current_module !== 'framework'
-			&& $current_module !== 'app'
-		) {
-			$legacy_plugin_module = PackageModuleHelper::buildModule('plugin', $current_module);
-
-			if (in_array($legacy_plugin_module, $known_modules, true)) {
-				$current_module = $legacy_plugin_module;
-			}
-		}
 
 		if (count($known_modules) === 1) {
 			return $known_modules[0];

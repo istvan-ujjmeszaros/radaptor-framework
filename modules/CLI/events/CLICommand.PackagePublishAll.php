@@ -4,7 +4,7 @@
  * Publish all first-party core/theme package checkouts from packages/dev into the local registry.
  *
  * Usage:
- *   radaptor package:publish-all [--registry-root /path/to/radaptor_plugin_registry] [--json]
+ *   radaptor package:publish-all [--registry-root /path/to/radaptor_package_registry] [--json]
  */
 class CLICommandPackagePublishAll extends AbstractCLICommand
 {
@@ -19,7 +19,7 @@ class CLICommandPackagePublishAll extends AbstractCLICommand
 			Publish all first-party core/theme package checkouts from packages/dev into the local registry.
 
 			Usage:
-			  radaptor package:publish-all [--registry-root /path/to/radaptor_plugin_registry] [--json]
+			  radaptor package:publish-all [--registry-root /path/to/radaptor_package_registry] [--json]
 
 			This scans the active app's packages/dev checkouts, publishes each tracked package artifact,
 			and refreshes registry.json in one pass.

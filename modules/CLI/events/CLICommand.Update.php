@@ -23,7 +23,7 @@ class CLICommandUpdate extends CLICommandInstall
 			  After the registry packages are installed, the update inspects every incoming
 			  package's .registry-package.json for deprecated_layouts declarations and detects
 			  affected webpages and _theme_settings rows. The gate runs BEFORE lockfile-write,
-			  asset-build, plugin-bridge, migrations, and seeds, so an abort or failure leaves
+			  asset-build, migrations, and seeds, so an abort or failure leaves
 			  the rest of the update steps unexecuted and the next run can resume.
 			    --apply-layout-renames    apply pending renames non-interactively
 			    --abort-on-layout-renames refuse renames non-interactively (exits with error)

@@ -219,10 +219,7 @@ class TestDatabaseSchemaSyncService
 			$target_dsns[] = self::getTestAuditDsn();
 		}
 
-		DbSchemaDataBuilder::buildSchemaArray(
-			$target_dsns,
-			run_plugin_hooks: true
-		);
+		DbSchemaDataBuilder::buildSchemaArray($target_dsns);
 	}
 
 	private static function isAuditRuntimeAvailable(): bool

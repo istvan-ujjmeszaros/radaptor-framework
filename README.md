@@ -33,7 +33,7 @@ Release key:
 
 Normal flow: package PR, `@codex review`, clean repo checks, squash merge, fast-forward local
 `main`, `package:release core:framework`, commit the `.registry-package.json` version bump, then
-publish the generated artifact through `radaptor_plugin_registry`.
+publish the generated artifact through `radaptor_package_registry`.
 
 ## I18n Diagnostics
 

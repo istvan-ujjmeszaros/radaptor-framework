@@ -267,10 +267,6 @@ class PackagePublishService
 			}
 
 			foreach ($document['packages'] as $package_key => $package) {
-				if (($package['type'] ?? null) === 'plugin') {
-					continue;
-				}
-
 				foreach (self::discoverCandidateSourcePaths(
 					(string) ($package['type'] ?? ''),
 					(string) ($package['id'] ?? ''),
@@ -289,7 +285,7 @@ class PackagePublishService
 		uksort($discovered, static function (string $left, string $right): int {
 			[$left_type, $left_id] = explode(':', $left, 2);
 			[$right_type, $right_id] = explode(':', $right, 2);
-			$type_order = ['core' => 0, 'theme' => 1, 'plugin' => 2];
+			$type_order = ['core' => 0, 'theme' => 1];
 
 			return [$type_order[$left_type] ?? 99, $left_id] <=> [$type_order[$right_type] ?? 99, $right_id];
 		});

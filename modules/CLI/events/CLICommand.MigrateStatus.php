@@ -66,8 +66,6 @@ class CLICommandMigrateStatus extends AbstractCLICommand
 			echo "  - " . DEPLOY_ROOT . "packages/registry/core/*/migrations/\n";
 			echo "  - " . DEPLOY_ROOT . "packages/dev/themes/*/migrations/\n";
 			echo "  - " . DEPLOY_ROOT . "packages/registry/themes/*/migrations/\n";
-			echo "  - " . DEPLOY_ROOT . "plugins/dev/*/migrations/\n";
-			echo "  - " . DEPLOY_ROOT . "plugins/registry/*/migrations/\n";
 			echo "  - " . DEPLOY_ROOT . "app/migrations/\n";
 
 			return;

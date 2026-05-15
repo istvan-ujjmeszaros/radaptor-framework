@@ -4,7 +4,7 @@
  * Release a first-party core/theme package as a new immutable stable version.
  *
  * Usage:
- *   radaptor package:release <package-key> [--registry-root /path/to/radaptor_plugin_registry] [--dry-run] [--json]
+ *   radaptor package:release <package-key> [--registry-root /path/to/radaptor_package_registry] [--dry-run] [--json]
  */
 class CLICommandPackageRelease extends AbstractCLICommand
 {
@@ -19,7 +19,7 @@ class CLICommandPackageRelease extends AbstractCLICommand
 			Release a first-party core/theme package as a new immutable stable version.
 
 			Usage:
-			  radaptor package:release <package-key> [--registry-root /path/to/radaptor_plugin_registry] [--dry-run] [--json]
+			  radaptor package:release <package-key> [--registry-root /path/to/radaptor_package_registry] [--dry-run] [--json]
 
 			Examples:
 			  radaptor package:release core:framework
@@ -29,7 +29,7 @@ class CLICommandPackageRelease extends AbstractCLICommand
 
 	public function run(): void
 	{
-		$usage = 'Usage: radaptor package:release <package-key> [--registry-root /path/to/radaptor_plugin_registry] [--dry-run] [--json]';
+		$usage = 'Usage: radaptor package:release <package-key> [--registry-root /path/to/radaptor_package_registry] [--dry-run] [--json]';
 		$package_key = CLIOptionHelper::getMainArgOrAbort($usage);
 		$json = CLIOptionHelper::isJson();
 		$dry_run = Request::hasArg('dry-run');
