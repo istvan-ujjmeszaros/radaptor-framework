@@ -67,7 +67,7 @@ class PackageThemeScanHelper
 			return $resolved_theme_name;
 		}
 
-		if (preg_match('#/packages/(?:dev|registry)/themes/([^/]+)/(?:theme|core|plugins)/#', $normalized_path, $matches) === 1) {
+		if (preg_match('#/packages/(?:dev|registry)/themes/([^/]+)/(?:theme|core)/#', $normalized_path, $matches) === 1) {
 			return $matches[1];
 		}
 
@@ -109,24 +109,17 @@ class PackageThemeScanHelper
 
 		$lock = PackageLockfile::load();
 		$packages = $lock['packages'];
-		$plugin_ids = [];
 		$core_ids = [];
 		$roots = [];
 		$theme_names_by_package_root = [];
 
 		foreach ($packages as $package) {
-			if (($package['type'] ?? null) === 'plugin') {
-				$plugin_ids[] = PackageTypeHelper::normalizeId($package['id'] ?? null, 'Theme package owner');
-			}
-
 			if (($package['type'] ?? null) === 'core') {
 				$core_ids[] = PackageTypeHelper::normalizeId($package['id'] ?? null, 'Theme package owner');
 			}
 		}
 
-		$plugin_ids = array_values(array_unique($plugin_ids));
 		$core_ids = array_values(array_unique($core_ids));
-		sort($plugin_ids);
 		sort($core_ids);
 
 		foreach ($packages as $package) {
@@ -161,14 +154,6 @@ class PackageThemeScanHelper
 
 				if (is_dir($core_root)) {
 					$roots[] = $core_root;
-				}
-			}
-
-			foreach ($plugin_ids as $plugin_id) {
-				$plugin_root = $package_root . '/plugins/' . $plugin_id;
-
-				if (is_dir($plugin_root)) {
-					$roots[] = $plugin_root;
 				}
 			}
 		}

@@ -44,7 +44,6 @@ class PackageManifest
 		$sections = [
 			'core' => [],
 			'themes' => [],
-			'plugins' => [],
 		];
 
 		foreach (($manifest['packages'] ?? []) as $package_key => $package) {
@@ -229,7 +228,9 @@ class PackageManifest
 		$registries = self::normalizeRegistries($data['registries'] ?? []);
 		$packages = [];
 
-		foreach (['core', 'themes', 'plugins'] as $section) {
+		self::assertNoRemovedSection($data, 'plugins', 'Package manifest');
+
+		foreach (['core', 'themes'] as $section) {
 			foreach (($data[$section] ?? []) as $id => $package) {
 				if (!is_array($package)) {
 					continue;
@@ -255,6 +256,16 @@ class PackageManifest
 			'path' => $path,
 			'base_dir' => $base_dir,
 		];
+	}
+
+	/**
+	 * @param array<string, mixed> $data
+	 */
+	private static function assertNoRemovedSection(array $data, string $section, string $context): void
+	{
+		if (array_key_exists($section, $data)) {
+			throw new RuntimeException("{$context} no longer supports the legacy {$section} section.");
+		}
 	}
 
 	/**

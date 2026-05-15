@@ -16,23 +16,18 @@ class LocalRegistryRootResolver
 
 		$candidates = [];
 
-		foreach ([
-			'RADAPTOR_PACKAGE_REGISTRY_ROOT',
-			'RADAPTOR_PLUGIN_REGISTRY_ROOT',
-		] as $env_name) {
-			$env_root = getenv($env_name);
+		$env_root = getenv('RADAPTOR_PACKAGE_REGISTRY_ROOT');
 
-			if (is_string($env_root) && trim($env_root) !== '') {
-				$candidates[] = trim($env_root);
-			}
+		if (is_string($env_root) && trim($env_root) !== '') {
+			$candidates[] = trim($env_root);
 		}
 
-		$candidates[] = DEPLOY_ROOT . '../radaptor_plugin_registry';
-		$candidates[] = DEPLOY_ROOT . '../radaptor-plugin-registry';
-		$candidates[] = '/workspace/radaptor_plugin_registry';
-		$candidates[] = '/workspace/radaptor-plugin-registry';
-		$candidates[] = '/radaptor_plugin_registry';
-		$candidates[] = '/radaptor-plugin-registry';
+		$candidates[] = DEPLOY_ROOT . '../radaptor_package_registry';
+		$candidates[] = DEPLOY_ROOT . '../radaptor-package-registry';
+		$candidates[] = '/workspace/radaptor_package_registry';
+		$candidates[] = '/workspace/radaptor-package-registry';
+		$candidates[] = '/radaptor_package_registry';
+		$candidates[] = '/radaptor-package-registry';
 
 		foreach ($candidates as $candidate) {
 			$resolved = self::normalizePath($candidate);

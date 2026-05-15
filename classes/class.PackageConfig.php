@@ -173,11 +173,7 @@ class PackageConfig
 	 */
 	private static function getFallbackSourceTypes(string $type): array
 	{
-		$type = PackageTypeHelper::normalizeType($type, 'Package config');
-
-		if ($type === 'plugin') {
-			return ['dev', 'registry'];
-		}
+		PackageTypeHelper::normalizeType($type, 'Package config');
 
 		return ['registry'];
 	}

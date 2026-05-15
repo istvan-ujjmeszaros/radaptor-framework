@@ -60,7 +60,7 @@ class CLICommandBuildDb extends AbstractCLICommand
 	 */
 	public static function create(array $dsn_array): void
 	{
-		$schema_array = DbSchemaDataBuilder::buildSchemaArray($dsn_array, run_plugin_hooks: true);
+		$schema_array = DbSchemaDataBuilder::buildSchemaArray($dsn_array);
 
 		$schema_array_string = GeneratorHelper::formatArrayForExport($schema_array);
 
