@@ -62,6 +62,21 @@ final class DebugSession
 		return self::state()->features;
 	}
 
+	/**
+	 * Whether this request should skip persistent page-cache reads for debug.
+	 *
+	 * This runs from persistent_cache_reader.php, before Kernel initialization,
+	 * so the session/user/roles are not available yet. It therefore gates only
+	 * on the debug header plus the DEV_APP_DEBUG_INFO config flag — the
+	 * developer-role check still happens later in isDebugAllowed(). Keeping the
+	 * config flag here means the header cannot bypass the cache in production.
+	 */
+	public static function isCacheBypassRequested(): bool
+	{
+		return (bool)Config::DEV_APP_DEBUG_INFO->value()
+			&& Request::header(self::HEADER_NAME) === '1';
+	}
+
 	private static function state(): DebugSessionState
 	{
 		return RequestContextHolder::current()->debug;

@@ -21,7 +21,7 @@ define('PERSISTENT_CACHE_KEY_RESOURCETYPE_WEBPAGE', "user:{$tmp_user_id}:REQUEST
 
 $is_fragment_request = (($_GET['context'] ?? '') === 'fragment')
 	|| Request::isHtmxRequest();
-$is_radaptor_debug_request = Request::header('Radaptor-Debug') === '1';
+$is_radaptor_debug_request = DebugSession::isCacheBypassRequested();
 
 if ($is_fragment_request) {
 	RequestContextHolder::disablePersistentCacheWrite();
