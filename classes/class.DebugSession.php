@@ -9,7 +9,6 @@ final class DebugSession
 	private const array FEATURES = [
 		'tree',
 		'dommap',
-		'messages',
 		'timings',
 	];
 
