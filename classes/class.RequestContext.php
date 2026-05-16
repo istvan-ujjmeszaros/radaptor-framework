@@ -6,6 +6,7 @@ class RequestContext
 	public array $POST = [];
 	public array $SERVER = [];
 	public array $COOKIE = [];
+	public DebugSessionState $debug;
 	public bool $sessionStarted = false;
 	public ?string $sessionId = null;
 	public array $sessionData = [];
@@ -22,4 +23,9 @@ class RequestContext
 	public array $inMemoryCache = [];
 	public array $userConfigCache = [];
 	public bool $persistentCacheWriteEnabled = true;
+
+	public function __construct()
+	{
+		$this->debug = DebugSessionState::disabled();
+	}
 }
